@@ -26,3 +26,6 @@ run-output/
 Thumbs.db
 .idea/
 .vscode/
+
+# demo render outputs (frames, chrome profile, video)
+demo/out/

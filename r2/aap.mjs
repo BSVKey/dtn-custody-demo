@@ -18,7 +18,10 @@ function serialize(type, eid, payload) {
 }
 
 export class AAP extends EventEmitter {
-  constructor() { super(); this.buf = Buffer.alloc(0); }
+  // Replies to REGISTER (ACK) and SENDBUNDLE (SENDCONFIRM) arrive in request order on
+  // the one socket, so pending requests are resolved from FIFO queues rather than
+  // per-call event listeners (which pile up under concurrent sends).
+  constructor() { super(); this.buf = Buffer.alloc(0); this.ackQ = []; this.confirmQ = []; }
 
   connect(host, port, tries = 50) {
     return new Promise((resolve, reject) => {
@@ -50,17 +53,17 @@ export class AAP extends EventEmitter {
 
   _dispatch(type, eid, payload, bundleId) {
     if (type === T.WELCOME) { this.nodeEid = eid; this.emit("welcome", eid); }
-    else if (type === T.ACK) this.emit("ack");
+    else if (type === T.ACK) { const r = this.ackQ.shift(); if (r) r(); }
     else if (type === T.NACK) this.emit("nack");
-    else if (type === T.SENDCONFIRM) this.emit("sendconfirm", bundleId);
+    else if (type === T.SENDCONFIRM) { const r = this.confirmQ.shift(); if (r) r(bundleId); }
     else if (type === T.RECVBUNDLE) { this.sock.write(Buffer.from([0x10 | T.ACK])); this.emit("bundle", eid, payload); }
     else if (type === T.PING) this.sock.write(Buffer.from([0x10 | T.ACK]));
   }
 
   register(agentId) {
-    return new Promise((res) => { this.once("ack", res); this.sock.write(serialize(T.REGISTER, agentId)); });
+    return new Promise((res) => { this.ackQ.push(res); this.sock.write(serialize(T.REGISTER, agentId)); });
   }
   send(destEid, payloadBuf) {
-    return new Promise((res) => { this.once("sendconfirm", res); this.sock.write(serialize(T.SENDBUNDLE, destEid, payloadBuf)); });
+    return new Promise((res) => { this.confirmQ.push(res); this.sock.write(serialize(T.SENDBUNDLE, destEid, payloadBuf)); });
   }
 }
