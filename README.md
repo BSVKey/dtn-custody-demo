@@ -51,10 +51,16 @@ infrastructure:
   bundles **held in µD3TN storage across a scheduled contact gap** (real bundle
   custody, not TCP retransmit). See `r2/RESULTS.md`.
 
-**One seam remains:**
-1. **Live settlement:** the delivery binding uses a placeholder `settlementRef`; the
-   live path takes a real BSV txid (`readSettlement(res).txid`) and anchors the root
-   on-chain (a broadcast). Everything else runs.
+- **Live settlement (`make live`)** binds the delivery receipt to a **real, on-chain-
+  verified BSV settlement** (WhatsOnChain): the receipt names the txid the verifier
+  paid, and that txid is confirmed on chain to pay the seller. Verified against a real
+  mainnet settlement (5942 sats, 2351+ conf). See `live/`.
+
+**What is left is one operator broadcast, not a code seam:**
+- **Provenance anchor:** committing the manifest root to the chain in an OP_RETURN is a
+  spend, so the operator broadcasts it (`buildAnchorTx` produces the unbroadcast tx, or
+  use the BSVKey on-chain tooling). The **anchor verifier is built** and confirms the
+  root once an anchor txid exists (`ANCHOR_TXID=<txid> make live`).
 
 Mission-latency contact plans (real Moon/Mars/Uranus delays) are a refinement on the
 proven R2 path, not a seam.
