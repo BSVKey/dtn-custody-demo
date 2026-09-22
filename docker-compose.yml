@@ -1,0 +1,53 @@
+# 4-node BPv7 DTN testbed (M0 stub).
+#
+# Topology:  source(rover) -L1- relayA(orbiter) -L2- relayB(ground-relay) -L3- dest(earth-gs)
+#
+# Each node runs a BPv7 bundle agent (µD3TN primary, dtn7-rs fallback) plus our
+# application agent. Links L1..L3 are shaped with `tc netem` for one-way delay, loss,
+# jitter and reordering; link up/down is driven by a contact plan (contact-plans/) to
+# emulate line-of-sight and occultation.
+#
+# This file is a STUB: it declares the four nodes and a shared control network. The
+# netem shaping and the bundle-agent images are filled in at M0. Nodes are given
+# NET_ADMIN so they can run `tc` on their own veths.
+
+services:
+  source:
+    image: dtn-node:dev          # built at M0 (µD3TN or dtn7-rs + our agent)
+    hostname: source
+    cap_add: ["NET_ADMIN"]
+    environment:
+      NODE_ROLE: source
+      NODE_EID: "dtn://source/"
+    volumes: ["./agent:/agent:ro", "./contact-plans:/contact-plans:ro"]
+
+  relaya:
+    image: dtn-node:dev
+    hostname: relaya
+    cap_add: ["NET_ADMIN"]
+    environment:
+      NODE_ROLE: relay
+      NODE_EID: "dtn://relaya/"
+    volumes: ["./agent:/agent:ro", "./contact-plans:/contact-plans:ro"]
+
+  relayb:
+    image: dtn-node:dev
+    hostname: relayb
+    cap_add: ["NET_ADMIN"]
+    environment:
+      NODE_ROLE: relay
+      NODE_EID: "dtn://relayb/"
+    volumes: ["./agent:/agent:ro", "./contact-plans:/contact-plans:ro"]
+
+  dest:
+    image: dtn-node:dev
+    hostname: dest
+    cap_add: ["NET_ADMIN"]
+    environment:
+      NODE_ROLE: dest
+      NODE_EID: "dtn://dest/"
+    volumes: ["./agent:/agent:ro", "./contact-plans:/contact-plans:ro"]
+
+networks:
+  default:
+    name: dtn-testbed

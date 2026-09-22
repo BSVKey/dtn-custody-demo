@@ -1,0 +1,26 @@
+# Node
+node_modules/
+npm-debug.log*
+.env
+.env.*
+*.key
+*.wif
+wallet.key
+payer.key
+
+# Rust (dtn7-rs fallback)
+target/
+Cargo.lock
+
+# Build / run artifacts
+dist/
+build/
+*.log
+run-output/
+*.pcap
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
