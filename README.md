@@ -77,6 +77,25 @@ npm test        # acceptance criteria, offline, deterministic
 npm run demo    # the end-to-end pipeline with readable output
 ```
 
+## Standards and heritage
+
+This layer sits on top of a deployed, standardized transport; it does not reinvent DTN.
+
+- **Standard.** Bundle Protocol v7 is an IETF standard: [RFC 9171](https://datatracker.ietf.org/doc/html/rfc9171),
+  with BPSec (RFC 9172), default security contexts (RFC 9173), and the TCP convergence
+  layer (RFC 9174), updated by RFC 9713 (2025). BPv6 was RFC 5050; the architecture is
+  RFC 4838.
+- **Deployed.** DTN runs operationally on the International Space Station (the DTNME
+  engine), first flew in space on UK-DMC (2008), was demonstrated deep-space by NASA JPL's
+  DINET (Deep Impact / EPOXI), and is used by NASA's PACE mission. This reference uses
+  [µD3TN](https://gitlab.com/d3tn/ud3tn), a space-tested BPv7 implementation.
+- **Heritage.** "Delay-tolerant networking" was coined by Kevin Fall (2002), out of Vint
+  Cerf's Interplanetary Internet work, with ARPA/DARPA lineage.
+- **The gap this fills.** BPv7 standardizes how bundles move, but defines no native
+  payment, incentive, or economic model, and only limited trust verification. It does not
+  say who paid for a delivery, or how to prove the custody chain offline. That settlement
+  and verifiable-custody layer is what this adds, on top of the standard, not instead of it.
+
 ## Acceptance criteria (what "done" means)
 1. Out-of-order chunk integrity against a Merkle root; a tampered chunk is rejected.
 2. A 3-hop custody chain verifies; a forged or missing hop is detected.
