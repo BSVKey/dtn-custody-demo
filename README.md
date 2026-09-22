@@ -68,11 +68,10 @@ infrastructure:
   paid, and that txid is confirmed on chain to pay the seller. Verified against a real
   mainnet settlement (5942 sats, 2351+ conf). See `live/`.
 
-**What is left is one operator broadcast, not a code seam:**
-- **Provenance anchor:** committing the manifest root to the chain in an OP_RETURN is a
-  spend, so the operator broadcasts it (`buildAnchorTx` produces the unbroadcast tx, or
-  use the BSVKey on-chain tooling). The **anchor verifier is built** and confirms the
-  root once an anchor txid exists (`ANCHOR_TXID=<txid> make live`).
+- **Provenance anchor** is on chain: the manifest root of `live/anchored-payload.txt` is
+  committed in an OP_RETURN (tx [`d49777e4…89e8ca`](https://whatsonchain.com/tx/d49777e46abe6dfa02586d3ab81f91c52fb9026dd667d6adafd848fa8889e8ca)),
+  and `make live` verifies it by default. `buildAnchorTx` builds (never broadcasts) the
+  anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
 
 Mission-latency contact plans (real Moon/Mars/Uranus delays) are a refinement on the
 proven R2 path, not a seam.
