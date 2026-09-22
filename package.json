@@ -1,0 +1,14 @@
+{
+  "name": "dtn-custody-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Verifiable data-custody + relay-payment layer over DTN (feasibility demo).",
+  "scripts": {
+    "demo": "node run-demo.mjs",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18" },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Embryo Space Inc. (DBA BSVKey)"
+}

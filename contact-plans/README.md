@@ -12,5 +12,9 @@ unscaled as a fidelity check.
 - `mars-occultation.json`   Mars: 3-22 min, compressed, conjunction blackout. (TODO)
 - `uranus-occultation.json` Uranus: ~2.6 light-hours, compressed. (TODO)
 
+Note: Uranus is a **latency/distance exemplar** (the 2023 Decadal #1 flagship), not
+an ocean world. The ocean-world science targets are moons, canonically Enceladus and
+Europa; the under-ice tier maps to those, not to the ice-giant planets.
+
 Schema (draft): `delays` sets per-link one-way delay + loss; `contacts` lists up/down
 windows per link; `scale` is the wall-clock compression factor (1 = real time).
