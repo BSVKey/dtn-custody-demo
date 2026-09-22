@@ -11,11 +11,13 @@ const W = 110, H = 30;
 const AMBER = "\x1b[38;5;214m", DIM = "\x1b[90m", RST = "\x1b[0m", CLR = "\x1b[2J\x1b[H";
 
 const steps = [
-  { cap: "1/4  acceptance suite: offline, deterministic", show: "npm test", run: "npm test", idle: 0.6 },
-  { cap: "2/4  full pipeline over the simulator: chunk > Merkle > occultation gap > verify > settle", show: "npm run demo", run: "npm run demo", idle: 0.6 },
-  { cap: "3/4  same custody chain over real Bundle Protocol v7 (uD3TN), held across a real contact gap", show: "make r2",
+  { cap: "1/5  acceptance suite: offline, deterministic", show: "npm test", run: "npm test", idle: 0.6 },
+  { cap: "2/5  full pipeline over the simulator: chunk > Merkle > occultation gap > verify > settle", show: "npm run demo", run: "npm run demo", idle: 0.6 },
+  { cap: "3/5  real Linux netem links (150ms + reorder), then a real 100%-loss blackout: the payload survives", show: "make spike",
+    run: "docker run --rm --privileged dtn-custody-m0", idle: 2.0 },
+  { cap: "4/5  same custody chain over real Bundle Protocol v7 (uD3TN), held across a real contact gap", show: "make r2",
     run: "docker run --rm dtn-custody-r2 bash /app/r2/run-r2.sh", idle: 3.0 },
-  { cap: "4/4  delivery bound to a real on-chain BSV settlement + provenance anchor", show: "make live", run: "node live/run-live.mjs", idle: 0.6 },
+  { cap: "5/5  delivery bound to a real on-chain BSV settlement + provenance anchor", show: "make live", run: "node live/run-live.mjs", idle: 0.6 },
 ];
 
 const events = [];

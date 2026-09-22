@@ -2,9 +2,9 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-![Demo: the test suite, the full pipeline, real BPv7 custody across a contact gap, and delivery bound to a real on-chain settlement](demo/dtn-demo.gif)
+![Demo: the test suite, the full pipeline, a real netem blackout, real BPv7 custody across a contact gap, and delivery bound to a real on-chain settlement](demo/dtn-demo.gif)
 
-*The demo above is a real run (`npm test`, `npm run demo`, `make r2`, `make live`), recorded by
+*The demo above is a real run (`npm test`, `npm run demo`, `make spike`, `make r2`, `make live`), recorded by
 [`demo/record.mjs`](demo/record.mjs) and rendered by [`demo/render.mjs`](demo/render.mjs). The
 closing card reads the anchor transaction live from the chain and recomputes the payload's root.*
 
