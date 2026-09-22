@@ -1,20 +1,26 @@
 # dtn-custody-demo
 
-**Private. Proprietary. Pre-funding feasibility work.** Not for distribution.
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-A feasibility demonstration of a **verifiable data-custody and relay-payment layer**
-over delay/disruption-tolerant networking (DTN). It shows a chunked payload crossing a
-multi-hop, occultation-interrupted link where every chunk is verified against a Merkle
-root, each relay hop leaves a signed custody receipt, the blackout produces a
-documented gap object, and delivery is bound to a real BSV settlement.
+A **reference implementation of a verifiable data-custody and relay-payment layer** for
+delay/disruption-tolerant networking (DTN), with settlement on **BSV**. A chunked
+payload crosses a multi-hop, occultation-interrupted link where every chunk is verified
+against a Merkle root, each relay hop leaves a signed custody receipt, the blackout
+produces a documented gap object, and delivery is bound to a real on-chain BSV
+settlement, with the manifest root anchored on chain for provenance.
 
-This rides standard **BPv7 (RFC 9171)** for transport and adds the custody +
-verification + payment work as an application-layer agent on top. It reuses the
-shipped BSVKey receipt / `bindX402Receipt` code. **Out of scope:** the physical RF
-layer (modulation, coding, pointing, FEC).
+It rides standard **BPv7 (RFC 9171)** for transport (µD3TN) and adds the custody,
+verification, and payment work as an application-layer agent on top, using the same
+content-addressed receipt route as [`@bsvkey/x402-bsv-client`](https://www.npmjs.com/package/@bsvkey/x402-bsv-client)
+and the [ASM capacity-attest](https://github.com/YE-YI7/asm-spec) work. **Out of scope,
+by design:** the physical RF layer (modulation, coding, pointing, FEC).
 
-Full design, milestones, acceptance criteria, and fundability mapping:
-[`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md).
+This is published as an open reference implementation for the BSV ecosystem: the
+protocol, agent library, DTN adapters, and on-chain verifiers are here under Apache-2.0
+so anyone can build verifiable data-custody and relay settlement on BSV. See
+[Open core vs. hosted service](#open-core-vs-hosted-service).
+
+Full design, milestones, and acceptance criteria: [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md).
 
 ## One-line scope
 `chunk → Merkle → BPv7 bundles → multi-hop store-and-forward with a scripted
@@ -79,5 +85,23 @@ npm run demo    # the end-to-end pipeline with readable output
 5. The manifest root is anchored on-chain and re-derives from the received payload.
 6. Runs headless in CI (compressed delays) plus a `--live` mode with one real anchor.
 
+## Open core vs. hosted service
+
+This repository is the **open core** under Apache-2.0: the protocol, the agent library
+(`agent/`), the DTN transport adapters (`transport/`, `m0/`, `r2/`), the verifiers, and
+the live on-chain checks (`live/`). Use it, fork it, build on it.
+
+What is **not** in this repository and is not covered by this license: a hosted BSV
+settlement facilitator and relay marketplace, managed key custody, enterprise and
+compliance features, and the BSVKey brand. Those are operated separately. The open core
+settles on BSV; running a production relay-payment service on top of it is where the
+hosted offering lives.
+
+## Contributing and security
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`SECURITY.md`](SECURITY.md). The keys and
+funds in any live path are yours; this reference implementation never holds them.
+
 ---
-© Embryo Space Inc. (DBA BSVKey). All rights reserved. Proprietary and confidential.
+Copyright 2026 Embryo Space Inc. (DBA BSVKey). Licensed under the Apache License 2.0.
+See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

@@ -1,0 +1,11 @@
+dtn-custody-demo
+Copyright 2026 Embryo Space Inc. (DBA BSVKey)
+
+This product includes software developed by Embryo Space Inc. (DBA BSVKey).
+
+A reference implementation of a verifiable data-custody and relay-payment layer over
+delay/disruption-tolerant networking (DTN), with settlement on BSV. Licensed under the
+Apache License, Version 2.0.
+
+The hosted BSV settlement facilitator, relay marketplace, managed key custody, and the
+BSVKey brand are separate and are not covered by this license.

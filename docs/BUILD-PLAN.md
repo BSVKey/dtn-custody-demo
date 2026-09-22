@@ -1,13 +1,11 @@
-# DTN Custody + Payment Demo: Build Plan
-### Space Ocean Corp / BSVKey feasibility demonstration
+# DTN Custody + Payment Demo: Design and Build Record
+### A BSVKey / Embryo Space reference implementation
 
-**Purpose.** Turn the "verifiable deep-space data custody + relay-payment layer"
-concept into one runnable end-to-end demonstration over an emulated
-delayed/disrupted link. The demo is the feasibility receipt that converts the
-concept note into a Phase I proposal: a reviewer can run it, watch a chunked payload
-cross a multi-hop DTN with an occultation blackout, and see every chunk verified
-against a Merkle root, a signed custody receipt at each hop, a documented gap object
-across the blackout, and a micropayment settled for delivery.
+**Purpose.** A runnable, end-to-end demonstration of the verifiable data custody +
+relay-payment layer over an emulated delayed/disrupted link: a chunked payload crosses
+a multi-hop DTN with an occultation blackout, and every chunk is verified against a
+Merkle root, a signed custody receipt is stamped at each hop, a gap object is recorded
+across the blackout, and delivery is settled with a micropayment.
 
 **One-line scope.** `chunk → Merkle → BPv7 bundles → multi-hop store-and-forward
 with a scripted occultation → out-of-order Merkle verification → per-hop custody
@@ -30,8 +28,8 @@ scripted from a **contact plan** to emulate line-of-sight and occultation.
 1. **Transport: standard BPv7 (RFC 9171).** We do not reinvent DTN. Bundles carry our
    payload between nodes with store-and-forward and scheduled-contact routing.
 2. **Custody + verification + payment: our application agent.** A bundle application
-   that runs at each node and does the Space Ocean/BSVKey work. This is the novel,
-   fundable part, and it sits *on top of* BPv7 so it is portable across DTN stacks.
+   that runs at each node and does the custody + verification + payment work. This is
+   the novel part, and it sits *on top of* BPv7 so it is portable across DTN stacks.
 
 **Design choice that is also a selling point:** custody is an
 **application-layer, cryptographic** construct (a signed, content-addressed receipt),
@@ -42,7 +40,6 @@ verifiable a session late, which is exactly the deep-space requirement.
 ### DTN stack choice
 - **Primary: µD3TN** (D3TN GmbH, BPv7, C, lightweight, flight heritage on ESA
   OPS-SAT). Its Application Agent Protocol (AAP) is a clean seam to attach our agent.
-  The flight-heritage argument matters to NASA/ESA reviewers.
 - **Fallback: dtn7-rs** (Rust BPv7, REST/WebSocket application interface, very
   hackable). Use if µD3TN's AAP integration proves fiddly inside the timebox.
 - Routing: scheduled-contact routing / Contact Graph Routing so the occultation
@@ -118,7 +115,7 @@ of every demo run is wasteful. So:
   proves the mechanism.
 - **Final delivery + provenance anchor:** **one real BSV mainnet settlement + one real
   anchor tx**, pinned like the existing fixtures. Mostly deterministic/offline, one
-  live anchor: the exact pattern the ASM fixtures already use and reviewers accepted.
+  live anchor: the exact pattern the ASM fixtures already use.
 
 This keeps the demo honest (real chain where it counts) and runnable for free in CI.
 
@@ -152,21 +149,7 @@ the manifest exists.
 
 ---
 
-## 7. Fundability mapping
-
-- **NASA SBIR/STTR:** resilient/cognitive networking, DTN, and data-integrity topics.
-  The demo is direct evidence for a Phase I feasibility claim.
-- **DoD / SDA / DAF (dual-use):** assured comms and data integrity over contested,
-  disrupted links; provenance for sensor data crossing relays you do not own. Ties to
-  the existing VOSB gov identity (UEI RTKTVD8BTEC9 / CAGE 9KJR9) and the CISTERN-12 /
-  SBIR track already in flight.
-- **Positioning:** custody-of-data as the twin of Space Ocean's custody-of-water. The
-  demo makes the layer a *shown* capability, not a slide, which is the line between
-  conceptual and fundable.
-
----
-
-## 8. Risks and mitigations
+## 7. Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
@@ -177,7 +160,7 @@ the manifest exists.
 
 ---
 
-## 9. Immediate next actions
+## 8. Immediate next actions
 
 1. Pick µD3TN vs dtn7-rs (recommend a 2-day M0 spike on µD3TN first).
 2. Stand up the 4-node `netem` testbed with one scripted occultation. That single
@@ -185,4 +168,4 @@ the manifest exists.
    3-minute demo before any of the crypto layer lands.
 3. Wire M1 on top, reusing the existing canonical-hash + receipt code.
 
-*Prepared for internal Space Ocean Corp / BSVKey review. Draft, not for external distribution.*
+*A reference implementation by Embryo Space Inc. (DBA BSVKey). Licensed under Apache-2.0.*

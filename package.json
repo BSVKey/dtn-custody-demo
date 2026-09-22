@@ -11,8 +11,9 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "author": "Embryo Space Inc. (DBA BSVKey)",
+  "repository": { "type": "git", "url": "https://github.com/BSVKey/dtn-custody-demo.git" },
   "dependencies": {
     "@bsv/sdk": "^2.7.1"
   }
