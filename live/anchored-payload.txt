@@ -1,0 +1,4 @@
+Space Ocean Corp / BSVKey - DTN Custody Demo - provenance anchor artifact.
+This fixed payload is chunked (64-byte chunks) and Merkle-committed; its root is
+anchored on the BSV chain in an OP_RETURN. Re-derive the root from this exact file
+to verify the anchor. Custody of data, the twin of custody of water.

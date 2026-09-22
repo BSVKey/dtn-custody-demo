@@ -35,13 +35,14 @@ export async function verifyAnchorOnChain(txid, root, { minConf = 0 } = {}) {
 }
 
 // Build (do NOT broadcast) a signed OP_RETURN tx anchoring `root`. Requires @bsv/sdk and
-// a funded WIF. Returns { txhex, txid, address }. The operator broadcasts txhex.
-export async function buildAnchorTx({ root, wif, wocBase = WOC }) {
+// a funded key (a WIF, or a PrivateKey via `priv`). Returns { txhex, txid, address }.
+// The operator broadcasts txhex; this function never touches the network to send.
+export async function buildAnchorTx({ root, wif, priv: privIn, wocBase = WOC }) {
   let sdk;
   try { sdk = await import("@bsv/sdk"); }
   catch { throw new Error("buildAnchorTx needs @bsv/sdk: `npm i @bsv/sdk` (or anchor via the existing BSVKey on-chain tooling)"); }
   const { PrivateKey, Transaction, P2PKH, Script, Utils } = sdk;
-  const priv = PrivateKey.fromWif(wif);
+  const priv = privIn || PrivateKey.fromWif(wif);
   const address = priv.toPublicKey().toAddress();
   const unspent = await (await fetch(`${wocBase}/address/${address}/unspent`)).json();
   if (!unspent || !unspent.length) throw new Error(`unfunded: ${address}`);

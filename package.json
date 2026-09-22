@@ -8,7 +8,12 @@
     "demo": "node run-demo.mjs",
     "test": "node --test"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "SEE LICENSE IN LICENSE",
-  "author": "Embryo Space Inc. (DBA BSVKey)"
+  "author": "Embryo Space Inc. (DBA BSVKey)",
+  "dependencies": {
+    "@bsv/sdk": "^2.7.1"
+  }
 }
