@@ -1,0 +1,15 @@
+{
+  "keysFile": "m0/.keys.json",
+  "eids": { "source": "dtn://source/", "relaya": "dtn://relaya/", "relayb": "dtn://relayb/", "dest": "dtn://dest/" },
+  "hosts": { "relaya": "10.0.1.2", "relayb": "10.0.2.2", "dest": "10.0.3.2" },
+  "ports": { "relaya": 5401, "relayb": 5402, "dest": 5403 },
+  "payloadId": "0xrover-frame-001",
+  "chunkSize": 64,
+  "appHold": false,
+  "sourceStaggerMs": 300,
+  "graceMs": 2000,
+  "occultation": { "relay": "relaya", "link": "L2", "downMs": 800, "upMs": 3800 },
+  "settlementRef": "0x4e40b7bf86a0ca24f9746f3b6b5178def04b3a29024e4c7c9f8b95099ce380b8",
+  "payTo": "1LdqUbdZ6GY71KxThU6aKfuKXxgmTn82cv",
+  "amountAtomic": 5942
+}

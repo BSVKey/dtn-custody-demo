@@ -1,0 +1,6 @@
+# Shell scripts and the Dockerfile run in a Linux container: they MUST be LF, or bash
+# fails on the CR. Force it regardless of the checkout platform.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf

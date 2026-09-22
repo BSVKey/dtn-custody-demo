@@ -1,28 +1,28 @@
-# One-command entry points (stubs; implemented per milestone in docs/BUILD-PLAN.md).
-.PHONY: help demo up down test clean spike
+# One-command entry points.
+.PHONY: help demo test spike spike-local clean
 
 help:
-	@echo "make spike   - M0: bring up the 4-node BPv7 testbed and push one bundle end to end"
-	@echo "make up       - start the testbed (docker-compose up)"
-	@echo "make down     - stop the testbed"
-	@echo "make demo     - full run: chunk -> Merkle -> custody -> occultation gap -> settlement"
-	@echo "make test     - acceptance criteria (offline, deterministic)"
-	@echo "make clean    - remove run artifacts"
-
-spike:
-	@echo "TODO M0: build dtn-node image, wire netem on L1..L3, send one bundle source->dest"
-
-up:
-	docker compose up -d
-
-down:
-	docker compose down
-
-demo:
-	@echo "TODO: end-to-end demo (see docs/BUILD-PLAN.md sections 2-4)"
+	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
+	@echo "make demo        - full pipeline over the in-process simulator, readable output"
+	@echo "make spike-local - M0 R1 over a REAL socket transport + scripted occultation (no Docker)"
+	@echo "make spike       - M0 R1 over real veths + tc netem + a real L2 blackout (needs Docker + privileged)"
+	@echo "make clean       - remove run artifacts"
 
 test:
-	@echo "TODO: acceptance criteria 1-6 (see docs/BUILD-PLAN.md section 3)"
+	node --test
+
+demo:
+	node run-demo.mjs
+
+# Validated here: real sockets, real store-and-forward, scripted occultation.
+spike-local:
+	node m0/run-local.mjs
+
+# Same processes over real veths with tc netem and a REAL L2 loss window. Needs a
+# Docker host with the engine running; the container runs privileged for netns/tc.
+spike:
+	docker build -t dtn-custody-m0 -f m0/Dockerfile .
+	docker run --rm --privileged dtn-custody-m0
 
 clean:
-	rm -rf run-output *.log *.pcap
+	rm -rf run-output *.log *.pcap m0/.keys.json m0/.m0-config.json

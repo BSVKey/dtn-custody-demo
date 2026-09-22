@@ -7,6 +7,8 @@ npm-debug.log*
 *.wif
 wallet.key
 payer.key
+m0/.keys.json
+m0/.m0-config.json
 
 # Rust (dtn7-rs fallback)
 target/

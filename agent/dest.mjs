@@ -42,8 +42,14 @@ export function makeDest(kp, manifest, pinnedHops) {
     },
 
     // Verify the custody chain recorded for a bundle against the pinned hop keys.
+    // Custody receipts can arrive interleaved/out of order over a real transport, so
+    // order them by their position in the pinned hop list before checking the chain.
     verifyChain(bundleId) {
-      return verifyCustodyChain(custody.get(bundleId) || [], { bundleId, hops: pinnedHops });
+      const order = new Map(pinnedHops.map((h, i) => [h.eid, i]));
+      const sorted = [...(custody.get(bundleId) || [])].sort(
+        (a, b) => (order.get(a.thisHop) ?? 99) - (order.get(b.thisHop) ?? 99),
+      );
+      return verifyCustodyChain(sorted, { bundleId, hops: pinnedHops });
     },
 
     // Produce a delivery receipt and bind it to the caller's own settlement. The

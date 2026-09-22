@@ -5,13 +5,22 @@
 // @bsvkey/x402-bsv-client, where the signer is RECOVERED from the signature rather
 // than carried. The content-addressing route (sha256 of canonical JSON) is identical;
 // only the signature envelope differs, and it lives entirely behind this module.
-import { generateKeyPairSync, sign as nodeSign, verify as nodeVerify, createPublicKey } from "node:crypto";
+import { generateKeyPairSync, sign as nodeSign, verify as nodeVerify, createPublicKey, createPrivateKey } from "node:crypto";
 
 // A keypair: { priv (KeyObject), pub (base64 SPKI DER) }.
 export function genKeypair() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
   const pub = publicKey.export({ type: "spki", format: "der" }).toString("base64");
   return { priv: privateKey, pub };
+}
+
+// Serialize a keypair so separate node processes (the socket transport) can each be
+// provisioned with their own private key and the pinned public keys of the others.
+export function exportKeypair(kp) {
+  return { priv: kp.priv.export({ type: "pkcs8", format: "pem" }), pub: kp.pub };
+}
+export function importKeypair(obj) {
+  return { priv: createPrivateKey(obj.priv), pub: obj.pub };
 }
 
 // Sign a claimId string; returns a base64 detached signature.
