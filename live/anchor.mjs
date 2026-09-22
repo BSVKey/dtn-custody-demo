@@ -41,7 +41,7 @@ export async function buildAnchorTx({ root, wif, priv: privIn, wocBase = WOC }) 
   let sdk;
   try { sdk = await import("@bsv/sdk"); }
   catch { throw new Error("buildAnchorTx needs @bsv/sdk: `npm i @bsv/sdk` (or anchor via the existing BSVKey on-chain tooling)"); }
-  const { PrivateKey, Transaction, P2PKH, Script, Utils } = sdk;
+  const { PrivateKey, Transaction, P2PKH, Script, Utils, SatoshisPerKilobyte } = sdk;
   const priv = privIn || PrivateKey.fromWif(wif);
   const address = priv.toPublicKey().toAddress();
   const unspent = await (await fetch(`${wocBase}/address/${address}/unspent`)).json();
@@ -61,7 +61,9 @@ export async function buildAnchorTx({ root, wif, priv: privIn, wocBase = WOC }) 
     if (inSats > 500) break;
   }
   tx.addOutput({ lockingScript: new P2PKH().lock(priv.toPublicKey().toHash()), change: true });
-  await tx.fee();
+  // Explicit 1 sat/byte: the default model set ~0.13 sat/byte, below the relay minimum,
+  // and the broadcast was rejected. 1 sat/byte is the standard BSV floor.
+  await tx.fee(new SatoshisPerKilobyte(1000));
   await tx.sign();
   return { txhex: Utils.toHex(tx.toBinary()), txid: tx.id("hex"), address };
 }
