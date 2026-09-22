@@ -40,16 +40,24 @@ run-demo.mjs         the end-to-end demo (npm run demo)
 ```
 
 ## Status
-The **application layer is implemented and green**: `npm test` passes the acceptance
-criteria and `npm run demo` runs the full pipeline offline (chunk → Merkle →
-occultation → out-of-order verify → custody chain → gap object → settlement binding),
-zero dependencies. **Two seams remain**, both requiring external infra or a broadcast:
-1. **Real transport (M0):** swap `transport/sim.mjs` for BPv7 over µD3TN/dtn7-rs with
-   `netem` shaping in the docker testbed. Interface documented in
-   `transport/bpv7-adapter.md`; the agent code is unchanged behind it.
-2. **Live settlement:** the delivery binding uses a placeholder `settlementRef`; the
+The **application layer is implemented and green**, and it has been proven over real
+infrastructure:
+- `npm test` passes the acceptance criteria; `npm run demo` runs the full pipeline
+  offline (zero dependencies).
+- **M0 (`make spike` / `make spike-local`)** carries the payload over a real transport
+  through an occultation: `spike-local` over real sockets, `make spike` over real veths
+  with `tc netem` and a real 100%-loss L2 blackout. See `m0/RESULTS.md`.
+- **R2 (`make r2`)** carries the same custody chain over **real µD3TN BPv7**, with the
+  bundles **held in µD3TN storage across a scheduled contact gap** (real bundle
+  custody, not TCP retransmit). See `r2/RESULTS.md`.
+
+**One seam remains:**
+1. **Live settlement:** the delivery binding uses a placeholder `settlementRef`; the
    live path takes a real BSV txid (`readSettlement(res).txid`) and anchors the root
-   on-chain.
+   on-chain (a broadcast). Everything else runs.
+
+Mission-latency contact plans (real Moon/Mars/Uranus delays) are a refinement on the
+proven R2 path, not a seam.
 
 Run it:
 ```bash

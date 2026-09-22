@@ -6,6 +6,7 @@ help:
 	@echo "make demo        - full pipeline over the in-process simulator, readable output"
 	@echo "make spike-local - M0 R1 over a REAL socket transport + scripted occultation (no Docker)"
 	@echo "make spike       - M0 R1 over real veths + tc netem + a real L2 blackout (needs Docker + privileged)"
+	@echo "make r2          - R2: custody chain over REAL µD3TN BPv7, held across a contact gap (needs Docker)"
 	@echo "make clean       - remove run artifacts"
 
 test:
@@ -23,6 +24,12 @@ spike-local:
 spike:
 	docker build -t dtn-custody-m0 -f m0/Dockerfile .
 	docker run --rm --privileged dtn-custody-m0
+
+# R2: our custody agent over real BPv7 (µD3TN built from source), bundles held in
+# µD3TN storage across a scheduled contact gap (real bundle custody).
+r2:
+	docker build -t dtn-custody-r2 -f r2/Dockerfile .
+	docker run --rm dtn-custody-r2 bash /app/r2/run-r2.sh
 
 clean:
 	rm -rf run-output *.log *.pcap m0/.keys.json m0/.m0-config.json
