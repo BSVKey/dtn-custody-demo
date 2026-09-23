@@ -26,4 +26,8 @@ coordinated disclosure.
 - Bind delivery to the settlement **you** paid (`bindDelivery` / `verifySettlementOnChain`);
   never trust a receipt's self-declared settlement without checking it against your own
   transaction. An unbound check refuses by design.
+- Pin the source key yourself: `makeDest(kp, manifest, pinnedHops, { sourcePub })`. The
+  manifest carries its own `signerPub`, so authorship only means something against a key
+  you already trust; a missing `sourcePub` refuses (`unpinned`) and a manifest signed by
+  any other key is refused (`signer_not_pinned_source_key`).
 - Verify custody chains against the hop keys you pin, not keys carried in the record.

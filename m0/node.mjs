@@ -154,7 +154,7 @@ async function runDest() {
   };
   const server = net.createServer((sock) => {
     onFrames(sock, (f) => {
-      if (f.type === "manifest") { manifest = f.manifest; dest = makeDest(destKp, manifest, pinnedHops); maybeFinish(); }
+      if (f.type === "manifest") { manifest = f.manifest; dest = makeDest(destKp, manifest, pinnedHops, { sourcePub: keys.source.pub }); maybeFinish(); }
       else if (f.type === "bundle") { pendingBundles.push(f.bundle); maybeFinish(); }
       else if (f.type === "custody") pendingCustody.push({ bundleId: f.receipt.bundleId, receipt: f.receipt });
       else if (f.type === "eof" && !scheduled) setTimeout(finish, grace); // fallback trigger

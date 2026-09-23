@@ -81,7 +81,7 @@ async function runDest() {
 
   a.on("bundle", (_src, payloadBuf) => {
     const f = dec(payloadBuf);
-    if (f.kind === "manifest") { manifest = f.manifest; dest = makeDest(destKp, manifest, pinnedHops); maybeFinish(); }
+    if (f.kind === "manifest") { manifest = f.manifest; dest = makeDest(destKp, manifest, pinnedHops, { sourcePub: keys.source.pub }); maybeFinish(); }
     else if (f.kind === "bundle") { bundles.push({ bundle: f.bundle, custody: f.custody || [] }); maybeFinish(); }
     else if (f.kind === "eof" && !scheduled) setTimeout(finish, 600);
   });

@@ -48,7 +48,7 @@ line(`  out of order? ${ok(inOrder.some((v, i) => v !== i))}`);
 
 line("\n== Destination: verify each chunk against the root, out of order ==");
 const pinnedHops = [{ eid: EID.a, pub: relayaKp.pub }, { eid: EID.b, pub: relaybKp.pub }];
-const dest = makeDest(destKp, manifest, pinnedHops);
+const dest = makeDest(destKp, manifest, pinnedHops, { sourcePub: source.pub });
 let accepted = 0, rejected = 0;
 for (const bundle of sim.arrivalOrder) {
   const r = dest.receiveBundle(bundle);
@@ -56,6 +56,10 @@ for (const bundle of sim.arrivalOrder) {
   else rejected++;
 }
 line(`  accepted ${accepted} | rejected ${rejected} | complete ${ok(dest.isComplete())}`);
+const refusedReason = (fn) => { try { fn(); return null; } catch (e) { return e.reason; } };
+const stranger = prepare(genKeypair(), Buffer.from("forgery ".repeat(200)), { payloadId: "0xframe", chunkSize: 64 }).manifest;
+line(`  stranger-signed manifest refused? ${ok(refusedReason(() => makeDest(destKp, stranger, pinnedHops, { sourcePub: source.pub })) === "signer_not_pinned_source_key")} (refused: signer_not_pinned_source_key)`);
+line(`  UNPINNED source refuses? ${ok(refusedReason(() => makeDest(destKp, manifest, pinnedHops)) === "unpinned")}`);
 const reassembled = dest.reassemble();
 line(`  reassembled == original? ${ok(reassembled.equals(payload))}`);
 

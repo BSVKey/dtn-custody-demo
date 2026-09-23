@@ -4,9 +4,22 @@
 import { leafHash, verifyProof } from "./lib/merkle.mjs";
 import { verifyRecord, verifyCustodyChain, deliveryReceipt, bindDelivery } from "./lib/receipt.mjs";
 
-export function makeDest(kp, manifest, pinnedHops) {
+// Authorship is pinned the same way delivery is bound: the expected source key
+// (the manifest signer) MUST come from the verifier's own context, never from the
+// manifest, which carries its own signerPub. A missing sourcePub refuses rather
+// than skips, so a payload signed by a key the destination has never seen can't
+// verify end to end just because the relays forwarded it.
+function refuse(reason, detail) {
+  const e = new Error(detail ? `${reason}: ${detail}` : reason);
+  e.reason = reason;
+  return e;
+}
+
+export function makeDest(kp, manifest, pinnedHops, { sourcePub } = {}) {
+  if (!sourcePub) throw refuse("unpinned", "verifier must supply the expected source (manifest signer) key");
   const mv = verifyRecord(manifest);
-  if (!mv.ok) throw new Error(`manifest does not verify: ${mv.reason}`);
+  if (!mv.ok) throw refuse(mv.reason, "manifest does not verify");
+  if (String(mv.signer).toLowerCase() !== String(sourcePub).toLowerCase()) throw refuse("signer_not_pinned_source_key");
   const root = manifest.root;
   const chunks = new Map(); // index -> Buffer (only after passing the Merkle check)
   const custody = new Map(); // bundleId -> [receipts]

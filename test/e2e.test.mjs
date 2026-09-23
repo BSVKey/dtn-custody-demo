@@ -19,7 +19,7 @@ function runOnce() {
   const relays = { [EID.a]: makeRelay(kpA, EID.a), [EID.b]: makeRelay(kpB, EID.b) };
   const sim = simulate({ plan: defaultSimPlan, bundles, relays });
   const pinnedHops = [{ eid: EID.a, pub: kpA.pub }, { eid: EID.b, pub: kpB.pub }];
-  const dest = makeDest(destKp, manifest, pinnedHops);
+  const dest = makeDest(destKp, manifest, pinnedHops, { sourcePub: source.pub });
   for (const bundle of sim.arrivalOrder) {
     const r = dest.receiveBundle(bundle);
     assert.equal(r.ok, true, `chunk ${bundle.index} should verify`);
@@ -80,4 +80,19 @@ test("criterion 5: the manifest root re-derives from the received payload", () =
   // Re-preparing the reassembled bytes with the same chunking yields the same root.
   const re = prepare(source, dest.reassemble(), { payloadId: manifest.payloadId, chunkSize: 64 });
   assert.equal(re.manifest.root, manifest.root);
+});
+
+test("criterion 1d: authorship is pinned: a stranger-signed manifest is refused, an unpinned dest refuses", () => {
+  // Reported by Sunnie: the manifest verified under the signerPub it carried, so a
+  // payload prepared by a key the destination had never seen verified end to end.
+  const source = genKeypair(), stranger = genKeypair(), destKp = genKeypair();
+  const hops = [{ eid: EID.a, pub: genKeypair().pub }, { eid: EID.b, pub: genKeypair().pub }];
+  const forged = prepare(stranger, Buffer.from("forgery ".repeat(200)), { payloadId: "0xframe", chunkSize: 64 }).manifest;
+  assert.throws(() => makeDest(destKp, forged, hops, { sourcePub: source.pub }), (e) => e.reason === "signer_not_pinned_source_key");
+  const real = prepare(source, Buffer.from("payload ".repeat(200)), { payloadId: "0xframe", chunkSize: 64 }).manifest;
+  assert.throws(() => makeDest(destKp, real, hops), (e) => e.reason === "unpinned");
+  assert.throws(() => makeDest(destKp, real, hops, {}), (e) => e.reason === "unpinned");
+  // Swapping in the stranger's key as signerPub breaks the signature, not the pin.
+  assert.throws(() => makeDest(destKp, { ...real, signerPub: stranger.pub }, hops, { sourcePub: stranger.pub }));
+  assert.doesNotThrow(() => makeDest(destKp, real, hops, { sourcePub: source.pub }));
 });
