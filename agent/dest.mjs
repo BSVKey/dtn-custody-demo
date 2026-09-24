@@ -19,7 +19,9 @@ export function makeDest(kp, manifest, pinnedHops, { sourcePub } = {}) {
   if (!sourcePub) throw refuse("unpinned", "verifier must supply the expected source (manifest signer) key");
   const mv = verifyRecord(manifest);
   if (!mv.ok) throw refuse(mv.reason, "manifest does not verify");
-  if (String(mv.signer).toLowerCase() !== String(sourcePub).toLowerCase()) throw refuse("signer_not_pinned_source_key");
+  // Exact compare: keys are base64, where case is significant (same rule as the
+  // hop-key pin). Reported by Sunnie.
+  if (mv.signer !== sourcePub) throw refuse("signer_not_pinned_source_key");
   const root = manifest.root;
   const chunks = new Map(); // index -> Buffer (only after passing the Merkle check)
   const custody = new Map(); // bundleId -> [receipts]

@@ -96,3 +96,22 @@ test("criterion 1d: authorship is pinned: a stranger-signed manifest is refused,
   assert.throws(() => makeDest(destKp, { ...real, signerPub: stranger.pub }, hops, { sourcePub: stranger.pub }));
   assert.doesNotThrow(() => makeDest(destKp, real, hops, { sourcePub: source.pub }));
 });
+
+test("criterion 1e: pins compare exactly: a case-flipped copy of a real key or address is refused", () => {
+  // Reported by Sunnie: the source-key compare lowercased both sides, but base64
+  // keys (and Base58 addresses) are case-sensitive, so a case-flipped copy of the
+  // rover's key was accepted as the pin.
+  const source = genKeypair(), destKp = genKeypair();
+  const hops = [{ eid: EID.a, pub: genKeypair().pub }, { eid: EID.b, pub: genKeypair().pub }];
+  const manifest = prepare(source, Buffer.from("payload ".repeat(200)), { payloadId: "0xframe", chunkSize: 64 }).manifest;
+  const flip = (s) => [...s].map((c) => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase())).join("");
+  assert.notEqual(flip(source.pub), source.pub, "the key has letters to flip");
+  assert.throws(() => makeDest(destKp, manifest, hops, { sourcePub: flip(source.pub) }), (e) => e.reason === "signer_not_pinned_source_key");
+  assert.doesNotThrow(() => makeDest(destKp, manifest, hops, { sourcePub: source.pub }));
+
+  const { dest } = runOnce();
+  const settlementRef = "0x" + "4e40b7bf".repeat(8), payTo = "1LdqUbdZ6GY71KxThU6aKfuKXxgmTn82cv";
+  const args = { payloadId: "0xframe", root: manifest.root, rail: "bsv", network: "bsv", settlementRef, payTo, amountAtomic: 5942 };
+  assert.equal(dest.settle(destKp, args, { settlementRef, payTo: flip(payTo) }).bind.reason, "payTo_mismatch");
+  assert.equal(dest.settle(destKp, args, { settlementRef: settlementRef.toUpperCase().replace("0X", "0x"), payTo }).bind.ok, true, "a hex txid still matches in any case");
+});

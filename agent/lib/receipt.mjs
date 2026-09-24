@@ -67,9 +67,11 @@ export function bindDelivery(receipt, expected = {}) {
   if (!expected || typeof expected !== "object" || !expected.settlementRef) {
     return { ok: false, reason: "unbound: verifier must supply the settlementRef it paid" };
   }
-  const eq = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
-  if (!eq(receipt.settlementRef, expected.settlementRef)) return { ok: false, reason: "settlementRef_not_mine" };
-  if (expected.payTo !== undefined && !eq(receipt.payTo, expected.payTo)) return { ok: false, reason: "payTo_mismatch" };
+  // settlementRef is a hex txid, so case does not matter; payTo is a Base58
+  // address, where it does, so that one is compared exactly.
+  const hexEq = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+  if (!hexEq(receipt.settlementRef, expected.settlementRef)) return { ok: false, reason: "settlementRef_not_mine" };
+  if (expected.payTo !== undefined && String(receipt.payTo) !== String(expected.payTo)) return { ok: false, reason: "payTo_mismatch" };
   if (expected.amountAtomic !== undefined && Number(receipt.amountAtomic) !== Number(expected.amountAtomic)) {
     return { ok: false, reason: "amount_mismatch" };
   }
