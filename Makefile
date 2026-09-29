@@ -68,3 +68,9 @@ flight:
 hardy:
 	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
 	docker run --rm dtn-custody-hardy
+
+# The same signer as a NASA cFS application (cFS v7.0.1): boots, self-tests against the
+# published vectors, signs custody receipts on command over the software bus. See flight/cfs/.
+cfs:
+	docker build -t dtn-custody-cfs -f flight/cfs/Dockerfile .
+	docker run --rm --sysctl fs.mqueue.msg_max=256 dtn-custody-cfs

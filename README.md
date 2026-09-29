@@ -86,7 +86,9 @@ infrastructure:
 
 - **Onboard signing in C (`flight/`)**: the same records produced in portable C99
   with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures
-  included), about 11 KB of code on an ARM Cortex-M4. `make flight`.
+  included), about 11 KB of code on an ARM Cortex-M4. `make flight`. The same signer also ships as a
+  NASA cFS application that self-tests at boot and signs receipts on command over the
+  software bus (`make cfs`, see `flight/cfs/`).
 
 - **Performance (`bench/`)**: about 30,000 custody receipts signed per second on one
   desktop core; custody adds about 2% at 64 KiB chunks. See `bench/RESULTS.md`.

@@ -19,6 +19,12 @@ Ed25519 comes from TweetNaCl (public domain), fetched from its authors' site at 
 time and pinned by SHA-256. It is chosen for size and auditability; a faster Ed25519
 can be swapped in behind the same calls.
 
+## As a NASA cFS application
+
+`flight/cfs/` packages this signer as a standard cFS app (CUSTODY): it self-tests against
+the published vectors at boot and signs receipts on command over the software bus.
+`make cfs` builds cFS v7.0.1 with it and checks the output.
+
 ## Integration notes
 
 - **Keys.** `ck_key_from_seed` takes a 32-byte seed the caller reads from protected
