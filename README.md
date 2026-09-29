@@ -44,6 +44,8 @@ transport/
   sim.mjs            in-process DTN simulator (delay, reorder, occultation)
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
+flight/              onboard signing in C (byte-identical to the test vectors)
+ion/, mix/           JPL ION and mixed uD3TN/HDTN interop runs
 bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
 contact-plans/       per-tier link schedules with occultation windows
@@ -81,6 +83,10 @@ infrastructure:
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
   root, and corroborates two stations. Runs on existing received files; no flight
   change. `node ground/demo.mjs`.
+
+- **Onboard signing in C (`flight/`)**: the same records produced in portable C99
+  with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures
+  included), about 11 KB of code on an ARM Cortex-M4. `make flight`.
 
 - **Performance (`bench/`)**: about 30,000 custody receipts signed per second on one
   desktop core; custody adds about 2% at 64 KiB chunks. See `bench/RESULTS.md`.

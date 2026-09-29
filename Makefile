@@ -56,3 +56,9 @@ ion:
 mix:
 	docker build -t dtn-custody-mix -f mix/Dockerfile .
 	docker run --rm dtn-custody-mix
+
+# Onboard signing in C (TweetNaCl Ed25519): reproduces the published test vectors byte for
+# byte, times signing, and sizes the code for an ARM Cortex-M4. See flight/RESULTS.md.
+flight:
+	docker build -t dtn-custody-flight -f flight/Dockerfile .
+	docker run --rm dtn-custody-flight
