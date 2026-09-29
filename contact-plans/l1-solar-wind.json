@@ -1,0 +1,28 @@
+{
+  "name": "l1-solar-wind",
+  "description": "Space-weather observatory at Sun-Earth L1 (about 1.5 million km, 5 s one way) downlinking through a ground network with a station handover gap, then to a forecast center and a customer.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "L1 space-weather observatory" },
+    { "ipn": 2, "name": "ground network (station A then station B)" },
+    { "ipn": 3, "name": "forecast center" },
+    { "ipn": 4, "name": "customer (operator, insurer, grid)" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 },
+    { "id": "L2", "from": 2, "to": 3 },
+    { "id": "L3", "from": 3, "to": 4 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 5000, "loss_pct": 0.2, "reorder_pct": 1, "rate_bps": 64000 },
+    "L2": { "one_way_ms": 30, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 100000000 },
+    "L3": { "one_way_ms": 80, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 10000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 600, "note": "station A" },
+    { "link": "L1", "up_s": 780, "down_s": 1800, "note": "station B after a 180 s handover gap" },
+    { "link": "L2", "up_s": 0, "down_s": 1800 },
+    { "link": "L3", "up_s": 0, "down_s": 1800 }
+  ],
+  "occultation": { "link": "L1", "down_s": 600, "up_s": 780, "expect_gap_object": true, "cause": "ground-station handover" }
+}

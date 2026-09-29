@@ -1,0 +1,28 @@
+{
+  "name": "uranus-latency",
+  "description": "Latency and distance exemplar, not an ocean world: an orbiter at Uranus (about 2.6 light-hours, 9,360 s one way) with a planetary occultation of the Earth link. Scale 0.0002 compresses real runs.",
+  "scale": 0.0002,
+  "nodes": [
+    { "ipn": 1, "name": "Uranus orbiter" },
+    { "ipn": 2, "name": "Deep Space Network station" },
+    { "ipn": 3, "name": "mission operations" },
+    { "ipn": 4, "name": "science archive" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 },
+    { "id": "L2", "from": 2, "to": 3 },
+    { "id": "L3", "from": 3, "to": 4 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 9360000, "loss_pct": 1, "reorder_pct": 2, "rate_bps": 10000 },
+    "L2": { "one_way_ms": 50, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 100000000 },
+    "L3": { "one_way_ms": 80, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 28800 },
+    { "link": "L1", "up_s": 39600, "down_s": 86400, "note": "orbiter behind Uranus from 28,800 s to 39,600 s" },
+    { "link": "L2", "up_s": 0, "down_s": 86400 },
+    { "link": "L3", "up_s": 0, "down_s": 86400 }
+  ],
+  "occultation": { "link": "L1", "down_s": 28800, "up_s": 39600, "expect_gap_object": true }
+}

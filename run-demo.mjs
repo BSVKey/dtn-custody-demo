@@ -10,7 +10,13 @@ import { prepare } from "./agent/source.mjs";
 import { makeRelay } from "./agent/relay.mjs";
 import { makeDest } from "./agent/dest.mjs";
 import { gapObject } from "./agent/lib/gap.mjs";
+import { readFileSync } from "node:fs";
 import { simulate, defaultSimPlan } from "./transport/sim.mjs";
+import { toSimPlan, normalize } from "./contact-plans/compile.mjs";
+
+// Optional mission schedule: node run-demo.mjs --plan contact-plans/mars-relay.json
+const planArg = process.argv.indexOf("--plan");
+const missionPlan = planArg > 0 ? JSON.parse(readFileSync(process.argv[planArg + 1], "utf8")) : null;
 
 const line = (s = "") => console.log(s);
 const ok = (b) => (b ? "PASS" : "FAIL");
@@ -37,14 +43,25 @@ line("== Source: chunk + Merkle + signed manifest ==");
 const { manifest, bundles } = prepare(source, payload, { payloadId: "0xrover-frame-001", chunkSize: 64 });
 line(`  payloadId ${manifest.payloadId} | chunks ${manifest.chunkCount} | root ${manifest.root.slice(0, 18)}...`);
 
+const plan = missionPlan ? toSimPlan(missionPlan, defaultSimPlan, { bundles: bundles.length }) : defaultSimPlan;
+if (missionPlan) {
+  const p = normalize(missionPlan);
+  line(`\n== Mission schedule: ${p.name} ==`);
+  for (const l of p.links) {
+    const from = p.nodes.find((n) => n.ipn === l.from)?.name, to = p.nodes.find((n) => n.ipn === l.to)?.name;
+    line(`  ${l.id} ${from} -> ${to}: one-way light time ${p.delays[l.id].one_way_ms / 1000} s`);
+  }
+  if (p.occultation) line(`  outage on ${p.occultation.link}: ${p.occultation.down_s} s to ${p.occultation.up_s} s${p.occultation.cause ? ` (${p.occultation.cause})` : ""}`);
+  line(`  simulated at scale ${p.scale ?? 1} (virtual time; nothing waits)`);
+}
 line("\n== Transport: 3 hops, reorder + occultation (compressed) ==");
 const relays = { [EID.a]: makeRelay(relayaKp, EID.a), [EID.b]: makeRelay(relaybKp, EID.b) };
-const sim = simulate({ plan: defaultSimPlan, bundles, relays });
-line(`  occulted link ${sim.occultedLink} down@${defaultSimPlan.occultation.downMs}ms up@${defaultSimPlan.occultation.upMs}ms`);
+const sim = simulate({ plan, bundles, relays });
+line(`  occulted link ${sim.occultedLink} down@${plan.occultation.downMs}ms up@${plan.occultation.upMs}ms`);
 line(`  bundles held by the blackout: ${sim.delayed.length} of ${bundles.length}`);
 const inOrder = sim.arrivalOrder.map((b) => b.index);
 line(`  arrival order (first 12): ${inOrder.slice(0, 12).join(", ")}${inOrder.length > 12 ? " ..." : ""}`);
-line(`  out of order? ${ok(inOrder.some((v, i) => v !== i))}`);
+line(`  out of order? ${missionPlan ? (inOrder.some((v, i) => v !== i) ? "yes" : "no (bundle spacing exceeded jitter)") : ok(inOrder.some((v, i) => v !== i))}`);
 
 line("\n== Destination: verify each chunk against the root, out of order ==");
 const pinnedHops = [{ eid: EID.a, pub: relayaKp.pub }, { eid: EID.b, pub: relaybKp.pub }];

@@ -73,8 +73,10 @@ infrastructure:
   and `make live` verifies it by default. `buildAnchorTx` builds (never broadcasts) the
   anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
 
-Mission-latency contact plans (real Moon/Mars/Uranus delays) are a refinement on the
-proven R2 path, not a seam.
+Mission-latency contact plans (Moon, Sun-Earth L1, Mars, Uranus) ship in `contact-plans/`
+and compile to the formats NASA's DTN software loads: HDTN (NASA Glenn) JSON and JPL ION
+contact and range commands (`node contact-plans/compile.mjs <plan>`). The demo runs any of
+them: `node run-demo.mjs --plan contact-plans/mars-relay.json`.
 
 Run it:
 ```bash
@@ -103,11 +105,13 @@ This layer sits on top of a deployed, standardized transport; it does not reinve
 
 ## Acceptance criteria (what "done" means)
 1. Out-of-order chunk integrity against a Merkle root; a tampered chunk is rejected.
-2. A 3-hop custody chain verifies; a forged or missing hop is detected.
+2. A custody chain across the relays verifies (three links, two relay custody hops); a
+   forged or missing hop is detected.
 3. A gap object documents the occultation and reconciles on link reopen.
 4. Delivery is bound to a settlement (matching txid passes, unbound refuses).
 5. The manifest root is anchored on-chain and re-derives from the received payload.
-6. Runs headless in CI (compressed delays) plus a `--live` mode with one real anchor.
+6. Runs headless in CI on every push (GitHub Actions, offline suite) plus a `--live` mode
+   with one real anchor.
 
 ## Open core vs. hosted service
 

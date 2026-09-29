@@ -92,7 +92,7 @@ verifiable a session late, which is exactly the deep-space requirement.
 1. **Out-of-order integrity.** With `netem` reordering + loss, every delivered chunk
    verifies against the Merkle root; a single flipped byte is rejected. (Deterministic
    unit test + full-run assertion.)
-2. **Custody chain.** A 3-hop custody chain reconstructs and verifies; a forged hop
+2. **Custody chain.** A custody chain across both relays (three links, two relay custody hops) reconstructs and verifies; a forged hop
    receipt, a dropped hop, or a reordered hop is detected with a specific reason.
 3. **Gap object.** The occultation produces a gap object with correct `downAt/upAt`
    and the exact set of delayed bundles; post-reopen reconciliation matches delivery.
@@ -101,7 +101,7 @@ verifiable a session late, which is exactly the deep-space requirement.
    the shipped, tested binding.)
 5. **Provenance.** The manifest root is anchored in one on-chain tx; re-deriving the
    root from the received payload matches the anchored value.
-6. **Reproducible.** Runs headless in CI with compressed delays (offline, deterministic
+6. **Reproducible.** Runs headless in CI (GitHub Actions on every push) with compressed delays (offline, deterministic
    except the one anchor/settlement), plus a `--live` mode with real mainnet anchor.
 
 ---

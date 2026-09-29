@@ -1,0 +1,28 @@
+{
+  "name": "mars-relay",
+  "description": "Mars rover relayed by an orbiter to a Deep Space Network station at mid-range distance (12.5 min one way; the real range is about 3 to 22 min). The orbiter-to-Earth link drops while the orbiter is behind Mars. Scale 0.001 compresses real runs.",
+  "scale": 0.001,
+  "nodes": [
+    { "ipn": 1, "name": "Mars rover" },
+    { "ipn": 2, "name": "Mars relay orbiter" },
+    { "ipn": 3, "name": "Deep Space Network station" },
+    { "ipn": 4, "name": "mission operations" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 },
+    { "id": "L2", "from": 2, "to": 3 },
+    { "id": "L3", "from": 3, "to": 4 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 5, "loss_pct": 1, "reorder_pct": 2, "rate_bps": 2000000 },
+    "L2": { "one_way_ms": 750000, "loss_pct": 0.5, "reorder_pct": 2, "rate_bps": 500000 },
+    "L3": { "one_way_ms": 50, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 600, "note": "one relay pass" },
+    { "link": "L2", "up_s": 0, "down_s": 1200 },
+    { "link": "L2", "up_s": 3600, "down_s": 7200, "note": "orbiter behind Mars from 1200 s to 3600 s" },
+    { "link": "L3", "up_s": 0, "down_s": 7200 }
+  ],
+  "occultation": { "link": "L2", "down_s": 1200, "up_s": 3600, "expect_gap_object": true }
+}

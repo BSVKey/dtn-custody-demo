@@ -1,20 +1,37 @@
 # contact-plans/
 
-Per mission-tier link schedules. Each plan sets the one-way delay per link and a
-scripted **occultation window** (a period where a link is fully down), so store-and-
-forward and the gap object can be exercised deterministically.
+Mission link schedules. Each plan names its nodes (ipn node numbers), its links, the
+one-way light time and loss per link, the contact windows per link, and the outage
+(occultation, station handover) that store-and-forward and the gap object must survive.
 
-Times may be scaled ("compressed") for the deep-space tiers so a run finishes in
-minutes; each plan states its scale factor. One real-latency plan (Moon, 1.3 s) runs
-unscaled as a fidelity check.
+| Plan | Path | One-way light time on the space link | Outage |
+|---|---|---|---|
+| `moon-occultation.json` | far-side lander, lunar relay orbiter, Earth station, operations | 1.3 s (real) | orbiter behind the Moon, 120 s to 300 s |
+| `l1-solar-wind.json` | L1 space-weather observatory, ground network, forecast center, customer | 5 s (real) | ground-station handover, 600 s to 780 s |
+| `mars-relay.json` | rover, Mars relay orbiter, Deep Space Network, operations | 750 s (12.5 min, mid-range; real range about 3 to 22 min) | orbiter behind Mars, 1,200 s to 3,600 s |
+| `uranus-latency.json` | Uranus orbiter, Deep Space Network, operations, archive | 9,360 s (about 2.6 light-hours) | planetary occultation, 28,800 s to 39,600 s |
 
-- `moon-occultation.json`   Moon: 1.3 s one-way, unscaled, far-side occultation.
-- `mars-occultation.json`   Mars: 3-22 min, compressed, conjunction blackout. (TODO)
-- `uranus-occultation.json` Uranus: ~2.6 light-hours, compressed. (TODO)
+Uranus is a latency and distance exemplar (the 2023 Decadal #1 flagship), not an ocean
+world. The ocean-world targets are moons, canonically Enceladus and Europa.
 
-Note: Uranus is a **latency/distance exemplar** (the 2023 Decadal #1 flagship), not
-an ocean world. The ocean-world science targets are moons, canonically Enceladus and
-Europa; the under-ice tier maps to those, not to the ice-giant planets.
+## Compile to NASA formats
 
-Schema (draft): `delays` sets per-link one-way delay + loss; `contacts` lists up/down
-windows per link; `scale` is the wall-clock compression factor (1 = real time).
+```bash
+node contact-plans/compile.mjs contact-plans/mars-relay.json --hdtn mars.hdtn.json --ion mars.ionrc
+```
+
+- **HDTN (NASA Glenn):** JSON `{"contacts":[{contact, source, dest, startTime, endTime,
+  rateBitsPerSec, owlt}]}`, the format of HDTN's own `module/router/contact_plans/`.
+- **ION (JPL):** `a contact +start +end from to rate` and `a range +start +end from to owlt`.
+
+Both formats take whole seconds; plans keep exact milliseconds for the simulator. HDTN and
+ION get real mission timing by default; `--scaled` applies the plan's compression factor.
+`generated/` holds the compiled output for every plan (checked by the test suite).
+
+## Schema
+
+`nodes` (ipn number and name), `links` (`id`, `from`, `to`; plain names are read as a
+chain 1, 2, 3, ...), `delays` (per link: `one_way_ms`, `loss_pct`, `reorder_pct`,
+`rate_bps`), `contacts` (per link: `up_s`, `down_s`), `occultation` (the outage the gap
+object records) and `scale` (wall-clock compression for real-transport runs; 1 = real time).
+The simulator's path is three links (L1, L2, L3).

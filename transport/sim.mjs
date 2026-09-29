@@ -59,7 +59,8 @@ export function simulate({ plan = defaultSimPlan, bundles, relays }) {
       if (crossAt !== departFromNode) delayed.add(bundle.bundleId);
       if (plan.lossPct > 0 && prng() * 100 < plan.lossPct) { dropped = true; break; }
       const jitter = Math.floor(prng() * plan.jitterMs);
-      const arrival = crossAt + plan.oneWayMs + jitter;
+      // Per-link delay when the plan has one (space link vs ground links), else uniform.
+      const arrival = crossAt + (plan.linkDelayMs?.[link] ?? plan.oneWayMs) + jitter;
 
       const thisEid = plan.hops[hop + 1];
       if (thisEid === aEid || thisEid === bEid) {
