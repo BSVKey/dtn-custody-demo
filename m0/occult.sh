@@ -6,11 +6,11 @@
 set -euo pipefail
 DOWN_AT_MS="${DOWN_AT_MS:-800}"
 WINDOW_MS="${WINDOW_MS:-3000}"
-ONE_WAY_MS="${ONE_WAY_MS:-150}"; JITTER_MS="${JITTER_MS:-40}"; REORDER_PCT="${REORDER_PCT:-5}"
+ONE_WAY_MS="${ONE_WAY_MS:-150}"; L2_MS="${L2_MS:-$ONE_WAY_MS}"; JITTER_MS="${JITTER_MS:-40}"; REORDER_PCT="${REORDER_PCT:-5}"
 
 sleep "$(awk "BEGIN{print $DOWN_AT_MS/1000}")"
 echo "[occult] L2 DOWN (100% loss on veth_ab) for ${WINDOW_MS}ms"
 ip netns exec n_a tc qdisc change dev veth_ab root netem loss 100%
 sleep "$(awk "BEGIN{print $WINDOW_MS/1000}")"
-ip netns exec n_a tc qdisc change dev veth_ab root netem delay "${ONE_WAY_MS}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50%
+ip netns exec n_a tc qdisc change dev veth_ab root netem delay "${L2_MS}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50%
 echo "[occult] L2 UP (shaping restored)"

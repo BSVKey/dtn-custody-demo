@@ -8,26 +8,28 @@
 # tears down prior namespaces first. Requires NET_ADMIN (run the container privileged).
 set -euo pipefail
 
-ONE_WAY_MS="${ONE_WAY_MS:-150}"     # per-link one-way delay
+ONE_WAY_MS="${ONE_WAY_MS:-150}"     # default per-link one-way delay
+L1_MS="${L1_MS:-$ONE_WAY_MS}"; L2_MS="${L2_MS:-$ONE_WAY_MS}"; L3_MS="${L3_MS:-$ONE_WAY_MS}"  # per-link overrides (mission plans)
 JITTER_MS="${JITTER_MS:-40}"        # delay jitter (drives reordering with netem)
 REORDER_PCT="${REORDER_PCT:-5}"     # percent of packets reordered
 
 for ns in n_src n_a n_b n_dst; do ip netns del "$ns" 2>/dev/null || true; done
 for ns in n_src n_a n_b n_dst; do ip netns add "$ns"; ip -n "$ns" link set lo up; done
 
-mk_link() { # ns_left if_left ip_left  ns_right if_right ip_right
-  local nl="$1" il="$2" al="$3" nr="$4" ir="$5" ar="$6"
+mk_link() { # ns_left if_left ip_left  ns_right if_right ip_right  delay_ms
+  local nl="$1" il="$2" al="$3" nr="$4" ir="$5" ar="$6" d="$7"
   ip link add "$il" netns "$nl" type veth peer name "$ir" netns "$nr"
   ip -n "$nl" addr add "$al/24" dev "$il"; ip -n "$nl" link set "$il" up
   ip -n "$nr" addr add "$ar/24" dev "$ir"; ip -n "$nr" link set "$ir" up
   # netem on both egress directions
-  ip netns exec "$nl" tc qdisc add dev "$il" root netem delay "${ONE_WAY_MS}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50% || true
-  ip netns exec "$nr" tc qdisc add dev "$ir" root netem delay "${ONE_WAY_MS}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50% || true
+  ip netns exec "$nl" tc qdisc add dev "$il" root netem delay "${d}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50% || true
+  ip netns exec "$nr" tc qdisc add dev "$ir" root netem delay "${d}ms" "${JITTER_MS}ms" reorder "${REORDER_PCT}%" 50% || true
 }
 
-mk_link n_src veth_s 10.0.1.1  n_a   veth_as 10.0.1.2   # L1
-mk_link n_a   veth_ab 10.0.2.1 n_b   veth_ba 10.0.2.2   # L2 (occulted)
-mk_link n_b   veth_bd 10.0.3.1 n_dst veth_d  10.0.3.2   # L3
+mk_link n_src veth_s 10.0.1.1  n_a   veth_as 10.0.1.2  "$L1_MS"  # L1
+mk_link n_a   veth_ab 10.0.2.1 n_b   veth_ba 10.0.2.2  "$L2_MS"  # L2 (occulted)
+mk_link n_b   veth_bd 10.0.3.1 n_dst veth_d  10.0.3.2  "$L3_MS"  # L3
 
+echo "link delays one-way: L1 ${L1_MS}ms, L2 ${L2_MS}ms, L3 ${L3_MS}ms"
 echo "netns + veth + netem up. L2 = veth_ab (in n_a) is the occulted link."
 ip netns exec n_a tc qdisc show dev veth_ab

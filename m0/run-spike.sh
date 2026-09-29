@@ -22,7 +22,7 @@ node -e '
   fs.writeFileSync("m0/.keys.json", JSON.stringify(k));
 '
 
-CFG=m0/config.docker.json
+CFG="${M0_CFG:-m0/config.docker.json}"
 run() { ip netns exec "$1" env M0_ROLE="$2" M0_CONFIG="$CFG" node m0/node.mjs; }
 
 # Downstream-first.
@@ -33,7 +33,7 @@ sleep 0.2
 run n_a   relaya & A_PID=$!
 sleep 0.2
 # Drive the real occultation in the background, then start the source.
-DOWN_AT_MS=800 WINDOW_MS=3000 bash m0/occult.sh &
+DOWN_AT_MS="${DOWN_AT_MS:-800}" WINDOW_MS="${WINDOW_MS:-3000}" bash m0/occult.sh &
 run n_src source & S_PID=$!
 
 # Wait for the destination to render its verdict (it exits 0 on PASS).

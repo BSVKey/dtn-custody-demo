@@ -26,6 +26,12 @@ spike:
 	docker build -t dtn-custody-m0 -f m0/Dockerfile .
 	docker run --rm --privileged dtn-custody-m0
 
+# Same harness at real Earth-Moon light time: lander-orbiter 20 ms, orbiter-Earth
+# 1300 ms (the 1.28 s light time), ground 50 ms, with a 20 s blackout on the Earth link.
+spike-moon:
+	docker build -t dtn-custody-m0 -f m0/Dockerfile .
+	docker run --rm --privileged -e M0_CFG=m0/config.moon.json -e L1_MS=20 -e L2_MS=1300 -e L3_MS=50 -e JITTER_MS=5 -e DOWN_AT_MS=6000 -e WINDOW_MS=20000 dtn-custody-m0
+
 # R2: our custody agent over real BPv7 (µD3TN built from source), bundles held in
 # µD3TN storage across a scheduled contact gap (real bundle custody).
 r2:
