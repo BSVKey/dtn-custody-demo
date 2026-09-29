@@ -62,7 +62,7 @@ out(CLR);
 out(`${DIM}# the manifest root, anchored on chain (OP_RETURN):${RST}\r\n`);
 out(`${AMBER}https://whatsonchain.com/tx/733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207${RST}\r\n\r\n`);
 out(`Verifiable data custody + relay settlement over DTN. Apache-2.0.\r\n`);
-out(`${AMBER}github.com/BSVKey/dtn-custody-demo${RST}  ·  ${AMBER}dtn.bsvkey.com${RST}\r\n`);
+out(`${AMBER}github.com/BSVKey/dtn-custody-demo${RST}  ·  ${AMBER}custody.bsvkey.com${RST}\r\n`);
 wait(5);
 out("");
 

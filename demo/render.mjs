@@ -86,7 +86,7 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-
 .d{width:13px;height:13px;border-radius:50%} .t{flex:1;text-align:center} .u{color:#E7A33E}
 pre{margin:0;padding:18px 26px;font:26px/1.18 Consolas,"IBM Plex Mono",monospace;color:#EDE7D8;white-space:pre}
 .cur{background:#E7A33E;color:#17150F}
-</style></head><body><div class="win"><div class="bar"><span class="d" style="background:#f2544b"></span><span class="d" style="background:#E7A33E"></span><span class="d" style="background:#7BC98A"></span><span class="t">dtn-custody-demo · bash</span><span class="u">dtn.bsvkey.com</span></div><pre id="s"></pre></div></body></html>`;
+</style></head><body><div class="win"><div class="bar"><span class="d" style="background:#f2544b"></span><span class="d" style="background:#E7A33E"></span><span class="d" style="background:#7BC98A"></span><span class="t">dtn-custody-demo · bash</span><span class="u">custody.bsvkey.com</span></div><pre id="s"></pre></div></body></html>`;
 const pagePath = join(OUT, "term.html");
 writeFileSync(pagePath, page);
 
@@ -144,7 +144,7 @@ h1{margin:0 0 6px;font-size:44px;font-weight:600} h1 i{font-style:normal;color:#
 <div class="k">OP_RETURN output script</div><div class="v">${hl}</div>
 <div class="k">Merkle root recomputed from live/anchored-payload.txt</div><div class="v"><b>${root}</b></div>
 <div class="ok">${match ? "✓ roots match: the payload is exactly what was anchored" : "✗ roots do not match"}</div>
-</div><div class="cap">github.com/BSVKey/dtn-custody-demo · dtn.bsvkey.com · Apache-2.0</div></body></html>`;
+</div><div class="cap">github.com/BSVKey/dtn-custody-demo · custody.bsvkey.com · Apache-2.0</div></body></html>`;
 if (!match) console.error("WARNING: anchored root does not match recomputed root");
 writeFileSync(join(OUT, "card.html"), card);
 await cdp("Page.navigate", { url: pathToFileURL(join(OUT, "card.html")).href });
