@@ -8,6 +8,8 @@ leaves the station unless the operator chooses to publish the ledger's 32-byte s
 node ground/demo.mjs          # two simulated stations, one missed pass, a tampered file
 ```
 
+A 90-day pilot plan for station operators is in [PILOT.md](PILOT.md).
+
 ## What it produces
 
 For every received product (a file your ground software wrote), the station signs:
