@@ -22,7 +22,7 @@ async function client() { const a = new AAP(); await a.connect("127.0.0.1", Numb
 
 async function runSource() {
   const kp = importKeypair(keys.source);
-  const payload = Buffer.from("SPACE OCEAN R2 payload over real BPv7. ".repeat(Number(E.PAYLOAD_REPEAT || 20)), "utf8");
+  const payload = Buffer.from("DTN CUSTODY R2 payload over real BPv7. ".repeat(Number(E.PAYLOAD_REPEAT || 20)), "utf8");
   const { manifest, bundles } = prepare(kp, payload, { payloadId: E.PAYLOAD_ID, chunkSize: Number(E.CHUNK_SIZE || 64) });
   const a = await client();
   await a.send(E.NEXT_EID, enc({ kind: "manifest", manifest }));

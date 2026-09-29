@@ -51,7 +51,7 @@ function connectRetry(port, host = "127.0.0.1", tries = 50) {
 // -------- SOURCE ------------------------------------------------------------------
 async function runSource() {
   const kp = importKeypair(keys.source);
-  const payload = Buffer.from(cfg.payloadText || ("SPACE OCEAN M0 spike payload. ".repeat(40)), "utf8");
+  const payload = Buffer.from(cfg.payloadText || ("DTN CUSTODY M0 spike payload. ".repeat(40)), "utf8");
   const { manifest, bundles } = prepare(kp, payload, { payloadId: cfg.payloadId, chunkSize: cfg.chunkSize || 64 });
   const out = await connectRetry(cfg.ports.relaya, hostOf("relaya"));
   out.write(frame({ type: "manifest", manifest }));

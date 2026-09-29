@@ -25,7 +25,7 @@ const EID = { src: "dtn://source/", a: "dtn://relaya/", b: "dtn://relayb/", dst:
 
 // A payload (stand-in for a rover image / short clip): ~1.2 KB over 64-byte chunks.
 const payload = Buffer.from(
-  "SPACE OCEAN DTN CUSTODY DEMO :: " +
+  "OPEN SOURCE DTN CUSTODY DEMO :: " +
     "verifiable data custody and relay-payment over a delay/disruption-tolerant link. " +
     "This payload is chunked, Merkle-committed, carried across three hops with a " +
     "scripted occultation, verified out of order against the manifest root, custody-" +
