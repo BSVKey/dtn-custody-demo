@@ -44,3 +44,9 @@ live:
 
 clean:
 	rm -rf run-output *.log *.pcap m0/.keys.json m0/.m0-config.json
+
+# Our custody payload through JPL ION (built from source), two ION nodes, contact graph
+# routing over a compiled plan with a scheduled 20 s gap. See ion/RESULTS.md.
+ion:
+	docker build -t dtn-custody-ion -f ion/Dockerfile .
+	docker run --rm --privileged dtn-custody-ion

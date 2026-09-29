@@ -1,0 +1,20 @@
+{
+  "name": "ion-interop",
+  "description": "Our custody payload through JPL ION: sender node ipn:1 -> receiver node ipn:2 over the UDP convergence layer. The link is scheduled down from 15 s to 35 s after start, so ION contact graph routing must hold the bundles and forward them when the contact opens.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "sender (ION node 1)" },
+    { "ipn": 2, "name": "receiver (ION node 2)" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 1000, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 15 },
+    { "link": "L1", "up_s": 35, "down_s": 600, "note": "scheduled gap 15 s to 35 s" }
+  ],
+  "occultation": { "link": "L1", "down_s": 15, "up_s": 35, "expect_gap_object": true }
+}

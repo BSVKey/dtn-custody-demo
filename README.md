@@ -87,7 +87,7 @@ infrastructure:
 
 Mission-latency contact plans (Moon, Sun-Earth L1, Mars, Uranus) ship in `contact-plans/`
 and compile to the formats NASA's DTN software loads (verified end to end with NASA HDTN: our custody payload was stored by the HDTN router across a scheduled gap and verified at the receiver, see `hdtn/RESULTS.md`): HDTN (NASA Glenn) JSON and JPL ION
-contact and range commands (`node contact-plans/compile.mjs <plan>`). The demo runs any of
+contact and range commands (`node contact-plans/compile.mjs <plan>`), also verified end to end with JPL ION: ION's contact graph routing held our payload across a scheduled 20 s gap and every chunk and custody handoff verified on arrival (`make ion`, see `ion/RESULTS.md`). The demo runs any of
 them: `node run-demo.mjs --plan contact-plans/mars-relay.json`.
 
 Run it:
