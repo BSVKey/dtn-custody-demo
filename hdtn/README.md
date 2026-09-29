@@ -1,6 +1,6 @@
 # hdtn/: custody payload through NASA HDTN
 
-Status: **written, not yet run.** Results will be recorded here once the run completes.
+Status: **run and passed** (2026-09-29, NASA HDTN commit 7fbe90c). See [RESULTS.md](RESULTS.md).
 
 What it does: builds NASA HDTN (High-rate DTN, NASA Glenn) from source, compiles
 `interop.json` with `contact-plans/compile.mjs` into HDTN's contact-plan format, and sends

@@ -74,7 +74,7 @@ infrastructure:
   anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
 
 Mission-latency contact plans (Moon, Sun-Earth L1, Mars, Uranus) ship in `contact-plans/`
-and compile to the formats NASA's DTN software loads: HDTN (NASA Glenn) JSON and JPL ION
+and compile to the formats NASA's DTN software loads (verified end to end with NASA HDTN: our custody payload was stored by the HDTN router across a scheduled gap and verified at the receiver, see `hdtn/RESULTS.md`): HDTN (NASA Glenn) JSON and JPL ION
 contact and range commands (`node contact-plans/compile.mjs <plan>`). The demo runs any of
 them: `node run-demo.mjs --plan contact-plans/mars-relay.json`.
 
