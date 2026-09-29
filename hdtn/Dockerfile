@@ -8,7 +8,7 @@ ENV GIT_TERMINAL_PROMPT=0
 RUN git clone --depth 1 https://github.com/nasa/HDTN.git /opt/HDTN
 WORKDIR /opt/HDTN/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_X86_HARDWARE_ACCELERATION=OFF -DLTP_RNG_USE_RDSEED=OFF \
-    && make -j"$(nproc)" hdtn-one-process bpsendfile bpreceivefile \
+    && make -j2 hdtn-one-process bpsendfile bpreceivefile \
     && git -C /opt/HDTN rev-parse --short HEAD > /opt/HDTN/COMMIT
 ENV HDTN_SOURCE_ROOT=/opt/HDTN
 WORKDIR /app
