@@ -45,7 +45,7 @@ transport/
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
-ion/, mix/           JPL ION and mixed uD3TN/HDTN interop runs
+ion/, mix/, hardy/  JPL ION, mixed uD3TN/HDTN and Aalyria Hardy interop runs
 bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
 contact-plans/       per-tier link schedules with occultation windows
@@ -93,7 +93,7 @@ infrastructure:
 
 Mission-latency contact plans (Moon, Sun-Earth L1, Mars, Uranus) ship in `contact-plans/`
 and compile to the formats NASA's DTN software loads (verified end to end with NASA HDTN: our custody payload was stored by the HDTN router across a scheduled gap and verified at the receiver, see `hdtn/RESULTS.md`): HDTN (NASA Glenn) JSON and JPL ION
-contact and range commands (`node contact-plans/compile.mjs <plan>`), also verified end to end with JPL ION: ION's contact graph routing held our payload across a scheduled 20 s gap and every chunk and custody handoff verified on arrival (`make ion`, see `ion/RESULTS.md`). A mixed chain also passes: uD3TN hands the payload to NASA HDTN over TCPCLv3, HDTN stores it across a scheduled gap, and delivers it to a second uD3TN node, where every chunk and handoff verifies (`make mix`, see `mix/RESULTS.md`). The demo runs any of
+contact and range commands (`node contact-plans/compile.mjs <plan>`), also verified end to end with JPL ION: ION's contact graph routing held our payload across a scheduled 20 s gap and every chunk and custody handoff verified on arrival (`make ion`, see `ion/RESULTS.md`). A mixed chain also passes: uD3TN hands the payload to NASA HDTN over TCPCLv3, HDTN stores it across a scheduled gap, and delivers it to a second uD3TN node, where every chunk and handoff verifies (`make mix`, see `mix/RESULTS.md`). It also runs on Aalyria's Hardy: our agent attaches through Hardy's gRPC application and convergence-layer APIs, Hardy's time-variant routing agent (fed a contact plan from our compiler, `--hardy`) holds the payload across a scheduled gap, and every chunk verifies (`make hardy`, see `hardy/RESULTS.md`). The demo runs any of
 them: `node run-demo.mjs --plan contact-plans/mars-relay.json`.
 
 Run it:

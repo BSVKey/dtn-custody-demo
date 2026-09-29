@@ -76,3 +76,17 @@ test("generated files in contact-plans/generated match the compiler output", () 
   }
   assert.equal(readdirSync(dir).length, PLANS.length * 2);
 });
+
+test("hardy: compiles one-shot TVR windows at absolute UTC times, covering reached destinations", async () => {
+  const { toHardy } = await import("../contact-plans/compile.mjs");
+  const { readFileSync } = await import("node:fs");
+  const plan = JSON.parse(readFileSync(new URL("../hardy/interop.json", import.meta.url), "utf8"));
+  const out = toHardy(plan, { epochMs: Date.parse("2026-10-01T00:00:00Z") }).split("\n").filter((l) => l && !l.startsWith("#"));
+  assert.deepEqual(out, [
+    "ipn:30.* via ipn:30.0 start 2026-10-01T00:00:00Z end 2026-10-01T00:00:15Z bandwidth 100M",
+    "ipn:2.* via ipn:30.0 start 2026-10-01T00:00:00Z end 2026-10-01T00:00:15Z bandwidth 100M",
+    "ipn:30.* via ipn:30.0 start 2026-10-01T00:00:35Z end 2026-10-01T00:10:00Z bandwidth 100M",
+    "ipn:2.* via ipn:30.0 start 2026-10-01T00:00:35Z end 2026-10-01T00:10:00Z bandwidth 100M",
+  ]);
+  assert.throws(() => toHardy(plan, {}), /epochMs/);
+});

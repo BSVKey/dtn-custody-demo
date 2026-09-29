@@ -62,3 +62,9 @@ mix:
 flight:
 	docker build -t dtn-custody-flight -f flight/Dockerfile .
 	docker run --rm dtn-custody-flight
+
+# Our custody payload through Aalyria's Hardy (BPA + time-variant routing), attached through
+# Hardy's gRPC application and CLA APIs. See hardy/RESULTS.md.
+hardy:
+	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+	docker run --rm dtn-custody-hardy

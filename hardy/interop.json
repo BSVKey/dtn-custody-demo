@@ -1,0 +1,21 @@
+{
+  "name": "hardy-interop",
+  "description": "Our custody payload through Aalyria's Hardy: an application on Hardy node ipn:20 sends to ipn:2.1; Hardy's time-variant routing agent opens the route to ipn:2.* (via downstream peer ipn:30) from 0 s to 15 s and from 35 s on, so bundles sent in between must wait in Hardy's store.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 20, "name": "Hardy BPA (sender application attached)" },
+    { "ipn": 30, "name": "downstream peer (custody bridge CLA)" },
+    { "ipn": 2, "name": "destination" }
+  ],
+  "links": [
+    { "id": "L1", "from": 20, "to": 30, "reaches": [2] }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 1000, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 15 },
+    { "link": "L1", "up_s": 35, "down_s": 600, "note": "scheduled gap 15 s to 35 s" }
+  ],
+  "occultation": { "link": "L1", "down_s": 15, "up_s": 35, "expect_gap_object": true }
+}
