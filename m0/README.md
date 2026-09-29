@@ -2,9 +2,9 @@
 
 De-risk the two independent risks in the real testbed before the full BPv7 build:
 
-- **R1 — transport + netem + occultation:** a chunked payload survives a link blackout
+- **R1, transport + netem + occultation:** a chunked payload survives a link blackout
   via store-and-forward and reassembles + verifies over a *real* transport.
-- **R2 — BPv7 agent:** µD3TN/dtn7-rs as the bundle agent (the follow-on; swapping it in
+- **R2, BPv7 agent:** µD3TN/dtn7-rs as the bundle agent (the follow-on; swapping it in
   does not change `agent/`, per `../transport/bpv7-adapter.md`).
 
 This spike proves **R1**. It runs the real `agent/` code over a real socket transport

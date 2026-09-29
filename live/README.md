@@ -1,4 +1,4 @@
-# live/ — the live settlement + provenance anchor seam
+# live/: the live settlement + provenance anchor seam
 
 Turns the delivery receipt's placeholder into a **real, on-chain** payment and (once
 anchored) tamper-evident provenance. Read-only verification is zero-dependency and runs
