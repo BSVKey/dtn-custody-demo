@@ -24,7 +24,7 @@ const REAL = {
 // on-chain in an OP_RETURN. Overridable via env for a different run's root/anchor.
 const here = dirname(fileURLToPath(import.meta.url));
 const payloadRoot = "0x" + buildTree(chunk(readFileSync(join(here, "anchored-payload.txt")), 64).map((c) => leafHash(c))).root;
-const PINNED_ANCHOR = "d49777e46abe6dfa02586d3ab81f91c52fb9026dd667d6adafd848fa8889e8ca";
+const PINNED_ANCHOR = "733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207";
 const root = process.env.MANIFEST_ROOT || payloadRoot;
 const anchorTxid = process.env.ANCHOR_TXID || PINNED_ANCHOR;
 

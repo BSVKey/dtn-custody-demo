@@ -69,7 +69,7 @@ infrastructure:
   mainnet settlement (5942 sats, 2351+ conf). See `live/`.
 
 - **Provenance anchor** is on chain: the manifest root of `live/anchored-payload.txt` is
-  committed in an OP_RETURN (tx [`d49777e4…89e8ca`](https://whatsonchain.com/tx/d49777e46abe6dfa02586d3ab81f91c52fb9026dd667d6adafd848fa8889e8ca)),
+  committed in an OP_RETURN (tx [`733dcc21…b51207`](https://whatsonchain.com/tx/733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207)),
   and `make live` verifies it by default. `buildAnchorTx` builds (never broadcasts) the
   anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
 

@@ -12,7 +12,7 @@ import { join } from "node:path";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const OUT = join(here, "out"), FR = join(OUT, "frames");
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const ANCHOR = "https://whatsonchain.com/tx/d49777e46abe6dfa02586d3ab81f91c52fb9026dd667d6adafd848fa8889e8ca";
+const ANCHOR = "https://whatsonchain.com/tx/733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207";
 rmSync(OUT, { recursive: true, force: true }); mkdirSync(FR, { recursive: true });
 
 // ---- 1. replay the cast through a minimal terminal emulator ----------------------
