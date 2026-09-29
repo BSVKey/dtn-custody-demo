@@ -1,0 +1,24 @@
+{
+  "name": "mixed-interop",
+  "description": "Our custody payload across two DTN implementations: uD3TN node ipn:1 -> NASA HDTN router ipn:10 -> uD3TN node ipn:2, TCPCLv3 on both links. The HDTN-to-uD3TN link is scheduled down from 15 s to 35 s after HDTN starts, so HDTN must store bundles that uD3TN handed it and forward them to uD3TN when the contact opens.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "sender (uD3TN)" },
+    { "ipn": 10, "name": "NASA HDTN router" },
+    { "ipn": 2, "name": "receiver (uD3TN)" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 10 },
+    { "id": "L2", "from": 10, "to": 2 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 1000, "rate_bps": 100000000 },
+    "L2": { "one_way_ms": 1000, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 600 },
+    { "link": "L2", "up_s": 0, "down_s": 15 },
+    { "link": "L2", "up_s": 35, "down_s": 600, "note": "scheduled gap 15 s to 35 s" }
+  ],
+  "occultation": { "link": "L2", "down_s": 15, "up_s": 35, "expect_gap_object": true }
+}

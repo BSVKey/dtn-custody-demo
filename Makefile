@@ -50,3 +50,9 @@ clean:
 ion:
 	docker build -t dtn-custody-ion -f ion/Dockerfile .
 	docker run --rm --privileged dtn-custody-ion
+
+# Mixed implementations: uD3TN -> NASA HDTN -> uD3TN over TCPCLv3, with HDTN holding the
+# bundles across a scheduled gap. See mix/RESULTS.md.
+mix:
+	docker build -t dtn-custody-mix -f mix/Dockerfile .
+	docker run --rm dtn-custody-mix
