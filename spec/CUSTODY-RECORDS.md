@@ -4,7 +4,9 @@ Status: draft 1, 2026-09-29. Covers the record formats produced by three open-so
 reference implementations (Apache-2.0, Embryo Space Inc. DBA BSVKey):
 
 - [dtn-custody-demo](https://github.com/BSVKey/dtn-custody-demo): data custody over
-  delay/disruption-tolerant networks (`manifest/1`, `custody/1`, `gap/1`, `delivery/1`)
+  delay/disruption-tolerant networks (`manifest/1`, `custody/1`, `gap/1`, `delivery/1`;
+  ground-station ledgers add `station.pass/1`, `station.unscheduled/1`, `station.ledger/1`,
+  described in `ground/README.md`)
 - [open-downlink-custody](https://github.com/BSVKey/open-downlink-custody): satellite
   downlink receipts over SatNOGS (`odc.*`)
 - [wx-custody](https://github.com/BSVKey/wx-custody): NOAA data verified across cloud

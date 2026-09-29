@@ -43,6 +43,8 @@ agent/               the application agent
 transport/
   sim.mjs            in-process DTN simulator (delay, reorder, occultation)
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
+ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
+bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
 contact-plans/       per-tier link schedules with occultation windows
 docs/                BUILD-PLAN.md (the full plan)
@@ -58,7 +60,9 @@ infrastructure:
   offline (zero dependencies).
 - **M0 (`make spike` / `make spike-local`)** carries the payload over a real transport
   through an occultation: `spike-local` over real sockets, `make spike` over real veths
-  with `tc netem` and a real 100%-loss L2 blackout. See `m0/RESULTS.md`.
+  with `tc netem` and a real 100%-loss L2 blackout. `make spike-moon` repeats it at
+  real Earth-Moon light time (1.3 s one way on the Earth link) with a 20 s blackout.
+  See `m0/RESULTS.md`.
 - **R2 (`make r2`)** carries the same custody chain over **real µD3TN BPv7**, with the
   bundles **held in µD3TN storage across a scheduled contact gap** (real bundle
   custody, not TCP retransmit). See `r2/RESULTS.md`.
@@ -72,6 +76,14 @@ infrastructure:
   committed in an OP_RETURN (tx [`733dcc21…b51207`](https://whatsonchain.com/tx/733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207)),
   and `make live` verifies it by default. `buildAnchorTx` builds (never broadcasts) the
   anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
+
+- **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
+  every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
+  root, and corroborates two stations. Runs on existing received files; no flight
+  change. `node ground/demo.mjs`.
+
+- **Performance (`bench/`)**: about 30,000 custody receipts signed per second on one
+  desktop core; custody adds about 2% at 64 KiB chunks. See `bench/RESULTS.md`.
 
 Mission-latency contact plans (Moon, Sun-Earth L1, Mars, Uranus) ship in `contact-plans/`
 and compile to the formats NASA's DTN software loads (verified end to end with NASA HDTN: our custody payload was stored by the HDTN router across a scheduled gap and verified at the receiver, see `hdtn/RESULTS.md`): HDTN (NASA Glenn) JSON and JPL ION
