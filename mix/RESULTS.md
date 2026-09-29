@@ -42,6 +42,6 @@ unacknowledged bundles against `maxNumberOfBundlesInPipeline` (20 in HDTN's stoc
 so a stored backlog stalls part-way. The run script raises that window to 1000 in a copy
 of HDTN's stock config; nothing else is changed. Operators mixing these two
 implementations should set the window above their largest expected backlog, or use a
-convergence layer where both sides acknowledge. The custody layer is what detected the
-shortfall: the receiver reported exactly which chunks were missing instead of accepting a
-partial payload.
+convergence layer where both sides acknowledge. The custody layer is what caught the
+shortfall: the receiver reported the payload incomplete (9 of 19 chunks verified) instead of
+accepting a partial one.
