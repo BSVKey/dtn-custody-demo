@@ -97,8 +97,11 @@ infrastructure:
   whole active fleet in the snapshot) every bundle verifies, with thousands rerouted
   mid-transfer. `node constellation/orbits-run.mjs`, see `constellation/ORBITS-RESULTS.md`.
 
-- **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer across a link
-  delayed 4 minutes each way. `make mars`, see `mars/RESULTS.md`.
+- **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer at 4, 12.5 and 22
+  minutes each way (close approach, average and near-maximum Mars distance), every file
+  arriving exactly one light time later; and a rover to relay-orbiter to Earth chain with
+  5% packet loss each way on a 4-minute link, repaired by LTP. `make mars`, see
+  `mars/RESULTS.md`.
 
 - **Onboard signing in C (`flight/`)**: the same records produced in portable C99
   with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures

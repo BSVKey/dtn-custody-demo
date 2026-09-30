@@ -75,8 +75,16 @@ physically possible was 344 s: the contact opening plus one light time), and the
 
 `netem` refuses a single delay above about 4.5 minutes, so `run-mars.sh` builds longer
 light times from stacked netem stages of at most 240 s (a 6 s check built from two 3 s
-stages delivered at exactly 6.0 s). Runs at 750 s (average Mars distance) and 1,320 s (near
-maximum) are recorded below when complete.
+stages delivered at exactly 6.0 s).
+
+| One-way light time | Netem stages | Sent | Received | First arrival after sending | Chunks, handoffs verified | Result |
+|---|---|---|---|---|---|---|
+| 240 s (close approach) | 1 x 240 s | 05:51:11 | 05:55:21 | 240.0 s | 20 / 20, 20 / 20 | PASS |
+| 750 s (average distance) | 3 x 240 s + 30 s | 06:36:31 | 06:49:12 | 750.0 s | 20 / 20, 20 / 20 | PASS |
+| 1,320 s (near maximum) | 5 x 240 s + 120 s | 06:36:31 | 06:58:42 | 1,320.0 s | 20 / 20, 20 / 20 | PASS |
+
+All runs 2026-09-30, JPL ION `c5a4d87` over LTP, clean links. Reproduce with
+`docker run --rm --privileged -e OWLT=<seconds> dtn-custody-mars`.
 
 Limits: small payloads, one relay, uniform random loss (no bursts), and no
 light-time change during the run.
