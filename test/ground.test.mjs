@@ -69,3 +69,15 @@ test("two stations corroborate identical products", () => {
   assert.deepEqual(c.onlyB, ["late.bin"]);
   assert.equal(fingerprint(files[0].bytes).chunkCount, 4);
 });
+
+test("pass comparison locates a one-sided gap and clears a shared silence", async () => {
+  const { comparePasses } = await import("../ground/lib.mjs");
+  const p3 = [...passes, { passId: "P3", start: T0 + 12_000_000, end: T0 + 12_600_000 }];
+  // A hears P1 only; B hears P1 and P2; neither hears P3.
+  const A = buildLedger(genKeypair(), { station, spacecraft, files: files.slice(0, 2), passes: p3 });
+  const B = buildLedger(genKeypair(), { station: "ipn:21.0", spacecraft, files: [...files.slice(0, 2), f("p2.bin", 50, T0 + 6_100_000)], passes: p3 });
+  const byPass = Object.fromEntries(comparePasses(A, B).map((x) => [x.passA, x.finding]));
+  assert.deepEqual(byPass, { P1: "both_received", P2: "gap_at_a", P3: "shared_silence" });
+  const other = buildLedger(genKeypair(), { station: "ipn:22.0", spacecraft: "ipn:6.0", files, passes: p3 });
+  assert.deepEqual(comparePasses(A, other), []);
+});

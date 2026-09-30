@@ -31,6 +31,8 @@ if (arg("with")) {
   if (va.ok && vb.ok) {
     const c = corroborate(a, b);
     console.log(`corroborated by both stations: ${c.corroborated.length}; only ${a.station}: ${c.onlyA.length}; only ${b.station}: ${c.onlyB.length}`);
+    const who = { gap_at_a: `gap at ${a.station} (${b.station} received)`, gap_at_b: `gap at ${b.station} (${a.station} received)`, shared_silence: "silent at both stations", both_received: "received at both" };
+    for (const x of c.passes) console.log(`  pass ${x.passA}/${x.passB} ${new Date(x.overlap.from).toISOString()}: ${who[x.finding]}`);
   }
 }
 console.log(fails ? "VERIFY: FAIL" : "VERIFY: PASS");

@@ -122,5 +122,35 @@ export function corroborate(a, b) {
     corroborated: both,
     onlyA: [...mA.keys()].filter((k) => !mB.has(k)).map((k) => mA.get(k).meta.name),
     onlyB: [...mB.keys()].filter((k) => !mA.has(k)).map((k) => mB.get(k).meta.name),
+    passes: comparePasses(a, b),
   };
+}
+
+// Compare two stations' pass reports for the same spacecraft. Passes whose scheduled
+// windows overlap were, by both operators' own schedules, passes both could have heard:
+//   shared_silence   both silent: the gap is not attributable to either station (the
+//                    spacecraft did not transmit, or a cause common to both)
+//   gap_at_a/gap_at_b  one silent while the other received data in the same window: the
+//                    spacecraft was transmitting, so the gap points at the silent station
+//   both_received    no gap
+// Overlapping schedules are not identical visibility (elevation, local weather or
+// interference differ), so a one-sided gap locates the outage at that station's link; it
+// does not by itself establish fault.
+export function comparePasses(a, b) {
+  if (a.spacecraft !== b.spacecraft) return [];
+  const reports = (l) => l.records.filter((r) => r.kind === "station.pass/1");
+  const out = [];
+  for (const pa of reports(a)) {
+    for (const pb of reports(b)) {
+      const from = Math.max(pa.scheduledStart, pb.scheduledStart), to = Math.min(pa.scheduledEnd, pb.scheduledEnd);
+      if (to <= from) continue;
+      const sa = pa.status === "no-data", sb = pb.status === "no-data";
+      out.push({
+        overlap: { from, to }, passA: pa.passId, passB: pb.passId, productsA: pa.products, productsB: pb.products,
+        finding: sa && sb ? "shared_silence" : sa ? "gap_at_a" : sb ? "gap_at_b" : "both_received",
+        reportA: pa.claimId, reportB: pb.claimId,
+      });
+    }
+  }
+  return out;
 }

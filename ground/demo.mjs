@@ -2,7 +2,8 @@
 // Self-contained walk-through of the pilot kit with simulated passes. Two ground stations
 // receive downlinks from one spacecraft over three scheduled passes; station A misses
 // pass 2 entirely. Each writes a ledger with the real CLI, the ledgers are verified and
-// corroborated, and one product is then altered on disk to show it is caught.
+// corroborated (products and passes: A's missed pass is located at A, since B heard it),
+// and one product is then altered on disk to show it is caught.
 //   node ground/demo.mjs
 import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

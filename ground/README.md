@@ -69,7 +69,12 @@ Merkle tree.
 
    Verification uses only the pinned key the verifier supplies, never the key carried
    in the ledger. Products received identically by both stations are reported as
-   corroborated.
+   corroborated. Their pass reports are compared too: for passes whose scheduled windows
+   overlap, silence at both stations is not attributable to either one (`shared_silence`),
+   while silence at one station when the other received data in the same window points
+   the gap at the silent station (`gap_at_a` / `gap_at_b`). Overlapping schedules are not
+   identical visibility (elevation, weather, local interference), so a one-sided gap
+   locates the outage at that station's link rather than proving fault.
 
 ## What this does and does not prove
 
