@@ -36,4 +36,4 @@ It does not prove what the spacecraft sent: that needs a manifest signed on boar
 not require any record to leave the operator's network. Publishing the ledger's single
 32-byte seal as a public timestamp is optional.
 
-Commands: see [README.md](README.md). Contact: support@embryospace.com.
+Commands: see [README.md](README.md). Contact: embryospace@gmail.com.

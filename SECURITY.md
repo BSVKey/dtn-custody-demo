@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report security issues privately to **support@embryospace.com** rather than
+Please report security issues privately to **embryospace@gmail.com** rather than
 opening a public issue. Include a description, affected files or commit, and a
 reproduction if you have one. We will acknowledge and work with you on a fix and
 coordinated disclosure.

@@ -18,7 +18,7 @@ const SRC = "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=t
 const cacheDir = new URL("./.tle-cache/", import.meta.url), cacheFile = new URL("starlink.tle", cacheDir);
 if (!existsSync(cacheFile) || process.argv.includes("--refresh")) {
   mkdirSync(cacheDir, { recursive: true });
-  const r = await fetch(SRC, { headers: { "user-agent": "dtn-custody-demo (support@embryospace.com)" } });
+  const r = await fetch(SRC, { headers: { "user-agent": "dtn-custody-demo (embryospace@gmail.com)" } });
   if (!r.ok) throw new Error(`CelesTrak fetch failed: ${r.status}`);
   writeFileSync(cacheFile, await r.text());
 }
