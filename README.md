@@ -96,6 +96,11 @@ infrastructure:
   and ground visibility from geometry each minute. At 4,032 and at 9,732 satellites (the
   whole active fleet in the snapshot) every bundle verifies, with thousands rerouted
   mid-transfer. `node constellation/orbits-run.mjs`, see `constellation/ORBITS-RESULTS.md`.
+  **On a real BSV node**: every batch receipt from the 4,032-satellite real-orbit run went
+  through Teranode (private regtest chain) as a transaction that pays the relaying
+  satellite and commits that receipt: 30,502 transactions, all confirmed, and 100 of 100
+  sampled bundles proven custodied and paid at every hop from the chain alone.
+  See `constellation/TERANODE-RESULTS.md`.
 
 - **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer at 4, 12.5 and 22
   minutes each way (close approach, average and near-maximum Mars distance), every file

@@ -139,6 +139,14 @@ const send = async (hex) => {
 };
 const tSend0 = performance.now();
 await pool(paid, conc, async (p) => { try { await send(p.hex); } catch (e) { rejected.push({ txid: p.txid, err: e.message.slice(0, 120) }); } });
+// Anything the busy node still turned away is resubmitted in slower passes.
+const firstPassRejected = rejected.length;
+const byTxid = new Map(paid.map((p) => [p.txid, p]));
+for (let pass = 0; pass < 3 && rejected.length; pass++) {
+  await new Promise((r) => setTimeout(r, 5000));
+  const again = rejected.splice(0);
+  await pool(again, 4, async (r) => { try { await send(byTxid.get(r.txid).hex); } catch (e) { rejected.push({ txid: r.txid, err: e.message.slice(0, 120) }); } });
+}
 const tSend = (performance.now() - tSend0) / 1000;
 const accepted = paid.length - rejected.length;
 
@@ -231,7 +239,7 @@ const lines = [
   "| Step | Time | Rate |", "|---|---|---|",
   `| Mine and split funds (110 blocks, ${fanTxs.length} fan-out transactions) | ${tFund.toFixed(1)} s | |`,
   `| Build and sign ${fmt(paid.length)} payment transactions (JavaScript, one thread) | ${tSign.toFixed(1)} s | ${fmt(paid.length / tSign)} per second |`,
-  `| Submit to Teranode over JSON-RPC (${conc} concurrent, ${fmt(retries)} busy retries) | ${tSend.toFixed(1)} s | **${fmt(accepted / tSend)} accepted per second** |`,
+  `| Submit to Teranode over JSON-RPC (${conc} concurrent, ${fmt(retries)} busy retries, ${fmt(firstPassRejected)} resubmitted in slower passes) | ${tSend.toFixed(1)} s | **${fmt(accepted / tSend)} accepted per second** |`,
   `| Mine until all confirmed (${minedBlocks} blocks) | ${tConfirm.toFixed(1)} s | |`, "",
   "Throughput here is bounded by one JSON-RPC client on one desktop running every Teranode service in Docker, not by Teranode's design capacity; treat it as a floor for this setup.", "",
   "## Proven from the chain", "",

@@ -19,6 +19,10 @@
 - **Real orbits** (`constellation/orbits.mjs`, `orbits-run.mjs`). Public Starlink elements
   propagated with SGP4; links and ground visibility from geometry each minute. Every
   bundle verifies at 4,032 and 9,732 satellites. New dependency: satellite.js (MIT).
+- **Per-hop payments on Teranode** (`constellation/teranode-run.mjs`). On a private
+  regtest chain, one transaction per batch receipt pays the relaying satellite and commits
+  the receipt: 30,502 confirmed; 100 of 100 sampled bundles proven custodied and paid at
+  every hop from the chain alone; one Merkle root per minute as the low-cost alternative.
 
 ### Fixed
 
