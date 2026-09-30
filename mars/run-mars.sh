@@ -23,7 +23,18 @@ ip -n m1 link set v1 up; ip -n m2 link set v2 up; ip -n m1 link set lo up; ip -n
 M1=$(ip -n m1 -br link show v1 | awk '{print $3}'); M2=$(ip -n m2 -br link show v2 | awk '{print $3}')
 ip -n m1 neigh replace 10.9.0.2 lladdr "$M2" dev v1 nud permanent
 ip -n m2 neigh replace 10.9.0.1 lladdr "$M1" dev v2 nud permanent
-for n in 1 2; do ip netns exec m$n tc qdisc add dev v$n root netem delay ${OWLT}s limit 100000; done
+# netem refuses a single delay above about 4.5 minutes, so longer light times are built from
+# stacked netem stages of at most MAXQ seconds each (each stage is the child of the last).
+MAXQ=${MAXQ:-240}
+netem_delay() { # netns dev total_seconds
+  local ns=$1 dev=$2 left=$3 parent="root" h=1
+  while [ "$left" -gt 0 ]; do
+    local d=$(( left > MAXQ ? MAXQ : left ))
+    ip netns exec $ns tc qdisc add dev $dev $parent handle $h: netem delay ${d}s limit 100000
+    parent="parent $h:1"; h=$((h + 1)); left=$((left - d))
+  done
+}
+for n in 1 2; do netem_delay m$n v$n "$OWLT"; done
 ip netns exec m1 tc qdisc show dev v1 | sed 's/^/        /'
 
 node ion/prepare.mjs
