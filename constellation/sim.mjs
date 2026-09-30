@@ -73,7 +73,9 @@ function distances(t) {
   return d;
 }
 
-export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, failRate = 0.02, stationUpRate = 1, injectEpochs = 10, seed = c.seed } = {}) {
+// keyAt(node, time), when given, picks the signing key in force at that time (for key
+// rotation during the run); otherwise each node signs with its one key in c.keys.
+export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, failRate = 0.02, stationUpRate = 1, injectEpochs = 10, seed = c.seed, keyAt } = {}) {
   const rand = rng(seed);
   const satIndex = new Map(c.sats.map((x, i) => [x.eid, i]));
   const inflight = [];
@@ -128,7 +130,7 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
     }
     // One batch receipt per (node, previous hop) for this epoch.
     for (const r of received.values()) {
-      const kp = c.keys.get(r.node);
+      const kp = keyAt ? keyAt(r.node, r.from) : c.keys.get(r.node);
       batches.push(batchReceipt(kp, { prevHop: r.prev, thisHop: r.node, contactId: `e${e}:${r.prev}>${r.node}`, from: r.from, to: r.to, bundleIds: r.ids }));
     }
   }
@@ -144,6 +146,8 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
 }
 
 // Ground side: index every batch by bundle, rebuild and verify each delivered bundle.
+export function epochStart(e, ticksPerEpoch = 10) { return Date.parse("2026-10-01T00:00:00Z") + e * ticksPerEpoch * 6000; }
+
 export function verifyAll(c, run, { authorize, maxHops = 256 } = {}) {
   const auth = authorize || pinnedDirectory(new Map([...c.keys].map(([eid, kp]) => [eid, kp.pub])));
   const byBundle = new Map();
