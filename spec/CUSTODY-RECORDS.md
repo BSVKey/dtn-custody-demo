@@ -77,6 +77,7 @@ Verification, in order:
 |---|---|---|
 | `manifest/1` | `payloadId`, `chunkCount`, `root` (Merkle root of the chunks), `meta` (includes `chunkSize`) | payload source |
 | `custody/1` | `payloadId`, `bundleId`, `prevHop`, `thisHop`, `receivedAt`, `forwardedAt` | the node at `thisHop` |
+| `custody-batch/1` | `prevHop`, `thisHop`, `contactId`, `from`, `to`, `count`, `root` (Merkle root of the bundle ids taken in that window) | the node at `thisHop` |
 | `delivery/1` | `payloadId`, `root`, `rail`, `network`, `settlementRef`, `payTo`, `amountAtomic` | the destination |
 | `gap/1` (unsigned object, carried inside signed records) | `link`, `downAt`, `upAt`, `durationMs`, `bundlesDelayed[]`, `bundlesLostConfirmed[]`, `note` | none |
 
@@ -93,6 +94,21 @@ Rules:
   `prevHop` equal to the previous receipt's `thisHop`. Failure reasons:
   `wrong_hop_count`, `wrong_bundle`, `unexpected_hop`, `signer_not_pinned_hop_key`,
   `custody_chain_break`.
+- **Batch receipts.** A node MAY sign one `custody-batch/1` per contact instead of one
+  `custody/1` per bundle. Leaves are the bundle ids, de-duplicated and sorted, each hashed
+  as `leafHash(utf8(bundleId))`; `count` is the number of leaves. A bundle is covered by a
+  batch when its leaf verifies against `root` at an index below `count`. The node keeps the
+  sorted id list so inclusion proofs can be produced later.
+- **Unlisted routes.** When the path is not known in advance, a verifier MUST accept a
+  sequence of hop records (per-bundle or batch, mixed) only if: the first `prevHop` is the
+  expected source and the last `thisHop` the expected destination; each later `prevHop`
+  equals the previous `thisHop`; every record verifies and covers the bundle; every signer
+  is authorized for that `thisHop` at the record's start time by the verifier's own key
+  directory or registry; and no record ends more than the allowed clock skew before the
+  previous one starts. A node MAY appear more than once (a reroute back through it). Failure
+  reasons: `empty_path`, `too_many_hops`, `wrong_source`, `wrong_destination`,
+  `chain_break`, `not_in_batch`, `wrong_bundle`, `time_regression`, plus the authorizer's
+  reason (for example `signer_not_authorized`, `key_compromised`).
 - **Gap.** A link outage MUST be recorded as a gap object with its boundaries and the
   bundles it delayed; silence is never read as "nothing happened".
 - **Delivery binding.** A verifier binds a delivery receipt to the payment it made itself.

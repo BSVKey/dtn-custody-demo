@@ -94,6 +94,33 @@
       "bundlesLostConfirmed": [],
       "note": "occultation window; delivery resumed on link reopen (store-and-forward)."
     },
+    "batch": {
+      "receipt": {
+        "kind": "custody-batch/1",
+        "prevHop": "dtn://source/",
+        "thisHop": "dtn://relaya/",
+        "contactId": "vector-contact-1",
+        "from": 1000,
+        "to": 1100,
+        "count": 3,
+        "root": "dac92ae58490b2d6abffbbd356622b54c007f77ab7abc461951d6a06d4d2515c",
+        "claimId": "0xf8d1d4707c07277f51851e429af8c9fa37f15e9011647bf7134a3c5a72437dfb",
+        "sig": "5xHpwH3rF9cQc2U2DXrFS6rN3YyJFJqo+L/JcLNJYASShVqkt6qdbJ2sw2yb3cyXQCZBl2VtT1rc13Eh1pBpDg==",
+        "signerPub": "MCowBQYDK2VwAyEAgTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q="
+      },
+      "leaves": [
+        "0x592e7a780596c038176ad6364592561f4e0701f4f13f1332a80741ab1358e5f4",
+        "0x7ab0bc0e11b2448037d4653a64d8319f8c3f018af7bf2695a9933bfa28242785",
+        "0xe2adc6693755f7174c1e3599f3677c53b6aecf01315bde352c6d35945a6dc939"
+      ],
+      "proofForCustodyBundle": {
+        "index": 1,
+        "branch": [
+          "3b41f14dd10270465d3113067cb6bd77aedd7123b33be8c78e0dbfb419809df9",
+          "fefe8d97f233a9333e2005213ee208156825fa33e90648ecef2b8eabbb54084e"
+        ]
+      }
+    },
     "delivery": {
       "kind": "delivery/1",
       "payloadId": "0xvector-001",

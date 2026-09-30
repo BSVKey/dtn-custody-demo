@@ -11,6 +11,7 @@ import { canonicalize, contentId, sha256hex } from "../agent/lib/canonical.mjs";
 import { leafHash, buildTree, proof, verifyProof } from "../agent/lib/merkle.mjs";
 import { signRecord, buildManifest, custodyReceipt, deliveryReceipt } from "../agent/lib/receipt.mjs";
 import { gapObject } from "../agent/lib/gap.mjs";
+import { batchReceipt, batchProof } from "../agent/lib/batch.mjs";
 
 // Ed25519 private key from a fixed 32-byte seed (RFC 8410 PKCS#8 prefix + seed).
 export function testKey(seedHex) {
@@ -38,6 +39,8 @@ export function buildVectors() {
   const bundleId = contentId({ payloadId: "0xvector-001", index: 1, leafHex: cLeaves[1] });
   const custody = custodyReceipt(relay, { payloadId: "0xvector-001", bundleId, prevHop: "dtn://source/", thisHop: "dtn://relaya/", receivedAt: 1000, forwardedAt: 1050 });
   const gap = gapObject({ link: "L2", linkEvents: [{ link: "L2", event: "down", t: 500 }, { link: "L2", event: "up", t: 2200 }], delayed: [bundleId] });
+  const batchIds = [bundleId, contentId({ payloadId: "0xvector-001", index: 0, leafHex: cLeaves[0] }), contentId({ payloadId: "0xvector-001", index: 2, leafHex: cLeaves[2] })];
+  const batch = batchReceipt(relay, { prevHop: "dtn://source/", thisHop: "dtn://relaya/", contactId: "vector-contact-1", from: 1000, to: 1100, bundleIds: batchIds });
   const delivery = deliveryReceipt(dest, { payloadId: "0xvector-001", root: cTree.root, rail: "example-rail", network: "example-net", settlementRef: "ab".repeat(32), payTo: "example-payee", amountAtomic: 1000 });
 
   return {
@@ -56,6 +59,7 @@ export function buildVectors() {
       manifest,
       custody,
       gap,
+      batch: { receipt: batch.receipt, leaves: batch.leaves, proofForCustodyBundle: batchProof(batch, bundleId) },
       delivery,
     },
   };
