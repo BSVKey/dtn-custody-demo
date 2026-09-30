@@ -29,3 +29,6 @@ Thumbs.db
 
 # demo render outputs (frames, chrome profile, video)
 demo/out/
+
+# public orbital elements fetched at run time (not redistributed)
+constellation/.tle-cache/

@@ -17,7 +17,7 @@ const { manifest, bundles } = prepare(source, payload, { payloadId: "0xion-inter
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest));
 const now = Date.now();
 for (const b of bundles) {
-  const handoff = custodyReceipt(sender, { payloadId: b.payloadId, bundleId: b.bundleId, prevHop: "app:source", thisHop: "ipn:1.2", receivedAt: now, forwardedAt: now });
+  const handoff = custodyReceipt(sender, { payloadId: b.payloadId, bundleId: b.bundleId, prevHop: "app:source", thisHop: process.env.SENDER_EID || "ipn:1.2", receivedAt: now, forwardedAt: now });
   writeFileSync(`${OUT}/chunk-${String(b.index).padStart(3, "0")}.json`, JSON.stringify({ bundle: b, custody: [handoff] }));
 }
 writeFileSync("/tmp/pins.json", JSON.stringify({ sourcePub: source.pub, senderPub: sender.pub, payloadSha256: createHash("sha256").update(payload).digest("hex"), chunks: bundles.length }));

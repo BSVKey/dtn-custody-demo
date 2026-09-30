@@ -1,0 +1,28 @@
+{
+  "name": "mars-relay",
+  "description": "A Mars rover (ipn:3) relays through a Mars orbiter (ipn:1) to Earth (ipn:2). Rover to orbiter is short range and always open; orbiter to Earth is the long-haul link, closed for the first 120 s (Earth not yet in view), then open. Light time and loss on the long-haul link are set at run time.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 3, "name": "Mars rover" },
+    { "ipn": 1, "name": "Mars relay orbiter" },
+    { "ipn": 2, "name": "Earth ground station" }
+  ],
+  "links": [
+    { "id": "UP", "from": 3, "to": 1 },
+    { "id": "DOWN", "from": 1, "to": 3 },
+    { "id": "LONG", "from": 1, "to": 2 },
+    { "id": "BACK", "from": 2, "to": 1 }
+  ],
+  "delays": {
+    "UP": { "one_way_ms": 10, "rate_bps": 2000000 },
+    "DOWN": { "one_way_ms": 10, "rate_bps": 2000000 },
+    "LONG": { "one_way_ms": 240000, "rate_bps": 1000000 },
+    "BACK": { "one_way_ms": 240000, "rate_bps": 1000000 }
+  },
+  "contacts": [
+    { "link": "UP", "up_s": 0, "down_s": 14400 },
+    { "link": "DOWN", "up_s": 0, "down_s": 14400 },
+    { "link": "LONG", "up_s": 120, "down_s": 14400 },
+    { "link": "BACK", "up_s": 120, "down_s": 14400 }
+  ]
+}

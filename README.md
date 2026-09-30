@@ -92,6 +92,10 @@ infrastructure:
   verify; under harsh outages (most cross-links failing, ground stations offline) 9,040
   bundles wait in storage and still verify; five attacks are each caught for exactly the
   bundles they touch. `node constellation/run.mjs`, see `constellation/RESULTS.md`.
+  The same runs over **real orbits**: public Starlink elements propagated with SGP4, links
+  and ground visibility from geometry each minute. At 4,032 and at 9,732 satellites (the
+  whole active fleet in the snapshot) every bundle verifies, with thousands rerouted
+  mid-transfer. `node constellation/orbits-run.mjs`, see `constellation/ORBITS-RESULTS.md`.
 
 - **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer across a link
   delayed 4 minutes each way. `make mars`, see `mars/RESULTS.md`.

@@ -14,6 +14,9 @@
 - **Constellation simulation** (`constellation/`). 4,032 satellites, changing routes,
   ground-station outages, load up to 200,000 bundles, and attack cases.
 - **Mars light time** (`mars/`). JPL ION over LTP across a 4-minute one-way delay.
+- **Real orbits** (`constellation/orbits.mjs`, `orbits-run.mjs`). Public Starlink elements
+  propagated with SGP4; links and ground visibility from geometry each minute. Every
+  bundle verifies at 4,032 and 9,732 satellites. New dependency: satellite.js (MIT).
 
 ### Fixed
 

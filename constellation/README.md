@@ -25,7 +25,17 @@ Results: [RESULTS.md](RESULTS.md).
   a signed fleet registry with rotation and compromise revocation through the same
   `authorize(pub, node, time)` call.
 
-## The model
+## Real orbits
+
+`orbits.mjs` replaces the grid with real geometry: public Starlink two-line element sets
+from CelesTrak, propagated with SGP4 (satellite.js) every minute; inter-satellite links
+from range and line of sight, kept while geometry allows; ground stations at public city
+locations with a 25-degree elevation mask. The laser-link layout is a geometric model,
+since operators do not publish theirs. `node constellation/orbits-run.mjs` fetches the
+current elements into `constellation/.tle-cache/` (not committed) and records the snapshot
+it used. Results: [ORBITS-RESULTS.md](ORBITS-RESULTS.md).
+
+## The model (grid)
 
 A grid of orbital planes with in-plane and cross-plane links, a polar band where
 cross-plane links drop, random link failures, ground stations whose access moves every

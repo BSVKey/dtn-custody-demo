@@ -87,7 +87,9 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
   const tickMs = 6000;
 
   for (let e = 0; e < epochs; e++) {
-    const topo = topology(c, e, rand, failRate, stationUpRate);
+    // A constellation may bring its own topology source (for example real orbits); otherwise
+    // the grid model above is used.
+    const topo = c.topology ? c.topology(e) : topology(c, e, rand, failRate, stationUpRate);
     if (topo.stationsUp === 0) blackoutEpochs++;
     const dist = distances(topo);
     const received = new Map(); // `${node}|${prev}` -> { ids, from, to }
