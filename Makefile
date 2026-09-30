@@ -74,3 +74,13 @@ hardy:
 cfs:
 	docker build -t dtn-custody-cfs -f flight/cfs/Dockerfile .
 	docker run --rm --sysctl fs.mqueue.msg_max=256 dtn-custody-cfs
+
+# Our custody payload through JPL ION over LTP across a Mars-distance link (netem, 4 minutes
+# each way). Takes about 10 minutes. See mars/RESULTS.md.
+mars:
+	docker build -t dtn-custody-mars -f mars/Dockerfile .
+	docker run --rm --privileged -e OWLT=240 dtn-custody-mars
+
+# Thousands of satellites: batch receipts, changing routes, outages, attacks.
+constellation:
+	node constellation/run.mjs

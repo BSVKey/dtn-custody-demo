@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-30
+
+### Added
+
+- **Batch receipts** (`custody-batch/1`, `agent/lib/batch.mjs`). One signed record per
+  node per contact covering every bundle taken in it; any single bundle is proven with
+  a short inclusion proof. Added to the specification and test vectors, and to the
+  onboard C signer (`ck_batch`), byte-identical to the vector.
+- **Verification over routes nobody listed in advance** (`agent/lib/path.mjs`). Accepts
+  any path that is authorized at every hop, links hop to hop, moves forward in time and
+  covers the bundle; revisits after a reroute are accepted and counted.
+- **Constellation simulation** (`constellation/`). 4,032 satellites, changing routes,
+  ground-station outages, load up to 200,000 bundles, and attack cases.
+- **Mars light time** (`mars/`). JPL ION over LTP across a 4-minute one-way delay.
+
+### Fixed
+
+- **ION runs**: each ION node now gets a private `/dev/shm`, since ION keeps named
+  semaphores there and two nodes could otherwise interfere.
+
 ## 2026-09-29
 
 ### Added

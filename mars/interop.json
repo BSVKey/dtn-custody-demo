@@ -1,0 +1,21 @@
+{
+  "name": "mars-light-time",
+  "description": "Our custody payload across a Mars-distance link: ION node ipn:1 (spacecraft side) to ipn:2 (Earth side) over LTP, with the link delayed 4 minutes each way (Mars near closest approach; the one-way light time ranges from about 3 to 22 minutes).",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "Mars side (ION node 1)" },
+    { "ipn": 2, "name": "Earth side (ION node 2)" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 },
+    { "id": "L2", "from": 2, "to": 1 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 240000, "rate_bps": 1000000 },
+    "L2": { "one_way_ms": 240000, "rate_bps": 1000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 7200 },
+    { "link": "L2", "up_s": 0, "down_s": 7200 }
+  ]
+}

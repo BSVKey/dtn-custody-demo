@@ -45,6 +45,8 @@ transport/
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
+constellation/       thousands of satellites: batch receipts, changing routes, attacks
+mars/                JPL ION over LTP at Mars light time
 ion/, mix/, hardy/  JPL ION, mixed uD3TN/HDTN and Aalyria Hardy interop runs
 bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
@@ -83,6 +85,16 @@ infrastructure:
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
   root, and corroborates two stations. Runs on existing received files; no flight
   change. `node ground/demo.mjs`.
+
+- **Constellation scale (`constellation/`)**: 4,032 satellites with routes that change
+  while bundles are in flight, one batch receipt per satellite per contact, and
+  verification that accepts any authorized, linked path. 10,000 to 200,000 bundles all
+  verify; under harsh outages (most cross-links failing, ground stations offline) 9,040
+  bundles wait in storage and still verify; five attacks are each caught for exactly the
+  bundles they touch. `node constellation/run.mjs`, see `constellation/RESULTS.md`.
+
+- **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer across a link
+  delayed 4 minutes each way. `make mars`, see `mars/RESULTS.md`.
 
 - **Onboard signing in C (`flight/`)**: the same records produced in portable C99
   with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures
