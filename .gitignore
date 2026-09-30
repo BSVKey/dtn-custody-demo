@@ -32,3 +32,6 @@ demo/out/
 
 # public orbital elements fetched at run time (not redistributed)
 constellation/.tle-cache/
+
+# teratestnet run state (txids, local only)
+constellation/.ttn-state.json
