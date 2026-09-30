@@ -14,10 +14,11 @@ check("Merkle root matches", () => assert.equal(c.merkle.root, v.merkle.root));
 check("public keys from seeds match", () => { assert.equal(c.pubs.source, v.keys.source.pubSpkiB64); assert.equal(c.pubs.relay, v.keys.relay.pubSpkiB64); });
 check("manifest/1 record identical, signature included", () => assert.deepEqual(c.manifest, v.records.manifest));
 check("custody/1 record identical, signature included", () => assert.deepEqual(c.custody, v.records.custody));
-check("records verify with the reference verifier", () => { assert.equal(verifyRecord(c.manifest).ok, true); assert.equal(verifyRecord(c.custody).ok, true); });
+check("custody-batch/1 record identical, signature included", () => assert.deepEqual(c.batch, v.records.batch.receipt));
+check("records verify with the reference verifier", () => { for (const r of [c.manifest, c.custody, c.batch]) assert.equal(verifyRecord(r).ok, true); });
 check("unsafe strings, oversize numbers, short buffers refused", () => assert.deepEqual(c.guards, { quoteRefused: 1, numberRefused: 1, smallBufferRefused: 1 }));
 
 for (const [n, ok, why] of checks) console.log(`  ${n.padEnd(52)} ${ok ? "PASS" : "FAIL  " + why}`);
 const ok = checks.every((x) => x[1]);
-console.log(`FLIGHT_RESULT ${JSON.stringify({ ok, custodyReceiptsPerSec: c.timing.custodyReceiptsPerSec })}`);
+console.log(`FLIGHT_RESULT ${JSON.stringify({ ok, ...c.timing })}`);
 process.exit(ok ? 0 : 1);

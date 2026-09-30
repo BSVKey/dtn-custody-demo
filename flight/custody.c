@@ -145,3 +145,35 @@ int ck_custody(const ck_key *k, const char *payload_id, const char *bundle_id, c
   kstr(&o, "thisHop", this_hop, 0); put(&o, "}");
   return o.err;
 }
+
+static int cmp_str(const void *a, const void *b) { return strcmp(*(const char *const *)a, *(const char *const *)b); }
+
+int ck_batch(const ck_key *k, const char *prev_hop, const char *this_hop, const char *contact_id,
+             uint64_t from, uint64_t to, const char **ids, size_t n_ids, uint8_t (*s)[32], char *out, size_t cap) {
+  char c[768], id[CK_ID_LEN + 1], sig[CK_SIG_B64 + 1], rh[65];
+  size_t n = 0;
+  if (!k || !ids || !s || n_ids == 0 || to < from) return CK_E_ARG;
+  qsort(ids, n_ids, sizeof ids[0], cmp_str);
+  for (size_t i = 0; i < n_ids; i++) {           /* de-duplicate, hash each id as a leaf */
+    if (!safe(ids[i])) return CK_E_STRING;
+    if (n && strcmp(ids[i], ids[n - 1]) == 0) continue;
+    ids[n] = ids[i];
+    ck_leaf((const uint8_t *)ids[n], strlen(ids[n]), s[n]);
+    n++;
+  }
+  for (size_t w = n; w > 1; w = (w + 1) / 2)
+    for (size_t i = 0; i < w; i += 2) ck_node(s[i], i + 1 < w ? s[i + 1] : s[i], s[i / 2]);
+  ck_hex(s[0], 32, rh);
+  W w = { c, sizeof c, 0, 0 };
+  put(&w, "{"); kstr(&w, "contactId", contact_id, 1); knum(&w, "count", n, 0); knum(&w, "from", from, 0);
+  kstr(&w, "kind", "custody-batch/1", 0); kstr(&w, "prevHop", prev_hop, 0); kstr(&w, "root", rh, 0);
+  kstr(&w, "thisHop", this_hop, 0); knum(&w, "to", to, 0); put(&w, "}");
+  if (w.err) return w.err;
+  content_id(c, id); sign_id(k, id, sig);
+  W o = { out, cap, 0, 0 };
+  put(&o, "{"); kstr(&o, "claimId", id, 1); kstr(&o, "contactId", contact_id, 0); knum(&o, "count", n, 0);
+  knum(&o, "from", from, 0); kstr(&o, "kind", "custody-batch/1", 0); kstr(&o, "prevHop", prev_hop, 0);
+  kstr(&o, "root", rh, 0); kstr(&o, "sig", sig, 0); kstr(&o, "signerPub", k->pub_b64, 0);
+  kstr(&o, "thisHop", this_hop, 0); knum(&o, "to", to, 0); put(&o, "}");
+  return o.err;
+}

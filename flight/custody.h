@@ -39,6 +39,12 @@ int ck_manifest(const ck_key *k, const char *payload_id, uint64_t chunk_count, c
 int ck_custody(const ck_key *k, const char *payload_id, const char *bundle_id, const char *prev_hop, const char *this_hop,
                uint64_t received_at, uint64_t forwarded_at, char *out, size_t cap);
 
+/* One signed custody-batch/1 record for a contact: the bundle ids taken from prev_hop in
+ * [from, to]. `ids` is sorted and de-duplicated in place (it is an array of pointers);
+ * `scratch` holds one 32-byte hash per id. */
+int ck_batch(const ck_key *k, const char *prev_hop, const char *this_hop, const char *contact_id,
+             uint64_t from, uint64_t to, const char **ids, size_t n_ids, uint8_t (*scratch)[32], char *out, size_t cap);
+
 void ck_hex(const uint8_t *b, size_t n, char *out); /* lowercase, NUL-terminated */
 
 #endif

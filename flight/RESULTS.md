@@ -1,6 +1,6 @@
 # Onboard signing in C: PASS
 
-Run 2026-09-29. Reproduce: `make flight`.
+Run 2026-09-30 (batch receipts added; first run 2026-09-29). Reproduce: `make flight`.
 
 ```
 [flight] TweetNaCl sha256:
@@ -11,15 +11,16 @@ Run 2026-09-29. Reproduce: `make flight`.
   public keys from seeds match                         PASS
   manifest/1 record identical, signature included      PASS
   custody/1 record identical, signature included       PASS
+  custody-batch/1 record identical, signature included PASS
   records verify with the reference verifier           PASS
   unsafe strings, oversize numbers, short buffers refused PASS
-FLIGHT_RESULT {"ok":true,"custodyReceiptsPerSec":1016}
+FLIGHT_RESULT {"ok":true,"custodyReceiptsPerSec":1045,"batchOf1000PerSec":476.8}
 [flight] ARM Cortex-M4 (arm-none-eabi-gcc -Os -mthumb), code and data per object:
              text	   data	    bss	    dec	    hex	filename
-             2245	      0	      4	   2249	    8c9	/tmp/custody.o
+             2983	      0	      4	   2987	    bab	/tmp/custody.o
               948	      0	      0	    948	    3b4	/tmp/sha256.o
              8369	      0	      0	   8369	   20b1	/tmp/tweetnacl.o
-            11562	      0	      4	  11566	   2d2e	(TOTALS)
+            12300	      0	      4	  12304	   3010	(TOTALS)
 === FLIGHT exit: 0 ===
 ```
 
@@ -28,7 +29,11 @@ What this shows:
 - **Byte-identical.** From the published test seeds, the C code produces the same
   public keys, Merkle hashes, record ids and Ed25519 signatures as the reference
   implementation. Records signed on board and on the ground are interchangeable.
-- **Small.** About 11.3 KB of code for an ARM Cortex-M4 (Thumb, `-Os`), before the C
+- **Batch receipts on board.** `ck_batch` signs one `custody-batch/1` record for a whole
+  contact, identical to the published vector. One batch over 1,000 bundle ids (sort,
+  1,000 leaf hashes, the tree, one signature) takes about 2 ms on one desktop core, so a
+  busy satellite signs once per contact rather than once per bundle.
+- **Small.** About 12.3 KB of code for an ARM Cortex-M4 (Thumb, `-Os`), before the C
   library routines it links (`memcpy`, `snprintf`); no initialized data, 4 bytes of
   static state.
 - **Speed.** About 1,000 custody receipts per second on one desktop core (a second run
