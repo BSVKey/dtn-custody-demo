@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Self-contained walk-through of the pilot kit with simulated passes. Two ground stations
-// receive downlinks from one spacecraft over three scheduled passes; station A misses
-// pass 2 entirely. Each writes a ledger with the real CLI, the ledgers are verified and
-// corroborated (products and passes: A's missed pass is located at A, since B heard it),
+// receive downlinks from one spacecraft over four scheduled passes; station A misses
+// pass 2 entirely, and pass 4 is silent at both. Each writes a ledger with the real CLI, the ledgers are verified and
+// corroborated (products and passes: A's missed pass is located at A, since B heard it,
+// and the pass neither station heard is recorded as shared silence),
 // and one product is then altered on disk to show it is caught.
 //   node ground/demo.mjs
 import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
@@ -19,6 +20,7 @@ const passes = [
   { passId: "P1", start: T0, end: T0 + 10 * min },
   { passId: "P2", start: T0 + 95 * min, end: T0 + 105 * min },
   { passId: "P3", start: T0 + 190 * min, end: T0 + 200 * min },
+  { passId: "P4", start: T0 + 285 * min, end: T0 + 295 * min }, // neither station hears this one
 ];
 const products = [
   { name: "img-0001.bin", pass: 0, size: 300_000 },

@@ -17,6 +17,8 @@
 
 ### Fixed
 
+- **Ground demo** now includes a pass silent at both stations, so the shared-silence
+  branch of pass comparison runs in the demo, not only in the tests. Pointed out by Sunnie.
 - **ION runs**: each ION node now gets a private `/dev/shm`, since ION keeps named
   semaphores there and two nodes could otherwise interfere.
 
