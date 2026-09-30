@@ -48,3 +48,8 @@ relative contact times from when it loads them, a second or two later, so the ti
 checks allow 1 to 2 s of slack. Together with `hdtn/RESULTS.md` (NASA HDTN) and
 `r2/RESULTS.md` (uD3TN), the same custody records now pass over three independent DTN
 implementations.
+
+Update 2026-09-30: each ION node now also gets a private `/dev/shm`. ION keeps POSIX
+named semaphores there as files, so two nodes in separate IPC namespaces could still
+clobber each other's semaphores; this run passed before the fix by timing luck. Re-run
+with the fix: PASS, 20 / 20 chunks, first arrival 35.4 s, nothing during the gap.

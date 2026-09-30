@@ -2,7 +2,9 @@
 # Our custody payload through JPL ION, routed by contact graph routing over a contact plan
 # compiled by contact-plans/compile.mjs. Node 1 -> node 2 is scheduled down from 15 s to
 # 35 s; the payload is sent at about 18 s, so ION must hold it and forward it at 35 s.
-# Each ION node runs in its own IPC namespace (ION state lives in SysV shared memory).
+# Each ION node runs in its own IPC namespace (ION state lives in SysV shared memory) with
+# a private /dev/shm, because ION's POSIX named semaphores live there as files and would
+# otherwise be shared, and clobbered, between the two nodes.
 set -uo pipefail
 cd /app
 node contact-plans/compile.mjs ion/interop.json --ion /tmp/contacts.ionrc
@@ -45,12 +47,12 @@ mk_node 1 2 4556 4557
 mk_node 2 1 4557 4556
 
 # Receiver: ION node 2, bprecvfile saves each file it receives (testfile1, testfile2, ...).
-unshare --ipc --fork bash -c "cd /tmp/n2 && ionstart -I node.rc >/tmp/n2/start.log 2>&1 && cd recv && timeout 90 bprecvfile ipn:2.1 $N >/tmp/n2/recv.log 2>&1; cd /tmp/n2 && ionstop >/dev/null 2>&1" & R=$!
+unshare --ipc --mount --fork bash -c "mount -t tmpfs tmpfs /dev/shm && cd /tmp/n2 && ionstart -I node.rc >/tmp/n2/start.log 2>&1 && cd recv && timeout 90 bprecvfile ipn:2.1 $N >/tmp/n2/recv.log 2>&1; cd /tmp/n2 && ionstop >/dev/null 2>&1" & R=$!
 sleep 3
 
 # Sender: ION node 1. Contacts are relative to its start (t0); send at +18 s, inside the gap.
-unshare --ipc --fork bash -c "
-  cd /tmp/n1 && date +%s%3N > /tmp/t0 && ionstart -I node.rc >/tmp/n1/start.log 2>&1
+unshare --ipc --mount --fork bash -c "
+  mount -t tmpfs tmpfs /dev/shm && cd /tmp/n1 && date +%s%3N > /tmp/t0 && ionstart -I node.rc >/tmp/n1/start.log 2>&1
   sleep 18; date +%s%3N > /tmp/tsend
   echo \"[ion] sending at +\$(( (\$(cat /tmp/tsend) - \$(cat /tmp/t0)) / 1000 )) s, inside the scheduled gap (15 s to 35 s)\"
   for f in /tmp/send/*; do bpsendfile ipn:1.2 ipn:2.1 \"\$f\" >>/tmp/n1/send.log 2>&1; done
