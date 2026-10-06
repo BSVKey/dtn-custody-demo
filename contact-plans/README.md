@@ -35,3 +35,17 @@ chain 1, 2, 3, ...), `delays` (per link: `one_way_ms`, `loss_pct`, `reorder_pct`
 `rate_bps`), `contacts` (per link: `up_s`, `down_s`), `occultation` (the outage the gap
 object records) and `scale` (wall-clock compression for real-transport runs; 1 = real time).
 The simulator's path is three links (L1, L2, L3).
+
+## Plans from real orbits, and signed plans
+
+- `passes.mjs`: ground-station passes from two-line element sets, propagated with SGP4
+  (satellite.js). Each pass becomes two one-way links with the light time from the slant
+  range at mid-pass, in the same plan format the compiler and simulator read.
+- `sign.mjs`: `dtn.contact-plan/1`, one signed record fixing the plan's fingerprint, the
+  fingerprint of each compiled file (HDTN, ION, Hardy), the version and the time it is in
+  force. `verifyPlan` checks a plan and its files against the operator's key; `contactAt`
+  answers whether a contact between two nodes was scheduled at a given time.
+
+Both run in the browser too: the Contact Plan Studio at https://dtn.bsvkey.com/plans/ builds
+a plan from TLEs and ground stations, exports it for HDTN, ION and Hardy, and signs and checks
+it, all on the visitor's device. Tests: `test/passes.test.mjs`.
