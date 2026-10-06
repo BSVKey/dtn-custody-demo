@@ -13,7 +13,7 @@ import { signRecord, verifyRecord } from "../agent/lib/receipt.mjs";
 const fp = (text) => "0x" + createHash("sha256").update(text).digest("hex");
 export const planFingerprint = (plan) => fp(canonicalize(plan));
 
-// exports: { hdtn: string, ion: string, hardy?: string } — the exact text of each compiled file.
+// exports: { hdtn: string, ion: string, hardy?: string }: the exact text of each compiled file.
 export function signPlan(kp, { plan, exports, network, version, validFrom, validTo, prev = null }) {
   return signRecord(kp, {
     kind: "dtn.contact-plan/1", network, version, validFrom, validTo, prev,
