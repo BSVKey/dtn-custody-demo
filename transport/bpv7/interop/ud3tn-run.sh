@@ -19,13 +19,13 @@ start_node() { # eid aap_port cla_port
 start_node dtn://relaya.dtn/ 4241 4251
 start_node dtn://relayb.dtn/ 4242 4252
 sleep 1
-python3 mtcp.py recv 4254 "$W/out.hex" 25 & RECV=$!
+node cl.mjs recv mtcp 4254 "$W/out.hex" 25 & RECV=$!
 $CFG --tcp 127.0.0.1 4241 --schedule 1 3600 100000 --reaches dtn://dest.dtn/ dtn://relayb.dtn/ mtcp:127.0.0.1:4252 >/dev/null
 $CFG --tcp 127.0.0.1 4242 --schedule 6 3600 100000 dtn://dest.dtn/ mtcp:127.0.0.1:4254 >/dev/null
 echo "[live] contacts: relaya->relayb at +1 s, relayb->dest at +6 s (relayb holds the bundle meanwhile)"
 
 node live.mjs make "$W/in.hex"
-python3 mtcp.py send 4251 "$W/in.hex"
+node cl.mjs send mtcp 4251 "$W/in.hex"
 T0=$(date +%s)
 wait "$RECV"
 echo "[live] delivered after $(( $(date +%s) - T0 )) s"

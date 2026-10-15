@@ -8,6 +8,7 @@ help:
 	@echo "make spike       - M0 R1 over real veths + tc netem + a real L2 blackout (needs Docker + privileged)"
 	@echo "make r2          - R2: custody chain over REAL µD3TN BPv7, held across a contact gap (needs Docker)"
 	@echo "make bpv7-block - custody receipts inside the BPv7 bundle, carried intact by unaware uD3TN nodes (needs Docker)"
+	@echo "make bpv7-block-all - the same through NASA HDTN, JPL ION and Aalyria Hardy too (needs Docker)"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
 	@echo "make clean       - remove run artifacts"
 
@@ -43,11 +44,27 @@ r2:
 live:
 	node live/run-live.mjs
 
-# Custody Receipt Block (BPv7 extension block 193) through two unaware uD3TN nodes, one
+# Custody Receipt Block (BPv7 extension block 224) through two unaware uD3TN nodes, one
 # holding it across a contact gap. Reuses the R2 image. See transport/bpv7/RESULTS.md.
 bpv7-block:
 	docker build -t dtn-custody-r2 -f r2/Dockerfile .
 	docker run --rm -v "$(CURDIR):/app" dtn-custody-r2 bash /app/transport/bpv7/interop/ud3tn-run.sh
+
+# The same block through NASA HDTN (STCP), JPL ION (UDP CL) and Aalyria Hardy (gRPC CLA),
+# each holding the bundle across a scheduled gap. Reuses the hdtn, ion and hardy images.
+bpv7-block-hdtn:
+	docker build -t dtn-custody-hdtn -f hdtn/Dockerfile .
+	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hdtn /app/transport/bpv7/interop/hdtn-run.sh
+
+bpv7-block-ion:
+	docker build -t dtn-custody-ion -f ion/Dockerfile .
+	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-ion /app/transport/bpv7/interop/ion-run.sh
+
+bpv7-block-hardy:
+	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy /app/transport/bpv7/interop/hardy-run.sh
+
+bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy
 
 clean:
 	rm -rf run-output *.log *.pcap m0/.keys.json m0/.m0-config.json

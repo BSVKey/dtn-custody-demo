@@ -1,7 +1,8 @@
 // Custody Receipt Block: the custody chain carried inside the BPv7 bundle it describes,
 // as an extension block, instead of as separate bundles to a /custody endpoint.
 //
-// Block type 193 (RFC 9171 private/experimental range 192-255). Block-type-specific data
+// Block type 224 (RFC 9171 private/experimental range 192-255; JPL ION already uses 192 to
+// 197 for its own blocks, and parses 193 as its QoS block). Block-type-specific data
 // is a CBOR array of text strings; each string is the canonical JSON of one signed
 // custody/1 record, so signatures verify byte for byte with no re-serialization rules.
 // Each custodian appends its own receipt. Flags: replicate in every fragment, and NOT
@@ -14,7 +15,7 @@ import { decodeBundle, encodeBundle, putBlock, payloadOf, decodeEid, BLOCK, BLOC
 import { canonicalize, contentId } from "../../agent/lib/canonical.mjs";
 import { verifyCustodyChain } from "../../agent/lib/receipt.mjs";
 
-export const CUSTODY_BLOCK_TYPE = 193;
+export const CUSTODY_BLOCK_TYPE = 224;
 const FLAGS = BLOCK_FLAG.REPLICATE_IN_FRAGMENTS;
 
 // Receipts carried by a decoded bundle ([] when the block is absent).

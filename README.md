@@ -43,7 +43,7 @@ agent/               the application agent
 transport/
   sim.mjs            in-process DTN simulator (delay, reorder, occultation)
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
-  bpv7/              Custody Receipt Block: the custody chain inside the BPv7 bundle (block 193)
+  bpv7/              Custody Receipt Block: the custody chain inside the BPv7 bundle (block 224)
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
@@ -156,10 +156,11 @@ satellite-downlink and mirror-corroborated records of the sibling projects), wit
 vectors that the test suite regenerates from the code on every run.
 
 Receipts can also travel inside the BPv7 bundle itself, as the Custody Receipt Block
-(extension block 193, spec section 2.1): each custodian appends its signed record, and
+(extension block 224, spec section 2.1): each custodian appends its signed record, and
 BPv7 nodes that do not know the block forward it unchanged. Checked against uD3TN's own
-BPv7 library byte for byte, and live through two unaware uD3TN nodes, one holding the
-bundle across a contact gap (`make bpv7-block`, see `transport/bpv7/RESULTS.md`).
+BPv7 library byte for byte, and live through all four BPv7 stacks used here, each holding
+the bundle across a scheduled gap and none of them knowing the block: uD3TN, NASA HDTN,
+JPL ION and Aalyria Hardy (`make bpv7-block-all`, see `transport/bpv7/RESULTS.md`).
 
 ## Acceptance criteria (what "done" means)
 1. Out-of-order chunk integrity against a Merkle root; a tampered chunk is rejected.

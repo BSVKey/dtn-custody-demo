@@ -114,4 +114,6 @@ test("bpv7: the custody block never asks a node to drop the bundle or the block"
   assert.equal(blk.flags & 0x10, 0, "not: discard block if unprocessed");
   assert.equal(blk.flags & 0x01, 1, "replicated into every fragment");
   assert.ok(blk.type >= 192 && blk.type <= 255, "private/experimental block type range");
+  // JPL ION assigns 192 to 197 to its own blocks (193 is its QoS block): stay clear.
+  assert.ok(blk.type > 197, "not one of JPL ION's private block types");
 });

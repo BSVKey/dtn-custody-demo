@@ -120,7 +120,8 @@ Rules:
 
 Records MAY travel inside the BPv7 bundle they describe instead of as separate bundles.
 
-- **Block type** 193 (RFC 9171 private/experimental range). Block-type-specific data is a
+- **Block type** 224 (RFC 9171 private/experimental range; JPL ION already assigns 192
+  to 197 to its own blocks). Block-type-specific data is a
   CBOR array of text strings; each string is the canonical JSON (Section 1.1) of one
   signed `custody/1` record, in hop order.
 - **Flags.** "Replicate in every fragment" set; "delete bundle if unprocessed" and
@@ -133,7 +134,7 @@ Records MAY travel inside the BPv7 bundle they describe instead of as separate b
   `bundle_malformed` (CBOR or CRC failure), `payload_not_a_chunk`,
   `custody_block_malformed`, `no_custody_block`.
 - **BPSec.** A BIB (RFC 9172) that targets the payload is unaffected by appending. A BIB
-  must not target block 193, since every custodian changes it.
+  must not target block 224, since every custodian changes it.
 
 ## 3. Satellite downlink records (open-downlink-custody)
 

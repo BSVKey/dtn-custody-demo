@@ -1,11 +1,28 @@
 # Changelog
 
+## 2026-10-15
+
+### Changed
+
+- **Custody Receipt Block moved from type 193 to 224.** JPL ION assigns 192 to 197 to its
+  own blocks and parses 193 as its QoS block: a bundle carrying our block as 193 was
+  dropped by ION as malformed. 224 is clear of every stack tested.
+
+### Added
+
+- **The block through NASA HDTN, JPL ION and Aalyria Hardy** (`make bpv7-block-hdtn`,
+  `-ion`, `-hardy`, or `bpv7-block-all` for all four stacks). Each one holds the bundle
+  across a scheduled gap, adds its own standard blocks (Previous Node; ION also Bundle
+  Age), and delivers our block byte-identical; the two-hop chain verifies every time.
+  Raw bundles go in and out over HDTN STCP, the ION UDP convergence layer and Hardy's
+  gRPC convergence-layer API (`transport/bpv7/interop/cl.mjs`, `hardy-cla.mjs`).
+
 ## 2026-10-14
 
 ### Added
 
 - **Custody Receipt Block** (`transport/bpv7/`). The custody chain can now travel inside
-  the BPv7 bundle it describes, as extension block 193 (private/experimental range),
+  the BPv7 bundle it describes, as a BPv7 extension block (now type 224, see 2026-10-15),
   instead of as separate bundles to a `/custody` endpoint. Each custodian appends its
   signed `custody/1` record; nodes that do not know the block keep it and forward it
   unchanged. Includes a dependency-free BPv7 codec (RFC 9171 primary and canonical
