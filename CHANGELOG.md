@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-14
+
+### Added
+
+- **Custody Receipt Block** (`transport/bpv7/`). The custody chain can now travel inside
+  the BPv7 bundle it describes, as extension block 193 (private/experimental range),
+  instead of as separate bundles to a `/custody` endpoint. Each custodian appends its
+  signed `custody/1` record; nodes that do not know the block keep it and forward it
+  unchanged. Includes a dependency-free BPv7 codec (RFC 9171 primary and canonical
+  blocks, EIDs, CRC-16/X-25 and CRC-32C) and reads the previous hop from the standard
+  Previous Node block when one is present.
+- **Checked against uD3TN two ways.** pyd3tn (uD3TN's own BPv7 library) re-encodes our
+  bundles byte for byte and we decode its bundles; and a live run (`make bpv7-block`)
+  passes the bundle through two real uD3TN nodes, one holding it across a contact gap:
+  the block arrives byte-identical and the two-hop chain verifies.
+
 ## 2026-09-30
 
 ### Added

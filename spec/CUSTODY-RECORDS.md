@@ -116,6 +116,25 @@ Rules:
   receipt; an unbound check MUST refuse (`unbound`), not pass. `settlementRef` compares
   case-insensitively (hex); `payTo` compares exactly.
 
+### 2.1 Custody Receipt Block (in-bundle carriage, optional)
+
+Records MAY travel inside the BPv7 bundle they describe instead of as separate bundles.
+
+- **Block type** 193 (RFC 9171 private/experimental range). Block-type-specific data is a
+  CBOR array of text strings; each string is the canonical JSON (Section 1.1) of one
+  signed `custody/1` record, in hop order.
+- **Flags.** "Replicate in every fragment" set; "delete bundle if unprocessed" and
+  "discard block if unprocessed" clear, so a node that does not implement the block
+  forwards it unchanged. A CRC-32C is RECOMMENDED.
+- **Appending.** A custodian appends its record and re-seals the block; it MUST NOT
+  alter earlier records. Non-custodian nodes are not in the chain.
+- **Binding.** The verifier MUST derive `bundleId` from the payload block it received,
+  never from the records, then apply the custody chain rules above. Reasons added:
+  `bundle_malformed` (CBOR or CRC failure), `payload_not_a_chunk`,
+  `custody_block_malformed`, `no_custody_block`.
+- **BPSec.** A BIB (RFC 9172) that targets the payload is unaffected by appending. A BIB
+  must not target block 193, since every custodian changes it.
+
 ## 3. Satellite downlink records (open-downlink-custody)
 
 All carry `source` = `{network, attribution, license, licenseUrl, notice}` crediting the
