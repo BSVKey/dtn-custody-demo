@@ -71,6 +71,13 @@ bpv7-block-mix:
 	docker build -t dtn-custody-mix -f mix/Dockerfile .
 	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-mix /app/transport/bpv7/interop/mix-run.sh
 
+# uD3TN rebuilt to emit Previous Node blocks, so the transit-gap audit can name it.
+bpv7-block-prevnode:
+	docker build -t dtn-custody-r2 -f r2/Dockerfile .
+	docker build -t dtn-custody-r2-prevnode -f r2/Dockerfile.prevnode .
+	docker run --rm -e BPSEC=1 -v "$(CURDIR):/app" dtn-custody-r2-prevnode bash /app/transport/bpv7/interop/ud3tn-run.sh
+	docker run --rm -e BPSEC=1 -e RECEIPT=2 -v "$(CURDIR):/app" dtn-custody-r2-prevnode bash /app/transport/bpv7/interop/ud3tn-run.sh
+
 bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy bpv7-block-mix
 
 # BPSec (RFC 9172/9173): a payload BIB beside block 224. bpv7-bpsec-all carries it through

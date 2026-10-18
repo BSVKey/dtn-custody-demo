@@ -167,11 +167,17 @@ unaware stack is reported as an uncustodied transit gap, not read as custody:
 
 | Path | Previous Node on arrival | Audit |
 |---|---|---|
-| uD3TN, two nodes | none added | no gap visible (nothing to compare) |
+| uD3TN, two nodes (stock build) | none added | no gap visible (nothing to compare) |
+| uD3TN, two nodes, built with `BUNDLE7_TX_PRODUCE_PREVIOUS_NODE_BLOCK=1` (`make bpv7-block-prevnode`) | `dtn://relayb.dtn/` | 2 custodied, 1 gap, last unsigned `dtn://relayb.dtn/` (version 1 and version 2) |
 | NASA HDTN | `ipn:10.0` | 2 custodied, 1 gap: gateway-up to dest, last unsigned `ipn:10.0` |
 | JPL ION | `ipn:10.0` | same |
 | Aalyria Hardy | `ipn:20.0` | 2 custodied, 1 gap, last unsigned `ipn:20.0` |
 | uD3TN then HDTN | `ipn:10.0` | 2 custodied, 1 gap, last unsigned `ipn:10.0` |
+
+Stock uD3TN does not add a Previous Node block: it is a compile-time switch, off by
+default (`include/bundle7/previousnode.h`). `r2/Dockerfile.prevnode` turns it on; with it, the
+uD3TN path reports its gap like the others. An operator running uD3TN who wants transit
+gaps named should build with the switch on.
 
 The audit sees only the last unsigned node; uD3TN's hop before HDTN is not visible to it,
 because Previous Node is replaced at each hop. A gap means "at least this node, unsigned".

@@ -1,0 +1,9 @@
+# uD3TN rebuilt to emit the RFC 9171 Previous Node block on every bundle it forwards
+# (compile-time switch BUNDLE7_TX_PRODUCE_PREVIOUS_NODE_BLOCK, off by default), so the
+# custody gap audit can name the uD3TN node that handed a bundle on. Reuses the r2 image.
+FROM dtn-custody-r2:latest
+WORKDIR /opt/ud3tn
+RUN sed -i 's/^#define BUNDLE7_TX_PRODUCE_PREVIOUS_NODE_BLOCK 0$/#define BUNDLE7_TX_PRODUCE_PREVIOUS_NODE_BLOCK 1/' include/bundle7/previousnode.h \
+    && grep -q '^#define BUNDLE7_TX_PRODUCE_PREVIOUS_NODE_BLOCK 1$' include/bundle7/previousnode.h \
+    && make clean >/dev/null && make posix >/dev/null
+WORKDIR /app

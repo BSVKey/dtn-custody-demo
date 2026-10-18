@@ -1813,7 +1813,10 @@ custody-receipt-block-data = [ + custody-receipt ]   ; version 2
       contact gap by uD3TN, NASA HDTN, JPL ION and Aalyria Hardy, and along
       one path through uD3TN and then NASA HDTN; none of them implement it.
       The audit mode reported the unsigned stretch through each stack that
-      adds a Previous Node block. Results and commands are in the repository
+      adds a Previous Node block. uD3TN adds one only when built with a
+      compile-time option that is off by default; with it enabled, the uD3TN
+      path was reported the same way. Deployments that rely on the audit
+      need forwarders that emit Previous Node blocks. Results and commands are in the repository
       (transport/bpv7/RESULTS.md).<a href="#section-7-2" class="pilcrow">¶</a></p>
 <p id="section-7-3">Testing against JPL ION as a BIB acceptor and signer found that ION
       builds the integrity-protected plaintext for a payload target from the

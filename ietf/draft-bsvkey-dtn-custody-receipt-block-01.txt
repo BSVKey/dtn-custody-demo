@@ -98,13 +98,13 @@ Table of Contents
    6.  Interaction with BPSec  . . . . . . . . . . . . . . . . . . .   7
    7.  Implementation Status . . . . . . . . . . . . . . . . . . . .   7
    8.  Open Issues . . . . . . . . . . . . . . . . . . . . . . . . .   8
-   9.  Security Considerations . . . . . . . . . . . . . . . . . . .   8
+   9.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
    10. IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
    11. References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
      11.1.  Normative References . . . . . . . . . . . . . . . . . .   9
-     11.2.  Informative References . . . . . . . . . . . . . . . . .  10
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  11
    Appendix A.  Version 1 Receipts . . . . . . . . . . . . . . . . .  11
-   Appendix B.  Changes from -00 . . . . . . . . . . . . . . . . . .  11
+   Appendix B.  Changes from -00 . . . . . . . . . . . . . . . . . .  12
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  12
 
 
@@ -404,8 +404,11 @@ Internet-Draft            Custody Receipt Block             October 2026
    by uD3TN, NASA HDTN, JPL ION and Aalyria Hardy, and along one path
    through uD3TN and then NASA HDTN; none of them implement it.  The
    audit mode reported the unsigned stretch through each stack that adds
-   a Previous Node block.  Results and commands are in the repository
-   (transport/bpv7/RESULTS.md).
+   a Previous Node block. uD3TN adds one only when built with a compile-
+   time option that is off by default; with it enabled, the uD3TN path
+   was reported the same way.  Deployments that rely on the audit need
+   forwarders that emit Previous Node blocks.  Results and commands are
+   in the repository (transport/bpv7/RESULTS.md).
 
    Testing against JPL ION as a BIB acceptor and signer found that ION
    builds the integrity-protected plaintext for a payload target from
@@ -435,12 +438,9 @@ Internet-Draft            Custody Receipt Block             October 2026
       whole-bundle receipts against the reassembled payload; the
       procedure is not yet specified.
 
-9.  Security Considerations
 
-   Key distribution.  Receipts are only as meaningful as the binding
-   between a custodian EID and its key.  Verifiers MUST obtain keys
-   independently of the receipts and MUST NOT trust a key carried with a
-   receipt.
+
+
 
 
 
@@ -449,6 +449,13 @@ Internet-Draft            Custody Receipt Block             October 2026
 
 Internet-Draft            Custody Receipt Block             October 2026
 
+
+9.  Security Considerations
+
+   Key distribution.  Receipts are only as meaningful as the binding
+   between a custodian EID and its key.  Verifiers MUST obtain keys
+   independently of the receipts and MUST NOT trust a key carried with a
+   receipt.
 
    Stripping.  Any forwarder can remove the block or truncate the array
    and recompute the CRC.  This cannot be prevented by the block itself;
@@ -489,14 +496,7 @@ Internet-Draft            Custody Receipt Block             October 2026
 
 11.1.  Normative References
 
-   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
-              Requirement Levels", BCP 14, RFC 2119,
-              DOI 10.17487/RFC2119, March 1997,
-              <https://www.rfc-editor.org/info/rfc2119>.
 
-   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
-              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
-              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
 
 
@@ -505,6 +505,15 @@ Internet-Draft            Custody Receipt Block             October 2026
 
 Internet-Draft            Custody Receipt Block             October 2026
 
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
    [RFC9171]  Burleigh, S., Fall, K., and E. Birrane, III, "Bundle
               Protocol Version 7", RFC 9171, DOI 10.17487/RFC9171,
@@ -544,15 +553,6 @@ Internet-Draft            Custody Receipt Block             October 2026
               DOI 10.17487/RFC8410, August 2018,
               <https://www.rfc-editor.org/info/rfc8410>.
 
-   [FIPS180-4]
-              National Institute of Standards and Technology, "Secure
-              Hash Standard (SHS)", FIPS PUB 180-4, August 2015,
-              <https://doi.org/10.6028/NIST.FIPS.180-4>.
-
-11.2.  Informative References
-
-
-
 
 
 
@@ -561,6 +561,13 @@ Internet-Draft            Custody Receipt Block             October 2026
 
 Internet-Draft            Custody Receipt Block             October 2026
 
+
+   [FIPS180-4]
+              National Institute of Standards and Technology, "Secure
+              Hash Standard (SHS)", FIPS PUB 180-4, August 2015,
+              <https://doi.org/10.6028/NIST.FIPS.180-4>.
+
+11.2.  Informative References
 
    [RFC9173]  Birrane, III, E., White, A., and S. Heiner, "Default
               Security Contexts for Bundle Protocol Security (BPSec)",
@@ -600,13 +607,6 @@ Appendix A.  Version 1 Receipts
    from the first receipt.  An encoded version 1 receipt is about 530
    octets.
 
-Appendix B.  Changes from -00
-
-   This section is to be removed before publishing as an RFC.
-
-   *  Version 2 receipts: a CBOR payload signed as COSE_Sign1 (EdDSA),
-      about 156 octets instead of about 530.  Version 1 moved to
-      Appendix A.
 
 
 
@@ -617,6 +617,14 @@ Appendix B.  Changes from -00
 
 Internet-Draft            Custody Receipt Block             October 2026
 
+
+Appendix B.  Changes from -00
+
+   This section is to be removed before publishing as an RFC.
+
+   *  Version 2 receipts: a CBOR payload signed as COSE_Sign1 (EdDSA),
+      about 156 octets instead of about 530.  Version 1 moved to
+      Appendix A.
 
    *  Receipts are bound to the BPv7 bundle identity and a hash of the
       payload bytes held, so no custodian parses the payload and any
@@ -633,14 +641,6 @@ Author's Address
    Brownsville, TX
    United States of America
    Email: embryospace@gmail.com
-
-
-
-
-
-
-
-
 
 
 

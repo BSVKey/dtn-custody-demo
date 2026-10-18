@@ -19,6 +19,10 @@
   the payload; fragments defined. Version 1 unchanged. Live through all five paths
   (`RECEIPT=2`, RESULTS section 6). Internet-Draft revision
   `ietf/draft-bsvkey-dtn-custody-receipt-block-01` (not submitted).
+- **Transit-gap audit on uD3TN** (`make bpv7-block-prevnode`): stock uD3TN adds no
+  Previous Node block (compile-time switch, off by default), so the audit could not name
+  it; `r2/Dockerfile.prevnode` builds it with the switch on, and the uD3TN path now reports
+  its gap (last unsigned `dtn://relayb.dtn/`) for both receipt versions.
 - **Two implementations in one path** (`make bpv7-block-mix`): uD3TN then NASA HDTN, held
   across a gap; block 224 byte-identical, chain and payload BIB verify. Every live check
   now also prints the transit-gap audit using the stack's Previous Node block (RESULTS
