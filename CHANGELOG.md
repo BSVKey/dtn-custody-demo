@@ -13,6 +13,16 @@
   Found that ION's default build accepts any MAC (NULL crypto suites) and that ION builds
   its MAC input from the whole target block rather than RFC 9173's byte string, so
   `bpsec.mjs` has an opt-in `mode: "ion"`; the default stays RFC 9173.
+- **Custody receipt version 2** (`transport/bpv7/receipt-v2.mjs`, `cose.mjs`, spec 2.2):
+  CBOR payload signed as COSE_Sign1 (EdDSA), about 156 bytes instead of about 530, bound to
+  the BPv7 bundle identity and a SHA-256 of the payload bytes held, so no custodian parses
+  the payload; fragments defined. Version 1 unchanged. Live through all five paths
+  (`RECEIPT=2`, RESULTS section 6). Internet-Draft revision
+  `ietf/draft-bsvkey-dtn-custody-receipt-block-01` (not submitted).
+- **Two implementations in one path** (`make bpv7-block-mix`): uD3TN then NASA HDTN, held
+  across a gap; block 224 byte-identical, chain and payload BIB verify. Every live check
+  now also prints the transit-gap audit using the stack's Previous Node block (RESULTS
+  section 5).
 - **One custody block per bundle.** A bundle carrying two blocks of type 224 is refused
   (`custody_block_malformed`).
 - **Internet-Draft** `ietf/draft-bsvkey-dtn-custody-receipt-block-00` (xml, txt, html):

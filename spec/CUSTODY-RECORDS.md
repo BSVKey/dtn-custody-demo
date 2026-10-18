@@ -162,6 +162,30 @@ Records MAY travel inside the BPv7 bundle they describe instead of as separate b
   (`transport/bpv7/RESULTS.md` section 4, which also records where ION's MAC input
   differs from RFC 9173).
 
+### 2.2 Custody receipt version 2 (in-bundle, CBOR/COSE)
+
+Code: `transport/bpv7/receipt-v2.mjs`, `transport/bpv7/cose.mjs`. Same block (224); version 1
+above is unchanged and stays valid. A block holds one version: an array of text strings is
+version 1, an array of COSE_Sign1 arrays is version 2; a mixed block is malformed.
+
+- **Envelope.** COSE_Sign1 (RFC 9052), untagged: protected header `{1: -8}` (EdDSA,
+  Ed25519), empty unprotected map, no external AAD. The key is pinned by `thisHop`.
+- **Payload** (CBOR map): `1` prevHop, `2` thisHop (EIDs as text), `3` bundle identity
+  `[source, [creation time, sequence]]` or, for a fragment, `[source, [time, seq], offset,
+  totalAduLength]`, `4` SHA-256 of the payload block's data as held, `5` receivedAt and `6`
+  forwardedAt (DTN time, ms since 2000-01-01), optional `7` subject (application id).
+- **No custodian parses the payload**, the origin included: it hashes the bytes it holds.
+  Any verifier checks the binding from the primary block and payload alone.
+- **Fragments.** A receipt made before fragmentation names the whole bundle and covers each
+  fragment, but its hash is checkable only after reassembly (`hashUnchecked`). A custodian
+  holding a fragment signs for that fragment.
+- **Verification** (`verifyBundleV2`): signature under the pinned key (`custodian_not_pinned`,
+  `signature_invalid`), identity (`wrong_bundle`), payload hash where the identity matches
+  what was received (`payload_hash_mismatch`), then audit gaps as in 2.1 or a pinned route
+  (`wrong_hop_count`, `unexpected_hop`, `custody_chain_break`). At most 64 receipts.
+- **Size.** About 156 bytes per receipt (version 1: about 530).
+- Specified as `draft-bsvkey-dtn-custody-receipt-block-01` (`ietf/`).
+
 ## 3. Satellite downlink records (open-downlink-custody)
 
 All carry `source` = `{network, attribution, license, licenseUrl, notice}` crediting the

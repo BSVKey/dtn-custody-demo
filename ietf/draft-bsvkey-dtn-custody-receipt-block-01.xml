@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE rfc [
+  <!ENTITY nbsp "&#160;">
+]>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude"
+     ipr="trust200902"
+     docName="draft-bsvkey-dtn-custody-receipt-block-01"
+     category="exp"
+     submissionType="IETF"
+     consensus="false"
+     version="3">
+  <front>
+    <title abbrev="Custody Receipt Block">Signed Custody Receipts Carried in a Bundle Protocol Version 7 Extension Block</title>
+    <seriesInfo name="Internet-Draft" value="draft-bsvkey-dtn-custody-receipt-block-01"/>
+    <author>
+      <organization>Embryo Space Inc.</organization>
+      <address>
+        <postal>
+          <city>Brownsville</city>
+          <region>TX</region>
+          <country>United States of America</country>
+        </postal>
+        <email>embryospace@gmail.com</email>
+      </address>
+    </author>
+    <date year="2026" month="October" day="18"/>
+    <area>Internet</area>
+    <workgroup>Delay/Disruption Tolerant Networking</workgroup>
+    <keyword>DTN</keyword>
+    <keyword>BPv7</keyword>
+    <keyword>custody</keyword>
+    <keyword>receipt</keyword>
+    <keyword>extension block</keyword>
+
+    <abstract>
+      <t>This document defines the Custody Receipt Block, a Bundle Protocol
+      Version 7 (BPv7) extension block that carries a chain of signed custody
+      receipts inside the bundle those receipts describe. Each node that
+      chooses to act as a custodian appends one receipt stating that it held
+      the bundle, which node it received it from, and when it received and
+      forwarded it. Nodes that do not implement the block forward it unchanged
+      and are never required to read the payload or to sign anything. A
+      verifier holding the custodians' public keys can check the chain after
+      the fact and can report, rather than infer, any part of the route for
+      which no receipt exists. The receipts are evidence for accounting and
+      dispute resolution between operators. They are not Bundle Protocol
+      administrative records and they do not replace or modify custody
+      transfer signalling.</t>
+    </abstract>
+
+    <note removeInRFC="true">
+      <name>About This Document</name>
+      <t>An open reference implementation (Apache-2.0), test vectors and live
+      interoperability results are at
+      <eref target="https://github.com/BSVKey/dtn-custody-demo"/>. The
+      implementation uses block type 224 from the private and experimental
+      range pending any assignment.</t>
+    </note>
+  </front>
+
+  <middle>
+    <section anchor="intro">
+      <name>Introduction</name>
+      <t>In a delay/disruption tolerant network, a bundle may be held for
+      minutes to hours by nodes run by different operators before it reaches
+      its destination. When something goes wrong (a bundle arrives late, is
+      lost, or arrives altered), each operator holds only its own local logs.
+      Those logs are not portable evidence: another party cannot verify them
+      without trusting the operator that wrote them.</t>
+      <t>BPv7 <xref target="RFC9171"/> does not include custody transfer;
+      reliable hop-by-hop transfer is addressed separately
+      <xref target="I-D.ietf-dtn-bibect"/>. Custody transfer answers "who is
+      responsible for retransmission now". This document addresses a
+      different question: "who can prove they held this bundle, and when".
+      The mechanism is a signed receipt that travels with the bundle and can
+      be verified by any party, at any later time, without contacting the
+      nodes that produced it.</t>
+      <t>The design follows the end-to-end argument
+      <xref target="SRC84"/>: forwarding nodes do nothing beyond normal BPv7
+      block processing. Only nodes whose operators choose to act as
+      custodians produce receipts, and no node parses the payload: a custodian
+      hashes the bytes it holds. A verifier at the destination, or any later
+      auditor, does the checking.</t>
+      <t>This document is published as Experimental so that the format can
+      be evaluated in multi-operator deployments. This revision defines
+      version 2 receipts, a CBOR payload signed as a COSE_Sign1 and bound to
+      the BPv7 bundle identity; the version 1 encoding of revision -00 is
+      kept in <xref target="v1"/> so that receipts already produced remain
+      verifiable. Both have been run through five BPv7 paths built from four
+      independent implementations; see <xref target="impl"/>.</t>
+    </section>
+
+    <section anchor="terms">
+      <name>Terminology</name>
+      <t>The key words "<bcp14>MUST</bcp14>", "<bcp14>MUST NOT</bcp14>",
+      "<bcp14>REQUIRED</bcp14>", "<bcp14>SHALL</bcp14>", "<bcp14>SHALL
+      NOT</bcp14>", "<bcp14>SHOULD</bcp14>", "<bcp14>SHOULD NOT</bcp14>",
+      "<bcp14>RECOMMENDED</bcp14>", "<bcp14>NOT RECOMMENDED</bcp14>",
+      "<bcp14>MAY</bcp14>", and "<bcp14>OPTIONAL</bcp14>" in this document are
+      to be interpreted as described in BCP&nbsp;14 <xref target="RFC2119"/>
+      <xref target="RFC8174"/> when, and only when, they appear in all
+      capitals, as shown here.</t>
+      <dl newline="false" spacing="normal">
+        <dt>Custodian:</dt>
+        <dd>A node whose operator has chosen to sign receipts for bundles it
+        holds. Being a custodian in this sense is independent of custody
+        transfer and implies no retransmission responsibility.</dd>
+        <dt>Forwarder:</dt>
+        <dd>Any BPv7 node that is not acting as a custodian for a given
+        bundle. A forwarder may or may not implement this specification.</dd>
+        <dt>Origin:</dt>
+        <dd>The first custodian for a bundle.</dd>
+        <dt>Custody receipt (receipt):</dt>
+        <dd>A signed statement by one custodian that it held one bundle,
+        defined in <xref target="receipt"/>. A receipt is not a BPv7
+        administrative record (<xref target="RFC9171" section="6.1"/>).</dd>
+        <dt>Receipt chain:</dt>
+        <dd>The ordered list of receipts carried in one Custody Receipt
+        Block.</dd>
+        <dt>Uncustodied transit gap (gap):</dt>
+        <dd>A part of the route, visible to a verifier, for which no receipt
+        exists.</dd>
+      </dl>
+    </section>
+
+    <section anchor="receipt">
+      <name>Custody Receipt Format</name>
+      <t>A version 2 custody receipt is a COSE_Sign1 structure
+      (<xref target="RFC9052" section="4.2"/>), untagged, whose payload is a
+      CBOR <xref target="RFC8949"/> map signed by one custodian.</t>
+      <section anchor="cose">
+        <name>Signature</name>
+        <t>The protected header <bcp14>MUST</bcp14> contain the algorithm
+        parameter (label 1). Implementations <bcp14>MUST</bcp14> support EdDSA
+        (value -8) with Ed25519 (<xref target="RFC9053" section="2.2"/>,
+        <xref target="RFC8032"/>). The unprotected header map is empty in
+        this version, and no external additional authenticated data is used.
+        The signing key is identified by the custodian EID in the payload;
+        key distribution is out of scope (<xref target="security"/>).</t>
+      </section>
+      <section anchor="fields">
+        <name>Payload</name>
+        <table anchor="tbl-fields">
+          <name>Custody receipt payload (CBOR map)</name>
+          <thead>
+            <tr><th>Key</th><th>Name</th><th>Type</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>prevHop</td><td>tstr</td><td>EID of the node the custodian received the bundle from</td></tr>
+            <tr><td>2</td><td>thisHop</td><td>tstr</td><td>EID of the custodian</td></tr>
+            <tr><td>3</td><td>bundle</td><td>array</td><td>Bundle identity of what was held (<xref target="identity"/>)</td></tr>
+            <tr><td>4</td><td>payloadHash</td><td>bstr</td><td>SHA-256 <xref target="FIPS180-4"/> of the payload block's block-type-specific data as held</td></tr>
+            <tr><td>5</td><td>receivedAt</td><td>uint</td><td>Reception time, DTN time (<xref target="RFC9171" section="4.2.6"/>)</td></tr>
+            <tr><td>6</td><td>forwardedAt</td><td>uint</td><td>Forwarding time, DTN time</td></tr>
+            <tr><td>7</td><td>subject</td><td>tstr</td><td>Optional application identifier</td></tr>
+          </tbody>
+        </table>
+        <sourcecode type="cddl"><![CDATA[
+custody-receipt = COSE_Sign1         ; RFC 9052, untagged
+receipt-payload = {
+  1 => eid-text,                     ; prevHop
+  2 => eid-text,                     ; thisHop
+  3 => bundle-identity,
+  4 => bstr .size 32,                ; payloadHash, SHA-256
+  5 => uint,                         ; receivedAt, DTN time
+  6 => uint,                         ; forwardedAt, DTN time
+  ? 7 => tstr,                       ; subject
+}
+bundle-identity = [ eid-text, [ uint, uint ] ]   ; whole bundle
+  / [ eid-text, [ uint, uint ], uint, uint ]      ; fragment
+eid-text = tstr                      ; EID in text form
+]]></sourcecode>
+        <t>A custodian <bcp14>SHOULD</bcp14> take prevHop from the Previous
+        Node block (<xref target="RFC9171" section="4.4.1"/>) when one is
+        present. An encoded receipt is about 156 octets.</t>
+      </section>
+      <section anchor="identity">
+        <name>Bundle Identity and Payload Binding</name>
+        <t>The bundle identity is the source node ID and creation timestamp
+        of the bundle and, when the custodian holds a fragment, the fragment
+        offset and total application data unit length, all taken from the
+        primary block (<xref target="RFC9171" section="4.3.1"/>). A custodian
+        computes payloadHash over the payload block's block-type-specific
+        data without interpreting it. No custodian parses the application
+        data unit, including the first one, and the binding holds when the
+        payload is encrypted by a Block Confidentiality Block
+        <xref target="RFC9172"/>, since the custodian hashes the ciphertext it
+        holds.</t>
+        <t>Any verifier can check the binding with no application knowledge.
+        An application that needs its own identifier <bcp14>MAY</bcp14> carry
+        it in subject; verifiers that do not know the application ignore
+        it.</t>
+      </section>
+      <section anchor="fragments">
+        <name>Fragments</name>
+        <t>The block is replicated in every fragment
+        (<xref target="flags"/>). A receipt made before fragmentation names
+        the whole bundle and therefore covers every fragment, but its
+        payloadHash can only be checked after reassembly. A custodian that
+        holds a fragment signs for that fragment: its bundle identity
+        includes the fragment offset and total length, and its payloadHash
+        covers that fragment's payload. A receipt naming a different fragment
+        of the same bundle does not cover the fragment it is found in.</t>
+      </section>
+    </section>
+
+    <section anchor="block">
+      <name>The Custody Receipt Block</name>
+      <section anchor="block-format">
+        <name>Block Format</name>
+        <t>The block-type code is TBD1 (<xref target="iana"/>).
+        Implementations of this version use 224, from the private and
+        experimental range, until a code point is assigned.</t>
+        <t>The block-type-specific data is a CBOR array of receipts in the
+        order they were appended. In version 2 each element is a COSE_Sign1
+        array; in version 1 (<xref target="v1"/>) each element is a text
+        string. A block <bcp14>MUST</bcp14> hold receipts of one version
+        only.</t>
+        <sourcecode type="cddl"><![CDATA[
+custody-receipt-block-data = [ + custody-receipt ]   ; version 2
+                           / [ + tstr ]              ; version 1
+]]></sourcecode>
+        <t>A bundle <bcp14>MUST NOT</bcp14> contain more than one Custody
+        Receipt Block.</t>
+      </section>
+      <section anchor="flags">
+        <name>Block Processing Control Flags</name>
+        <t>The block <bcp14>MUST</bcp14> have "Block must be replicated in
+        every fragment" set, and <bcp14>MUST</bcp14> have "Delete bundle if
+        block can't be processed" and "Discard block if it can't be
+        processed" clear. A node that does not implement this specification
+        therefore retains the block and forwards it unchanged
+        (<xref target="RFC9171" section="4.2.4"/>). A CRC-32C is
+        <bcp14>RECOMMENDED</bcp14>.</t>
+      </section>
+    </section>
+
+    <section anchor="processing">
+      <name>Processing</name>
+      <section anchor="custodian">
+        <name>Custodian Behavior</name>
+        <t>A custodian that holds a bundle and chooses to sign for it derives
+        the bundle identity and payloadHash from what it holds, signs a
+        receipt, appends it to the array (adding the block if absent) and
+        recomputes the block CRC. It <bcp14>MUST NOT</bcp14> alter or reorder
+        earlier receipts, and <bcp14>MUST NOT</bcp14> append a version 2
+        receipt to a block of version 1 receipts.</t>
+        <t>Which bundles a node signs for is local policy (for example, by
+        source, destination, service agreement or the presence of the
+        block). No new naming scheme is needed.</t>
+      </section>
+      <section anchor="forwarder">
+        <name>Forwarder Behavior</name>
+        <t>A forwarder performs normal BPv7 processing. It does not read the
+        payload, does not sign, and need not implement this
+        specification.</t>
+      </section>
+      <section anchor="verify">
+        <name>Verification</name>
+        <t>For each receipt, a verifier: verifies the COSE_Sign1 under a key
+        it obtained independently for the EID in thisHop (failure:
+        signature_invalid, or custodian_not_pinned when it has no key);
+        checks that bundle equals the identity of the bundle received or,
+        when the received bundle is a fragment, the identity of the whole
+        bundle (failure: wrong_bundle); and, when bundle equals the identity
+        received, checks payloadHash against the payload received (failure:
+        payload_hash_mismatch). A whole-bundle receipt found in a fragment is
+        reported as not hash-checked.</t>
+        <t>Two modes are defined:</t>
+        <dl>
+          <dt>Pinned route:</dt>
+          <dd>The verifier knows the expected ordered list of custodians. The
+          number of receipts <bcp14>MUST</bcp14> equal the length of the
+          list, each thisHop <bcp14>MUST</bcp14> match its position, and
+          each prevHop after the first <bcp14>MUST</bcp14> equal the
+          previous receipt's thisHop.</dd>
+          <dt>Audit:</dt>
+          <dd>The verifier knows the custodians' keys but not the route.
+          Wherever a receipt's prevHop differs from the previous receipt's
+          thisHop (or from the expected origin), and wherever the node that
+          delivered the bundle (from its Previous Node block) differs from
+          the last receipt's thisHop, the verifier <bcp14>MUST</bcp14> report
+          a gap naming the last signed hop, the next signed hop, and the
+          unsigned node observed. A result with any gap <bcp14>MUST
+          NOT</bcp14> be reported as complete. Because each node replaces the
+          Previous Node block, a gap names at least one unsigned node, not
+          necessarily all of them.</dd>
+        </dl>
+        <t>A missing receipt is reported as missing and is never inferred.
+        A receipt that is present but invalid is a failure, not a gap. A
+        verifier <bcp14>SHOULD</bcp14> bound the number of receipts it
+        processes.</t>
+      </section>
+    </section>
+
+    <section anchor="bpsec">
+      <name>Interaction with BPSec</name>
+      <t>Because every custodian modifies the Custody Receipt Block, a Block
+      Integrity Block <xref target="RFC9172"/> <bcp14>MUST NOT</bcp14>
+      target it. Receipts carry their own signatures. A BIB that targets the
+      payload or the primary block is unaffected by appending receipts, since
+      appending changes neither. A Block Confidentiality Block
+      <bcp14>MUST NOT</bcp14> target the Custody Receipt Block, because
+      every custodian appends to it.</t>
+    </section>
+
+    <section anchor="impl">
+      <name>Implementation Status</name>
+      <t>Note to the RFC Editor: please remove this section before
+      publication, as described in <xref target="RFC7942"/>.</t>
+      <t>One implementation exists: dtn-custody-demo, Embryo Space Inc.,
+      Apache-2.0, JavaScript (Node.js) with no third-party dependencies,
+      <eref target="https://github.com/BSVKey/dtn-custody-demo"/>. It
+      includes its own BPv7 codec, checked byte for byte against the uD3TN
+      project's Python library, and implements both receipt versions. In
+      live runs the block, with version 1 or version 2 receipts and with a
+      payload BIB beside it, was carried byte-identical across a scheduled
+      contact gap by uD3TN, NASA HDTN, JPL ION and Aalyria Hardy, and along
+      one path through uD3TN and then NASA HDTN; none of them implement it.
+      The audit mode reported the unsigned stretch through each stack that
+      adds a Previous Node block. Results and commands are in the repository
+      (transport/bpv7/RESULTS.md).</t>
+      <t>Testing against JPL ION as a BIB acceptor and signer found that ION
+      builds the integrity-protected plaintext for a payload target from the
+      whole serialized block rather than from the block-type-specific data
+      as a byte string (<xref target="RFC9173" section="3.7"/>), and omits
+      the SHA variant parameter while signing with HMAC 256/256. This has
+      been reported to the ION maintainers. The reference implementation
+      interoperates with ION through an optional mode and uses the
+      RFC&nbsp;9173 construction by default.</t>
+    </section>
+
+    <section anchor="open">
+      <name>Open Issues</name>
+      <ul>
+        <li>Key identification. Keys are found by thisHop. A COSE key
+        identifier (kid) would allow key rotation without changing EIDs.</li>
+        <li>Batching. The block grows by one receipt per custodian. A
+        custodian could instead sign one receipt per contact over a Merkle
+        root of the bundles it held, as the reference implementation does
+        outside the block; how such a receipt is carried in each bundle is
+        not yet specified.</li>
+        <li>Other signature algorithms. Only EdDSA is required. Whether to
+        require a second algorithm (for example ES256) for flight hardware
+        with existing cryptographic support is open.</li>
+        <li>Reassembly. A verifier that reassembles fragments could check
+        whole-bundle receipts against the reassembled payload; the procedure
+        is not yet specified.</li>
+      </ul>
+    </section>
+
+    <section anchor="security">
+      <name>Security Considerations</name>
+      <t>Key distribution. Receipts are only as meaningful as the binding
+      between a custodian EID and its key. Verifiers <bcp14>MUST</bcp14>
+      obtain keys independently of the receipts and <bcp14>MUST
+      NOT</bcp14> trust a key carried with a receipt.</t>
+      <t>Stripping. Any forwarder can remove the block or truncate the
+      array and recompute the CRC. This cannot be prevented by the block
+      itself; it is detected because the removed custodians appear as gaps.
+      A verifier <bcp14>MUST</bcp14> treat a gap as absence of evidence,
+      not as evidence of absence.</t>
+      <t>Replay. A receipt copied to another bundle fails verification
+      because it names the bundle identity and payload hash of what was
+      held.</t>
+      <t>False times. A custodian can sign false receivedAt and forwardedAt
+      values. Receipts bind a custodian to its claims; they do not prove
+      the claims are true. Inconsistent times across adjacent receipts can
+      be flagged by the verifier.</t>
+      <t>Denial of service. Verification cost and block size grow linearly
+      with the number of receipts. A verifier <bcp14>SHOULD</bcp14> bound
+      the number of receipts it will process.</t>
+      <t>Privacy. Receipts reveal the custodians on a route and their
+      timing to anyone who can read the bundle.</t>
+    </section>
+
+    <section anchor="iana">
+      <name>IANA Considerations</name>
+      <t>IANA is requested to assign one value (TBD1) in the "Bundle Block
+      Types" registry of the "Bundle Protocol" registry group:</t>
+      <table>
+        <thead><tr><th>Value</th><th>Description</th><th>Reference</th></tr></thead>
+        <tbody><tr><td>TBD1</td><td>Custody Receipt Block</td><td>This document</td></tr></tbody>
+      </table>
+    </section>
+  </middle>
+
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Normative References</name>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9171.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9172.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8949.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8259.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8032.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9052.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9053.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8410.xml"/>
+        <reference anchor="FIPS180-4" target="https://doi.org/10.6028/NIST.FIPS.180-4">
+          <front>
+            <title>Secure Hash Standard (SHS)</title>
+            <author><organization>National Institute of Standards and Technology</organization></author>
+            <date year="2015" month="August"/>
+          </front>
+          <seriesInfo name="FIPS PUB" value="180-4"/>
+        </reference>
+      </references>
+      <references>
+        <name>Informative References</name>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9173.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7942.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-dtn-bibect.xml"/>
+        <reference anchor="SRC84" target="https://doi.org/10.1145/357401.357402">
+          <front>
+            <title>End-to-End Arguments in System Design</title>
+            <author initials="J. H." surname="Saltzer"/>
+            <author initials="D. P." surname="Reed"/>
+            <author initials="D. D." surname="Clark"/>
+            <date year="1984" month="November"/>
+          </front>
+          <seriesInfo name="ACM Transactions on Computer Systems" value="2(4), 277-288"/>
+        </reference>
+      </references>
+    </references>
+    <section anchor="v1">
+      <name>Version 1 Receipts</name>
+      <t>Revision -00 of this document defined version 1 receipts, which
+      remain in use. A version 1 receipt is a JSON object
+      <xref target="RFC8259"/> carried in the block as its canonical form
+      (keys sorted recursively by UTF-16 code unit, no insignificant
+      whitespace). Its members are kind ("custody/1"), payloadId, bundleId,
+      prevHop, thisHop, receivedAt and forwardedAt (milliseconds since
+      1970-01-01T00:00:00Z), claimId ("0x" and the lowercase hexadecimal
+      SHA-256 of the canonical form without claimId, sig and signerPub), sig
+      (base64 Ed25519 signature over the UTF-8 bytes of claimId) and
+      signerPub (base64 DER SubjectPublicKeyInfo <xref target="RFC8410"/>).
+      The origin sets payloadId and bundleId from the application data unit;
+      later custodians copy them from the first receipt. An encoded version 1
+      receipt is about 530 octets.</t>
+    </section>
+    <section anchor="changes" removeInRFC="true">
+      <name>Changes from -00</name>
+      <ul>
+        <li>Version 2 receipts: a CBOR payload signed as COSE_Sign1 (EdDSA),
+        about 156 octets instead of about 530. Version 1 moved to
+        <xref target="v1"/>.</li>
+        <li>Receipts are bound to the BPv7 bundle identity and a hash of the
+        payload bytes held, so no custodian parses the payload and any
+        verifier can check the binding.</li>
+        <li>Fragment handling defined.</li>
+        <li>Implementation status updated: a path through two
+        implementations, version 2 receipts live, and the JPL ION BPSec
+        report.</li>
+      </ul>
+    </section>
+  </back>
+</rfc>

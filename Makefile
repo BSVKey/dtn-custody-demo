@@ -8,7 +8,7 @@ help:
 	@echo "make spike       - M0 R1 over real veths + tc netem + a real L2 blackout (needs Docker + privileged)"
 	@echo "make r2          - R2: custody chain over REAL µD3TN BPv7, held across a contact gap (needs Docker)"
 	@echo "make bpv7-block - custody receipts inside the BPv7 bundle, carried intact by unaware uD3TN nodes (needs Docker)"
-	@echo "make bpv7-block-all - the same through NASA HDTN, JPL ION and Aalyria Hardy too (needs Docker)"
+	@echo "make bpv7-block-all - the same through NASA HDTN, JPL ION and Aalyria Hardy too, and uD3TN -> HDTN in one path (needs Docker)"
 	@echo "make bpv7-bpsec-all - a BPSec payload BIB beside block 224 through all four stacks (needs Docker)"
 	@echo "make bpv7-bpsec-ion / bpv7-bpsec-ion-source - JPL ION (real crypto) accepts our BIB / signs one we verify"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
@@ -66,7 +66,12 @@ bpv7-block-hardy:
 	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
 	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy /app/transport/bpv7/interop/hardy-run.sh
 
-bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy
+# One bundle across two implementations in one path: uD3TN -> NASA HDTN (held across a gap).
+bpv7-block-mix:
+	docker build -t dtn-custody-mix -f mix/Dockerfile .
+	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-mix /app/transport/bpv7/interop/mix-run.sh
+
+bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy bpv7-block-mix
 
 # BPSec (RFC 9172/9173): a payload BIB beside block 224. bpv7-bpsec-all carries it through
 # the four unaware stacks (verified at our destination before and after hop 2 appends).

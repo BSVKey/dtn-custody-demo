@@ -147,6 +147,49 @@ bundle captured from a live ION node that signed its payload
 default stays RFC 9173. These are reported here as observed; they have not been raised
 with the ION maintainers yet.
 
-## Not yet run
+## 5. Two implementations in one path, and the transit-gap audit (2026-10-18)
 
-Mixed chains where the bundle crosses two different stacks in one run with the block.
+`make bpv7-block-mix` (`interop/mix-run.sh`, image `dtn-custody-mix`):
+
+```
+our gateway --MTCP--> uD3TN 00b2fbe ipn:1 --TCPCLv3--> NASA HDTN 7fbe90c ipn:10 --STCP--> our destination
+(stamps hop 1)                                         (holds +15 s to +35 s)          (checks, stamps hop 2)
+```
+
+The bundle is handed to uD3TN at +20 s, inside HDTN's gap, and delivered at +36 s.
+Block 224 arrives byte-identical (blocks on arrival `[6, 224, 1]`; HDTN adds Previous
+Node) and the chain verifies. With `BPSEC=1` the payload BIB verifies on arrival and after
+hop 2 (`[6, 11, 224, 1]`). PASS both ways.
+
+Every live check now also audits the arrival the honest way (`auditBundleCustody`): hop 2
+names the node the stack reports in its Previous Node block, so the stretch through the
+unaware stack is reported as an uncustodied transit gap, not read as custody:
+
+| Path | Previous Node on arrival | Audit |
+|---|---|---|
+| uD3TN, two nodes | none added | no gap visible (nothing to compare) |
+| NASA HDTN | `ipn:10.0` | 2 custodied, 1 gap: gateway-up to dest, last unsigned `ipn:10.0` |
+| JPL ION | `ipn:10.0` | same |
+| Aalyria Hardy | `ipn:20.0` | 2 custodied, 1 gap, last unsigned `ipn:20.0` |
+| uD3TN then HDTN | `ipn:10.0` | 2 custodied, 1 gap, last unsigned `ipn:10.0` |
+
+The audit sees only the last unsigned node; uD3TN's hop before HDTN is not visible to it,
+because Previous Node is replaced at each hop. A gap means "at least this node, unsigned".
+
+## 6. Custody receipt version 2 through the same five paths (2026-10-18)
+
+`RECEIPT=2 BPSEC=1` with each run script: hop 1 signs a version 2 receipt (COSE_Sign1 over
+CBOR, bound to the BPv7 bundle identity and a hash of the payload bytes), the stack carries
+the block, hop 2 signs naming the stack's Previous Node when there is one, and the
+destination runs `verifyBundleV2`. Unit tests: `test/bpv7-receipt-v2.test.mjs`, 7 of 7.
+
+| Path | Block 224 on arrival | Payload BIB after hop 2 | Version 2 chain |
+|---|---|---|---|
+| uD3TN, two nodes | byte-identical | verifies | complete, 2 custodied |
+| NASA HDTN | byte-identical | verifies | 2 custodied, 1 gap (last unsigned `ipn:10.0`) |
+| JPL ION | byte-identical | verifies | 2 custodied, 1 gap (`ipn:10.0`) |
+| Aalyria Hardy | byte-identical | verifies | 2 custodied, 1 gap (`ipn:20.0`) |
+| uD3TN then NASA HDTN | byte-identical | verifies | 2 custodied, 1 gap (`ipn:10.0`) |
+
+All exit 0. The bundle with one version 2 receipt and a BIB was 1,964 bytes, against 2,278
+with one version 1 receipt and a BIB on the same path.
