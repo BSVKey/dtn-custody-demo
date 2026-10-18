@@ -73,6 +73,13 @@ Verification, in order:
 
 ## 2. DTN custody records (dtn-custody-demo)
 
+**Terminology.** A *custody receipt* (`custody/1`, or `custody-batch/1` for a contact) is
+a signed statement by one node that it held a bundle. "Record" is used here only as the
+general word for any signed object in this document. None of these are BPv7
+administrative records (RFC 9171 section 6.1), and none use or replace BPv7 custody
+signalling (BIBE). The wire names (`custody/1`, field names, block 224) are fixed by
+version 1 and are not renamed.
+
 | Kind | Fields (content) | Signed by |
 |---|---|---|
 | `manifest/1` | `payloadId`, `chunkCount`, `root` (Merkle root of the chunks), `meta` (includes `chunkSize`) | payload source |
@@ -127,12 +134,27 @@ Records MAY travel inside the BPv7 bundle they describe instead of as separate b
 - **Flags.** "Replicate in every fragment" set; "delete bundle if unprocessed" and
   "discard block if unprocessed" clear, so a node that does not implement the block
   forwards it unchanged. A CRC-32C is RECOMMENDED.
-- **Appending.** A custodian appends its record and re-seals the block; it MUST NOT
-  alter earlier records. Non-custodian nodes are not in the chain.
+- **Who signs.** Only nodes that choose to be custodians append a receipt. A plain BPv7
+  forwarder does nothing beyond normal block processing: it does not read the payload,
+  sign, or need to know the block exists. No new naming scheme is involved: a custodian
+  acts on bundles that carry block 224.
+- **Appending.** A custodian appends its receipt and re-seals the block; it MUST NOT
+  alter earlier receipts. The first custodian (the origin) MAY read the payload to learn
+  `payloadId` and `bundleId`; every later custodian MUST take them from the first receipt
+  in the block and MUST NOT need to parse the payload.
 - **Binding.** The verifier MUST derive `bundleId` from the payload block it received,
   never from the records, then apply the custody chain rules above. Reasons added:
   `bundle_malformed` (CBOR or CRC failure), `payload_not_a_chunk`,
   `custody_block_malformed`, `no_custody_block`.
+- **Uncustodied transit.** When the route crosses plain forwarders, a verifier MAY audit
+  instead of requiring a pinned hop list. Every receipt present MUST still verify, cover
+  the `bundleId` derived from the payload, and be signed by the key the verifier pins for
+  its `thisHop` (reasons as above, plus `custodian_not_pinned`). Wherever a receipt's
+  `prevHop` is not the previous receipt's `thisHop` (or the expected origin), and wherever
+  the node that delivered the bundle (its Previous Node block) is not the last receipt's
+  `thisHop`, the verifier MUST report a gap `{afterHop, beforeHop, lastUnsigned}` and the
+  result MUST NOT be reported as complete. A missing receipt is reported as missing,
+  never inferred; a bad receipt is a failure, not a gap.
 - **BPSec.** A BIB (RFC 9172) that targets the payload is unaffected by appending. A BIB
   must not target block 224, since every custodian changes it.
 

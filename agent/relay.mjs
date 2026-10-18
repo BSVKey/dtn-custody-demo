@@ -1,6 +1,6 @@
 // Relay (orbiter / ground-relay) role: as a bundle passes through, stamp a signed
 // custody receipt binding {prevHop, thisHop, bundleId, receivedAt, forwardedAt}. The
-// chain of these across hops is the verifiable custody record. Optional per-hop
+// chain of these across hops is the verifiable custody chain. Optional per-hop
 // micropayment is a dev-mode seam (see docs/BUILD-PLAN.md section 4), omitted here.
 import { custodyReceipt } from "./lib/receipt.mjs";
 

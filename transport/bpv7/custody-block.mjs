@@ -13,7 +13,7 @@
 import { encode, decode } from "./cbor.mjs";
 import { decodeBundle, encodeBundle, putBlock, payloadOf, decodeEid, BLOCK, BLOCK_FLAG, CRC32C } from "./bundle.mjs";
 import { canonicalize, contentId } from "../../agent/lib/canonical.mjs";
-import { verifyCustodyChain } from "../../agent/lib/receipt.mjs";
+import { verifyCustodyChain, auditCustodyChain } from "../../agent/lib/receipt.mjs";
 
 export const CUSTODY_BLOCK_TYPE = 224;
 const FLAGS = BLOCK_FLAG.REPLICATE_IN_FRAGMENTS;
@@ -47,13 +47,19 @@ export function previousNode(bundle) {
 }
 
 // Relay step on raw bundle bytes: decode, append this hop's signed receipt, re-encode.
+// Only the first custodian (the origin, an endpoint of the application) reads the
+// payload to learn the ids. Every later custodian copies payloadId and bundleId from the
+// first receipt in the block and never parses the ADU; a false id cannot pass, because
+// the destination derives bundleId from the payload itself (verifyBundleCustody).
 export function stampBundle(bytes, relay, { prevHop, receivedAt, forwardedAt }) {
   const bundle = decodeBundle(bytes);
-  const { body, bundleId } = chunkOf(bundle);
+  const receipts = readCustody(bundle);
+  const ids = receipts.length
+    ? { payloadId: receipts[0].payloadId, bundleId: receipts[0].bundleId }
+    : (({ body, bundleId }) => ({ payloadId: body.payloadId, bundleId }))(chunkOf(bundle));
   const prev = prevHop ?? previousNode(bundle);
   if (!prev) throw new Error("previous hop unknown: no Previous Node block and none supplied");
-  const receipts = readCustody(bundle);
-  const r = relay.stamp({ payloadId: body.payloadId, bundleId }, prev, receivedAt, forwardedAt);
+  const r = relay.stamp(ids, prev, receivedAt, forwardedAt);
   return encodeBundle(withCustody(bundle, [...receipts, r]));
 }
 
@@ -67,4 +73,19 @@ export function verifyBundleCustody(bytes, { hops }) {
   try { receipts = readCustody(bundle); } catch { return { ok: false, reason: "custody_block_malformed" }; }
   if (!receipts.length) return { ok: false, reason: "no_custody_block" };
   return { ...verifyCustodyChain(receipts, { bundleId, hops }), bundleId };
+}
+
+// Destination audit for routes through plain BPv7 forwarders: receipts from the
+// verifier's pinned custodians (`keys`: { eid: pub }) are checked as strictly as above,
+// and every stretch with no receipt is reported as an uncustodied transit gap. The node
+// that delivered the bundle is read from its Previous Node block unless `lastNode` is given.
+export function auditBundleCustody(bytes, { keys, origin = null, lastNode }) {
+  let bundle;
+  try { bundle = decodeBundle(bytes); } catch (e) { return { ok: false, reason: "bundle_malformed", detail: e.message }; }
+  let bundleId, receipts;
+  try { ({ bundleId } = chunkOf(bundle)); } catch { return { ok: false, reason: "payload_not_a_chunk" }; }
+  try { receipts = readCustody(bundle); } catch { return { ok: false, reason: "custody_block_malformed" }; }
+  if (!receipts.length) return { ok: false, reason: "no_custody_block" };
+  const last = lastNode !== undefined ? lastNode : previousNode(bundle);
+  return { ...auditCustodyChain(receipts, { bundleId, keys, origin, lastNode: last }), bundleId };
 }

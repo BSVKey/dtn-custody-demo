@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-18
+
+### Added
+
+- **Uncustodied transit gaps** (`auditCustodyChain`, `auditBundleCustody`, spec 2.1).
+  When a route crosses plain BPv7 forwarders that do not sign, the destination reports
+  each unsigned stretch as a gap `{afterHop, beforeHop, lastUnsigned}`, taken from the
+  receipts and the Previous Node block. Receipts that are present are still checked
+  strictly against pinned keys; a missing receipt is reported, never inferred. The strict
+  pinned-route check (`verifyBundleCustody`) is unchanged.
+
+### Changed
+
+- **Later custodians no longer parse the payload.** Only the first custodian reads the
+  payload to learn the ids; every later one copies `payloadId` and `bundleId` from the
+  first receipt in block 224. The destination still derives `bundleId` from the payload,
+  so a false id cannot pass. Wire format unchanged.
+- **Terminology.** Spec section 2 now defines a custody receipt and states that these are
+  not BPv7 administrative records and do not use or replace BIBE custody signalling.
+  Living docs say "receipt" and "optional agent beside the bundle protocol agent" instead
+  of "application-layer". Wire names (`custody/1`, block 224) and dated results files are
+  unchanged.
+
 ## 2026-10-15
 
 ### Changed

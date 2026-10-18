@@ -16,7 +16,8 @@ produces a documented gap object, and delivery is bound to a real on-chain BSV
 settlement, with the manifest root anchored on chain for provenance.
 
 It rides standard **BPv7 (RFC 9171)** for transport (µD3TN) and adds the custody,
-verification, and payment work as an application-layer agent on top, using the same
+verification, and payment work as an optional agent beside the bundle protocol agent,
+using the same
 content-addressed receipt route as [`@bsvkey/x402-bsv-client`](https://www.npmjs.com/package/@bsvkey/x402-bsv-client)
 and the [ASM capacity-attest](https://github.com/YE-YI7/asm-spec) work. **Out of scope,
 by design:** the physical RF layer (modulation, coding, pointing, FEC).
@@ -59,7 +60,7 @@ run-demo.mjs         the end-to-end demo (npm run demo)
 ```
 
 ## Status
-The **application layer is implemented and green**, and it has been proven over real
+The **custody agent is implemented and green**, and it has been proven over real
 infrastructure:
 - `npm test` passes the acceptance criteria; `npm run demo` runs the full pipeline
   offline (zero dependencies).
@@ -156,8 +157,12 @@ satellite-downlink and mirror-corroborated records of the sibling projects), wit
 vectors that the test suite regenerates from the code on every run.
 
 Receipts can also travel inside the BPv7 bundle itself, as the Custody Receipt Block
-(extension block 224, spec section 2.1): each custodian appends its signed record, and
-BPv7 nodes that do not know the block forward it unchanged. Checked against uD3TN's own
+(extension block 224, spec section 2.1): each custodian appends its signed receipt, and
+BPv7 nodes that do not know the block forward it unchanged. Plain forwarders never read
+the payload or sign; only the origin reads the payload, later custodians copy the ids
+from the block. Where a route crosses forwarders that did not sign, the destination
+audit (`auditBundleCustody`) reports each unsigned stretch as an uncustodied transit gap
+instead of passing or failing the whole chain. Checked against uD3TN's own
 BPv7 library byte for byte, and live through all four BPv7 stacks used here, each holding
 the bundle across a scheduled gap and none of them knowing the block: uD3TN, NASA HDTN,
 JPL ION and Aalyria Hardy (`make bpv7-block-all`, see `transport/bpv7/RESULTS.md`).

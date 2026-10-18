@@ -5,7 +5,7 @@ import {
   crc16x25, crc32c, encodeBundle, decodeBundle, encodeEid, BLOCK, CRC16, CRC32C,
 } from "../transport/bpv7/bundle.mjs";
 import {
-  stampBundle, verifyBundleCustody, readCustody, CUSTODY_BLOCK_TYPE,
+  stampBundle, verifyBundleCustody, auditBundleCustody, readCustody, CUSTODY_BLOCK_TYPE,
 } from "../transport/bpv7/custody-block.mjs";
 import { genKeypair } from "../agent/lib/keys.mjs";
 import { makeRelay } from "../agent/relay.mjs";
@@ -116,4 +116,69 @@ test("bpv7: the custody block never asks a node to drop the bundle or the block"
   assert.ok(blk.type >= 192 && blk.type <= 255, "private/experimental block type range");
   // JPL ION assigns 192 to 197 to its own blocks (193 is its QoS block): stay clear.
   assert.ok(blk.type > 197, "not one of JPL ION's private block types");
+});
+
+// A later custodian must not need the ADU: it takes the ids from the first receipt.
+test("bpv7: only the first custodian reads the payload; later ones copy ids from the block", () => {
+  const { bytes, bundleId } = chunkBundle();
+  const { relayA, relayB, hops } = twoHops();
+  const atA = stampBundle(bytes, relayA, { prevHop: "dtn://source/", receivedAt: 1, forwardedAt: 2 });
+  // Replace the payload with bytes that are not a chunk at all (an opaque ADU).
+  const b = decodeBundle(atA);
+  b.blocks.find((x) => x.type === BLOCK.PAYLOAD).data = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+  const atB = stampBundle(encodeBundle(b), relayB, { prevHop: "dtn://relaya/", receivedAt: 3, forwardedAt: 4 });
+  const r = readCustody(decodeBundle(atB));
+  assert.equal(r[1].bundleId, bundleId, "relay B stamped without parsing the payload");
+  // The destination still binds to the payload it received, so the swap is refused.
+  assert.equal(verifyBundleCustody(atB, { hops }).reason, "payload_not_a_chunk");
+});
+
+test("bpv7: a plain forwarder between custodians is reported as an uncustodied gap, not a pass", () => {
+  const { bytes, bundleId } = chunkBundle();
+  const { relayA, relayB, hops } = twoHops();
+  const keys = Object.fromEntries(hops.map((h) => [h.eid, h.pub]));
+  const atA = stampBundle(bytes, relayA, { prevHop: "dtn://source/", receivedAt: 1, forwardedAt: 2 });
+  // dtn://plain/ forwards without signing; relay B learns it from the Previous Node block.
+  const atB = stampBundle(atA, relayB, { prevHop: "dtn://plain/", receivedAt: 3, forwardedAt: 4 });
+
+  // The strict pinned-route check refuses the break, as before.
+  assert.equal(verifyBundleCustody(atB, { hops }).reason, "custody_chain_break");
+
+  // The audit names the stretch nobody signed for, and one after B before delivery.
+  const v = auditBundleCustody(atB, { keys, origin: "dtn://source/", lastNode: "dtn://plain2/" });
+  assert.equal(v.ok, true);
+  assert.equal(v.complete, false);
+  assert.equal(v.custodied, 2);
+  assert.equal(v.bundleId, bundleId);
+  assert.deepEqual(v.gaps, [
+    { afterHop: "dtn://relaya/", beforeHop: "dtn://relayb/", lastUnsigned: "dtn://plain/" },
+    { afterHop: "dtn://relayb/", beforeHop: null, lastUnsigned: "dtn://plain2/" },
+  ]);
+
+  // Delivered straight from B with every hop signed: complete, no gaps.
+  const full = stampBundle(atA, relayB, { prevHop: "dtn://relaya/", receivedAt: 3, forwardedAt: 4 });
+  assert.deepEqual(
+    auditBundleCustody(full, { keys, origin: "dtn://source/", lastNode: "dtn://relayb/" }),
+    { ok: true, complete: true, custodied: 2, gaps: [], bundleId },
+  );
+});
+
+test("bpv7: the audit still refuses bad receipts; absence is a gap, a forgery is a failure", () => {
+  const { bytes } = chunkBundle();
+  const { relayA, relayB, hops } = twoHops();
+  const atA = stampBundle(bytes, relayA, { prevHop: "dtn://source/", receivedAt: 1, forwardedAt: 2 });
+  const atB = stampBundle(atA, relayB, { prevHop: "dtn://relaya/", receivedAt: 3, forwardedAt: 4 });
+  // A custodian the verifier never pinned.
+  assert.equal(auditBundleCustody(atB, { keys: { [hops[0].eid]: hops[0].pub } }).reason, "custodian_not_pinned");
+  // A pinned eid signed by the wrong key.
+  assert.equal(auditBundleCustody(atB, { keys: { [hops[0].eid]: hops[1].pub, [hops[1].eid]: hops[1].pub } }).reason,
+    "signer_not_pinned_hop_key");
+  // A dropped receipt in the middle is reported as missing evidence, never filled in.
+  const b = decodeBundle(atB);
+  const blk = b.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
+  blk.data = encode(decode(blk.data).slice(1));
+  const keys = Object.fromEntries(hops.map((h) => [h.eid, h.pub]));
+  const v = auditBundleCustody(encodeBundle(b), { keys, origin: "dtn://source/", lastNode: "dtn://relayb/" });
+  assert.equal(v.complete, false);
+  assert.deepEqual(v.gaps, [{ afterHop: "dtn://source/", beforeHop: "dtn://relayb/", lastUnsigned: "dtn://relaya/" }]);
 });

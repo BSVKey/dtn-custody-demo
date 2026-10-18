@@ -53,6 +53,38 @@ export function verifyCustodyChain(receipts, { bundleId, hops }) {
   return { ok: true, hops: receipts.length };
 }
 
+// Audit a chain that crossed plain BPv7 forwarders. Only nodes that chose to be
+// custodians sign; a forwarder that did not leaves no receipt, and that absence is
+// reported as an uncustodied transit gap, never filled in or read as custody. Every
+// receipt that IS present must still verify, cover this bundle and be signed by the key
+// the verifier pins for its thisHop (`keys`: { eid: pub }); a bad receipt is a failure,
+// not a gap. `origin` (optional) is the node the first receipt should name as prevHop;
+// `lastNode` (optional) is the node that handed the bundle to the verifier, e.g. from
+// its Previous Node block. Result: { ok, complete, custodied, gaps: [{ afterHop,
+// beforeHop, lastUnsigned }] }; complete is true only when there are no gaps.
+export function auditCustodyChain(receipts, { bundleId, keys, origin = null, lastNode = null }) {
+  if (!Array.isArray(receipts) || receipts.length === 0) return { ok: false, reason: "empty_chain" };
+  const gaps = [];
+  let prevEid = origin;
+  for (let i = 0; i < receipts.length; i++) {
+    const r = receipts[i];
+    const v = verifyRecord(r);
+    if (!v.ok) return { ok: false, reason: v.reason, hop: i };
+    if (r.bundleId !== bundleId) return { ok: false, reason: "wrong_bundle", hop: i };
+    const pinned = keys[r.thisHop];
+    if (!pinned) return { ok: false, reason: "custodian_not_pinned", hop: i };
+    if (v.signer !== pinned) return { ok: false, reason: "signer_not_pinned_hop_key", hop: i };
+    if (prevEid !== null && r.prevHop !== prevEid) {
+      gaps.push({ afterHop: prevEid, beforeHop: r.thisHop, lastUnsigned: r.prevHop });
+    }
+    prevEid = r.thisHop;
+  }
+  if (lastNode !== null && lastNode !== prevEid) {
+    gaps.push({ afterHop: prevEid, beforeHop: null, lastUnsigned: lastNode });
+  }
+  return { ok: true, complete: gaps.length === 0, custodied: receipts.length, gaps };
+}
+
 // ---- Delivery receipt + settlement binding ----------------------------------------
 export function deliveryReceipt(kp, { payloadId, root, rail, network, settlementRef, payTo, amountAtomic }) {
   return signRecord(kp, {
