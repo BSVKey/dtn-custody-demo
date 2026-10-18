@@ -103,6 +103,17 @@ infrastructure:
   satellite and commits that receipt: 30,502 transactions, all confirmed, and 100 of 100
   sampled bundles proven custodied and paid at every hop from the chain alone.
   See `constellation/TERANODE-RESULTS.md`.
+  **On teratestnet**, BSV's public Teranode test network, through Arcade: the same 30,502
+  paid receipts all mined, every merkle proof matching its block header, and 100 of 100
+  bundles proven (`constellation/TTN-RESULTS.md`). **On Bitcoin BSV mainnet**, through
+  ARC: all 30,502 paid receipts and 11 anchors mined, every proof matching a header whose
+  proof of work was verified, 100 of 100 bundles proven (`constellation/MAIN-RESULTS.md`).
+  With `--batch=100` one transaction pays
+  100 satellites (output *i* for receipt *i*, the receipt ids listed in one OP_RETURN):
+  306 transactions instead of 30,502, submitted at about 750 payments per second instead
+  of 80, with each payment to a fresh payout address. `--confirm` rebuilds every block
+  header it relies on and checks its proof of work before trusting its merkle root, and
+  `constellation/sweep.mjs` collects the satellites' payments back.
 
 - **Mars light time (`mars/`)**: JPL ION over its LTP convergence layer at 4, 12.5 and 22
   minutes each way (close approach, average and near-maximum Mars distance), every file

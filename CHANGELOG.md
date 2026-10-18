@@ -4,6 +4,42 @@
 
 ### Added
 
+- **Paid receipts on public networks** (`constellation/ttn-run.mjs`). Teratestnet through
+  Arcade: 30,502 paid receipts and 11 anchors mined, 30,513 merkle proofs matching headers,
+  100 of 100 bundles proven (`constellation/TTN-RESULTS.md`). `--network=mainnet` runs the
+  same flow on Bitcoin BSV mainnet through ARC at the broadcaster's live fee rate, with its
+  own key, state and results, and refuses to send without `--spend-real-bsv`.
+- **Bitcoin BSV mainnet run** (`constellation/MAIN-RESULTS.md`): the same 30,502 paid receipts
+  and 11 anchors mined through ARC, 30,513 merkle proofs matching headers whose proof of work
+  was verified, 100 of 100 bundles proven custodied and paid at every hop. 897,665 sats in fees;
+  the 3,050,200 sats paid to satellites can be swept back.
+- **Several broadcasters** (`--broadcast=<url,...>`; mainnet default GorillaPool ARC, BSVA's
+  mainnet Arcade and WhatsOnChain): the first must accept, the rest are best effort, and each
+  acceptance is counted. `--rebroadcast` rebuilds a run's signed transactions (deterministic;
+  checked against all 30,544 txids of the mainnet run) and resends any not yet mined, with no
+  new payments. Built after the mainnet run's last 4,605 transactions waited a block.
+- **Batch payments** (`--batch=N`): one transaction pays N relaying satellites, output *i*
+  for receipt *i*, with the N receipt ids in one OP_RETURN. One fan-out gives each batch its
+  own input, so every batch depends on a single parent. The first version chained batches
+  (each spending the last one's change): on teratestnet 15,000 payments went out in 155
+  transactions in 20 seconds, about 750 payments per second against about 80 before, and all
+  15,000 were mined with 100 of 100 bundles proven, but some nodes saw children before parents
+  and the tail waited for rebroadcast. The single-parent version is dry-run tested; a live run
+  is pending more teratestnet coins.
+- **Fresh payout address per payment** (`--payout=per-payment`, now the default; per-node
+  remains for earlier runs and is recorded in their state).
+- **SPV header check** in `--confirm`: each block header is rebuilt from its fields and must
+  hash to the block hash and meet its own difficulty target before its merkle root is used.
+- **Sweep** (`constellation/sweep.mjs`): collects the satellites' payments back to the funding
+  address, using the run's own state (no address scanning), after checking a sample of payout
+  outputs on chain against the derived keys. Live on teratestnet; checked against mainnet.
+
+### Fixed
+
+- **Payout keys are derived under a secret from the funding key** (`constellation/payout.mjs`).
+  They were derived from a public formula, which on mainnet would let anyone who read the
+  code spend the satellites' payments.
+
 - **BPSec beside block 224** (`transport/bpv7/bpsec.mjs`, RESULTS section 4). BIB-HMAC-SHA2
   (RFC 9173) build and verify, checked against the RFC's Appendix A vectors, with AES key
   unwrap (RFC 3394) for BIBs that carry a wrapped key. Live: a payload BIB through uD3TN,

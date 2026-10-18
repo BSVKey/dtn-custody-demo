@@ -39,3 +39,5 @@ constellation/.main-state.json
 
 # QUIC workbench simulation outputs (pcaps, replay logs)
 ip-sf/runs/
+constellation/.main-sweep.json
+constellation/.ttn-sweep.json
