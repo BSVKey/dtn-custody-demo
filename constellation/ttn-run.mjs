@@ -21,7 +21,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import os from "node:os";
-import { PrivateKey, Transaction, P2PKH, Script, MerklePath } from "@bsv/sdk";
+import { PrivateKey, Transaction, P2PKH, Script, MerklePath, SatoshisPerKilobyte } from "@bsv/sdk";
 import { makeConstellation, simulate, verifyAll, MOC } from "./sim.mjs";
 import { parseTles, makeOrbitalConstellation } from "./orbits.mjs";
 import { batchProof } from "../agent/lib/batch.mjs";
@@ -113,7 +113,9 @@ if (!has("confirm")) {
     if (!/^[0-9a-f]{64}$/i.test(txid || "")) { console.error(`pass --fund=<txid> of the transaction that paid ${funderAddr}`); process.exit(2); }
     const hex = await fetch(`${ASSET}/tx/${txid}/hex`).then((r) => r.ok ? r.text() : null);
     if (!hex) { console.error(`funding transaction ${txid} not found at ${ASSET}`); process.exit(2); }
-    fundTx = Transaction.fromHex(hex.trim().replace(/^"|"$/g, ""));
+    // The asset API may return extended format (BRC-30: marker 0000000000ef after the version).
+    const clean = hex.trim().replace(/^"|"$/g, "");
+    fundTx = clean.slice(8, 20).toLowerCase() === "0000000000ef" ? Transaction.fromHexEF(clean) : Transaction.fromHex(clean);
     fundVout = fundTx.outputs.findIndex((o) => o.lockingScript.toHex() === ourScript);
     if (fundVout < 0) { console.error(`transaction ${txid} does not pay ${funderAddr}`); process.exit(2); }
   }
@@ -136,7 +138,10 @@ if (!has("confirm")) {
       : { sourceTransaction: fundTx, sourceOutputIndex: fundVout, unlockingScriptTemplate: new P2PKH().unlock(funder) });
     for (let k = 0; k < n; k++) tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), satoshis: PAY + 1 });
     tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), change: true });
-    await tx.fee(0); // teratestnet policy: 0 sat/kB (checked at /v1/policy)
+    // Arcade's /v1/policy advertises 0 sat/kB, but teratestnet nodes enforce a minimum
+    // (1 sat/kB per the quickstart's network notes): a zero-fee fan-out was REJECTED
+    // "insufficient-fee" on 2026-10-18. Pay 5 sat/kB.
+    await tx.fee(new SatoshisPerKilobyte(5));
     await tx.sign();
     fanTxs.push(tx);
   }
@@ -205,12 +210,17 @@ if (!has("confirm")) {
 // ---- 5. Confirm and prove ------------------------------------------------------------------------
 const st = JSON.parse(readFileSync(STATE, "utf8"));
 const headerRoot = new Map();
-async function merkleRootAt(height) {
-  if (!headerRoot.has(height)) {
-    const { status, j } = await getJson(`${ASSET}/header/height/${height}/json`);
-    headerRoot.set(height, status === 200 ? (j.merkleroot || j.hashMerkleRoot || j.merkle_root || null) : null);
+// Headers by block hash (the asset API's header-by-height route now requires authentication,
+// seen 2026-10-18); the header must also report the height Arcade gave.
+async function merkleRootAt(height, blockHash) {
+  const key = blockHash || height;
+  if (!headerRoot.has(key)) {
+    const url = blockHash ? `${ASSET}/header/${blockHash}/json` : `${ASSET}/header/height/${height}/json`;
+    const { status, j } = await getJson(url);
+    const okHeight = status === 200 && (j.height == null || Number(j.height) === Number(height));
+    headerRoot.set(key, okHeight ? (j.merkleroot || j.hashMerkleRoot || j.merkle_root || null) : null);
   }
-  return headerRoot.get(height);
+  return headerRoot.get(key);
 }
 async function statusOf(txid) {
   const { status, j } = await getJson(`${ARCADE}/tx/${txid}`);
@@ -218,11 +228,12 @@ async function statusOf(txid) {
   const state = j.txStatus || j.status || j.state || "UNKNOWN";
   const height = j.blockHeight ?? j.block_height ?? null;
   const bump = j.merklePath || j.merkle_path || j.bump || null;
+  const blockHash = j.blockHash || j.block_hash || null;
   let proofOk = null;
   if (bump && height != null) {
     try {
       const root = MerklePath.fromHex(bump).computeRoot(txid);
-      const hdr = await merkleRootAt(height);
+      const hdr = await merkleRootAt(height, blockHash);
       proofOk = hdr ? root === hdr : null;
     } catch { proofOk = false; }
   }
@@ -280,6 +291,6 @@ const lines = [
 ];
 const text = lines.join("\n") + "\n";
 console.log(text);
-console.log(`TTN_RESULT ${JSON.stringify({ ok, paid: st.paid.length, mined: paidConfirmed, anchors: anchorsConfirmed, proven, states })}`);
+console.log(`TTN_RESULT ${JSON.stringify({ ok, paid: st.paid.length, mined: paidConfirmed, anchors: anchorsConfirmed, merkleProofsMatchingHeaders: proofsChecked, of: statuses.length, sampledBundles: sample.length, proven, states })}`);
 if (has("write")) writeFileSync(new URL("./TTN-RESULTS.md", import.meta.url), text);
 process.exit(ok ? 0 : 1);
