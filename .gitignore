@@ -35,7 +35,7 @@ constellation/.tle-cache/
 
 # teratestnet run state (txids, local only)
 constellation/.ttn-state.json
-constellation/.main-state.json
+constellation/.main-state*.json
 
 # QUIC workbench simulation outputs (pcaps, replay logs)
 ip-sf/runs/

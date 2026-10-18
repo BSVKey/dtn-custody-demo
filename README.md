@@ -108,6 +108,7 @@ infrastructure:
   bundles proven (`constellation/TTN-RESULTS.md`). **On Bitcoin BSV mainnet**, through
   ARC: all 30,502 paid receipts and 11 anchors mined, every proof matching a header whose
   proof of work was verified, 100 of 100 bundles proven (`constellation/MAIN-RESULTS.md`).
+  Every run, with its transaction records, is listed in `constellation/RUNS.md`.
   With `--batch=100` one transaction pays
   100 satellites (output *i* for receipt *i*, the receipt ids listed in one OP_RETURN):
   306 transactions instead of 30,502, submitted at about 750 payments per second instead

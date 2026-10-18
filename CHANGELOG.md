@@ -9,6 +9,9 @@
   100 of 100 bundles proven (`constellation/TTN-RESULTS.md`). `--network=mainnet` runs the
   same flow on Bitcoin BSV mainnet through ARC at the broadcaster's live fee rate, with its
   own key, state and results, and refuses to send without `--spend-real-bsv`.
+- **Run ledger and records** (`constellation/RUNS.md`, `constellation/runs/`): every payment
+  run on regtest, teratestnet and mainnet, with per-run transaction records (receipt id, relay,
+  paying transaction and output; no keys), the sweeps, and what has not yet run live.
 - **Bitcoin BSV mainnet run** (`constellation/MAIN-RESULTS.md`): the same 30,502 paid receipts
   and 11 anchors mined through ARC, 30,513 merkle proofs matching headers whose proof of work
   was verified, 100 of 100 bundles proven custodied and paid at every hop. 897,665 sats in fees;

@@ -1,0 +1,13 @@
+{
+ "at": "2026-10-18T22:26:31.594Z",
+ "network": "teratestnet",
+ "to": "mhpAGYHwsZaB3wJksQH4vrLjERS8xvrA38",
+ "rate": 5,
+ "sent": [
+  "3fc9c18febc27c9601bd8cfebc0663040d039d02e600ae4f0e107a9895554eeb",
+  "7253dcc0d852ac37014fb9747f67af1f3a834773d9126c22122645838741570e"
+ ],
+ "rejected": [],
+ "total": 1000,
+ "fees": 742
+}
