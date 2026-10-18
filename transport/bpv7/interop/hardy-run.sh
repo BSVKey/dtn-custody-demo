@@ -10,7 +10,7 @@ set -uo pipefail
 cd /app
 W=$(mktemp -d)
 cat > "$W/bpa.yaml" <<Y
-log-level: info
+log-level: ${HARDY_LOG:-info}
 admin-endpoints: ["ipn:20.0"]
 grpc:
   address: "[::1]:50051"

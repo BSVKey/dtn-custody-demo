@@ -20,7 +20,9 @@ const FLAGS = BLOCK_FLAG.REPLICATE_IN_FRAGMENTS;
 
 // Receipts carried by a decoded bundle ([] when the block is absent).
 export function readCustody(bundle) {
-  const b = bundle.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
+  const all = bundle.blocks.filter((x) => x.type === CUSTODY_BLOCK_TYPE);
+  if (all.length > 1) throw new Error("custody block malformed: more than one in the bundle");
+  const b = all[0];
   if (!b) return [];
   const arr = decode(b.data);
   if (!Array.isArray(arr) || !arr.every((s) => typeof s === "string")) throw new Error("custody block malformed");

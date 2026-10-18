@@ -1,12 +1,15 @@
 // Live check helper for the uD3TN, HDTN, ION and Hardy runs (*-run.sh).
 // Env: BUNDLE_SRC / BUNDLE_DST (primary block EIDs; HDTN, ION and Hardy route ipn:),
-//      VIA (the unaware stack, for the log line).
+//      VIA (the unaware stack, for the log line), BPSEC=1 (add a full-scope RFC 9173
+//      BIB-HMAC-SHA2 BIB over the payload at the source and verify it on arrival),
+//      BIB_IPPT=ion (build the MAC input the way JPL ION does, see bpsec.mjs), BIB_SCOPE.
 //   node live.mjs make <out.hex>            our gateway agent stamps hop 1, writes the bundle
 //   node live.mjs check <in.hex> <out.hex>  after the unaware DTN stack: block intact? stamp hop 2, verify
 import fs from "node:fs";
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { encodeBundle, decodeBundle, BLOCK, CRC32C } from "../bundle.mjs";
 import { stampBundle, verifyBundleCustody, readCustody, CUSTODY_BLOCK_TYPE } from "../custody-block.mjs";
+import { addBib, verifyBibs, SHA, IPPT_MODE } from "../bpsec.mjs";
 import { makeRelay } from "../../../agent/relay.mjs";
 import { prepare } from "../../../agent/source.mjs";
 
@@ -22,16 +25,25 @@ const DTN_EPOCH = Date.UTC(2000, 0, 1);
 const SRC = process.env.BUNDLE_SRC || "dtn://gateway-up.dtn/payload";
 const DST = process.env.BUNDLE_DST || "dtn://dest.dtn/payload";
 const VIA = process.env.VIA || "two unaware uD3TN nodes";
+const BPSEC = process.env.BPSEC === "1";
+// The RFC 9173 Appendix A example key: public, test only.
+const BIB_KEY = Buffer.from(process.env.BIB_KEY_HEX || "1a2b1a2b1a2b1a2b1a2b1a2b1a2b1a2b", "hex");
+const MODE = process.env.BIB_IPPT === "ion" ? IPPT_MODE.ION : IPPT_MODE.RFC9173;
 const custodyBlock = (b) => b.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
 
 const [mode, a, b] = process.argv.slice(2);
 if (mode === "make") {
   const { bundles } = prepare(testKey("01".repeat(32)), Buffer.from("custody over real BPv7 ".repeat(100)), { chunkSize: 1024 });
   const c = bundles[0];
-  const raw = encodeBundle({
+  let bundle = {
     primary: { crcType: CRC32C, dest: DST, source: SRC, created: [Date.now() - DTN_EPOCH, 1], lifetime: 3600000 },
     blocks: [{ type: BLOCK.PAYLOAD, number: 1, crcType: CRC32C, data: Buffer.from(JSON.stringify({ payloadId: c.payloadId, index: c.index, leafHex: c.leafHex, bytesB64: c.bytesB64, branch: c.branch })) }],
-  });
+  };
+  if (BPSEC) {
+    bundle = addBib(bundle, { targets: [1], key: BIB_KEY, source: SRC, shaVariant: SHA.HMAC256, scope: Number(process.env.BIB_SCOPE ?? 7), mode: MODE });
+    console.log(`[live] source added a BPSec BIB (BIB-HMAC-SHA2, HMAC 256, scope ${process.env.BIB_SCOPE ?? 7}, MAC input ${MODE}) over the payload`);
+  }
+  const raw = encodeBundle(bundle);
   const now = Date.now();
   fs.writeFileSync(a, stampBundle(raw, makeRelay(kUp, UP), { prevHop: "dtn://source.dtn/", receivedAt: now, forwardedAt: now }).toString("hex"));
   console.log(`[live] hop 1 (${UP}) stamped; bundle ${fs.readFileSync(a, "utf8").length / 2} bytes, handed to ${VIA.replace(/^(two |one )?unaware /, "")}`);
@@ -47,8 +59,14 @@ if (mode === "make") {
   const now = Date.now();
   const final = stampBundle(gotBytes, makeRelay(kDown, DOWN), { prevHop: UP, receivedAt: now, forwardedAt: now });
   const v = verifyBundleCustody(final, { hops });
+  let bibOk = true;
+  if (BPSEC) {
+    const onArrival = verifyBibs(got, BIB_KEY, { mode: MODE }), afterHop2 = verifyBibs(decodeBundle(final), BIB_KEY, { mode: MODE });
+    bibOk = onArrival.ok && afterHop2.ok;
+    console.log(`[live] BPSec BIB over the payload: on arrival ${onArrival.ok ? "verifies" : "FAILS " + onArrival.reason}; after hop 2 appended ${afterHop2.ok ? "verifies" : "FAILS " + afterHop2.reason}`);
+  }
   console.log(`[live] hop 2 (${DOWN}) stamped; chain of ${readCustody(decodeBundle(final)).length}: ${JSON.stringify(v)}`);
-  process.exit(intact && v.ok ? 0 : 1);
+  process.exit(intact && v.ok && bibOk ? 0 : 1);
 } else {
   console.error("usage: node live.mjs make <out.hex> | check <in.hex> <out.hex>"); process.exit(2);
 }

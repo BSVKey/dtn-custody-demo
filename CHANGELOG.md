@@ -4,6 +4,20 @@
 
 ### Added
 
+- **BPSec beside block 224** (`transport/bpv7/bpsec.mjs`, RESULTS section 4). BIB-HMAC-SHA2
+  (RFC 9173) build and verify, checked against the RFC's Appendix A vectors, with AES key
+  unwrap (RFC 3394) for BIBs that carry a wrapped key. Live: a payload BIB through uD3TN,
+  HDTN, ION and Hardy verifies before and after receipts are appended
+  (`make bpv7-bpsec-all`); JPL ION with Mbed TLS accepts our BIB and refuses a wrong key
+  (`make bpv7-bpsec-ion`), and signs a BIB our code verifies (`make bpv7-bpsec-ion-source`).
+  Found that ION's default build accepts any MAC (NULL crypto suites) and that ION builds
+  its MAC input from the whole target block rather than RFC 9173's byte string, so
+  `bpsec.mjs` has an opt-in `mode: "ion"`; the default stays RFC 9173.
+- **One custody block per bundle.** A bundle carrying two blocks of type 224 is refused
+  (`custody_block_malformed`).
+- **Internet-Draft** `ietf/draft-bsvkey-dtn-custody-receipt-block-00` (xml, txt, html):
+  the Custody Receipt Block as an Experimental specification. Not submitted.
+
 - **Uncustodied transit gaps** (`auditCustodyChain`, `auditBundleCustody`, spec 2.1).
   When a route crosses plain BPv7 forwarders that do not sign, the destination reports
   each unsigned stretch as a gap `{afterHop, beforeHop, lastUnsigned}`, taken from the

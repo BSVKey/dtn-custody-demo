@@ -1,0 +1,19 @@
+# JPL ION rebuilt with real BPSec crypto (Mbed TLS), for make bpv7-bpsec-ion.
+# The default ion/Dockerfile build uses ION's NULL crypto suites, whose verify step
+# accepts any MAC (ici/crypto/NULL_SUITES/csi.c), so it cannot test a BIB. This image
+# reuses the same ION checkout (built by ion/Dockerfile) and reconfigures it with
+# --enable-crypto-mbedtls. Debian's libmbedtls lacks NIST key wrap (MBEDTLS_NIST_KW_C),
+# which ION's suite links against, so Mbed TLS 2.28 is built from source with it on.
+FROM dtn-custody-ion:latest
+RUN git clone --depth 1 --branch v2.28.8 https://github.com/Mbed-TLS/mbedtls.git /opt/mbedtls
+WORKDIR /opt/mbedtls
+RUN sed -i 's,^//#define MBEDTLS_NIST_KW_C,#define MBEDTLS_NIST_KW_C,' include/mbedtls/config.h \
+    && grep -q '^#define MBEDTLS_NIST_KW_C' include/mbedtls/config.h \
+    && make -j4 SHARED=1 lib >/dev/null \
+    && make install DESTDIR=/usr/local >/dev/null && ldconfig
+WORKDIR /opt/ion
+RUN make distclean >/dev/null 2>&1 || true; \
+    ./configure --quiet --enable-crypto-mbedtls MBED_LIB_PATH=/usr/local/lib MBED_INC_PATH=/usr/local/include \
+    && grep -q "CRYPTO_MBEDTLS='1'" config.log \
+    && make -j4 >/dev/null && make install >/dev/null && ldconfig
+WORKDIR /app

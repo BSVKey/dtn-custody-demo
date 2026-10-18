@@ -1,4 +1,4 @@
-# Custody Receipt Block: results (2026-10-14, extended 2026-10-15)
+# Custody Receipt Block: results (2026-10-14, extended 2026-10-15 and 2026-10-18)
 
 The custody chain rides inside the BPv7 bundle as extension block 224. Spec:
 `spec/CUSTODY-RECORDS.md` section 2.1. Code: `cbor.mjs`, `bundle.mjs`, `custody-block.mjs`.
@@ -111,7 +111,42 @@ layer (`interop/cl.mjs`: MTCP, STCP, UDP; `interop/hardy-cla.mjs`: Hardy's gRPC 
 === bpv7-block-hardy exit: 0 ===
 ```
 
+## 4. BPSec beside block 224 (2026-10-18)
+
+Code: `bpsec.mjs` (BIB-HMAC-SHA2, RFC 9173 section 3, with AES key unwrap per section
+3.3.2). Unit tests: `test/bpv7-bpsec.test.mjs`, 11 of 11 PASS, including the RFC 9173
+Appendix A.1, A.3 and A.4 vectors byte for byte, the RFC 3394 key wrap vector, and a
+bundle captured from a live ION node that signed its payload
+(`test/fixtures/ion-c5a4d87-bib.hex`).
+
+| Check | Stack | What happened | Result |
+|---|---|---|---|
+| `make bpv7-bpsec-all` | uD3TN, NASA HDTN, JPL ION, Aalyria Hardy (none knows block 224) | Our source adds a full-scope (0x07) payload BIB, hop 1 appends a receipt, the stack holds the bundle across its gap; at our destination the BIB verifies on arrival and again after hop 2 appends | PASS on all four |
+| `make bpv7-bpsec-ion` | JPL ION c5a4d87 with Mbed TLS, as the BIB acceptor | 4 bundles: right key (ION's MAC input) delivered; wrong key not delivered; right key with the RFC 9173 MAC input not delivered; right key again delivered | PASS (1, 0, 0, 1) |
+| `make bpv7-bpsec-ion-source` | the same ION, as the BIB signer | ION signs a payload with a wrapped key; our code unwraps and verifies it, refuses a wrong key, and the BIB still verifies after two receipts are appended to block 224 | PASS |
+
+### Findings about JPL ION (c5a4d87)
+
+1. **The default build cannot test a BIB.** Without `--enable-crypto-mbedtls`, ION uses
+   its NULL crypto suites (`ici/crypto/NULL_SUITES/csi.c`), whose verify step returns
+   success for any MAC. Our first run "passed" a wrong key for that reason. The ION checks
+   here use `ion/Dockerfile.bpsec`, which builds Mbed TLS 2.28 from source with NIST key
+   wrap enabled (Debian's package lacks it, and ION links against it).
+2. **ION's MAC input for a non-primary target is not RFC 9173's.** RFC 9173 section 3.7
+   ends the integrity-protected plaintext with the target's block-type-specific data as
+   a CBOR byte string; our code reproduces the Appendix A vectors that way. ION instead
+   appends the whole serialized target block (header with flags 0, data, CRC):
+   `bpv7/bpsec/utils/bpsec_util.c`, `canonicalizePayloadBlock`. Confirmed both ways:
+   ION refuses a correctly keyed RFC 9173 BIB, and accepts the same bundle when the MAC
+   input is built its way.
+3. **ION defaults to HMAC 256/256 and keeps the target's CRC.** It omits the SHA variant
+   parameter while signing with HMAC 256; RFC 9173 section 3.3.1 makes 384/384 the
+   default. It also leaves the CRC on the target block.
+
+`bpsec.mjs` therefore has a `mode: "ion"` option for interoperating with ION. The
+default stays RFC 9173. These are reported here as observed; they have not been raised
+with the ION maintainers yet.
+
 ## Not yet run
 
-A payload BIB (BPSec, RFC 9172) alongside block 224, and mixed chains where the bundle
-crosses two different stacks in one run with the block.
+Mixed chains where the bundle crosses two different stacks in one run with the block.

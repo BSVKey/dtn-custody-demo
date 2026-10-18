@@ -165,7 +165,10 @@ audit (`auditBundleCustody`) reports each unsigned stretch as an uncustodied tra
 instead of passing or failing the whole chain. Checked against uD3TN's own
 BPv7 library byte for byte, and live through all four BPv7 stacks used here, each holding
 the bundle across a scheduled gap and none of them knowing the block: uD3TN, NASA HDTN,
-JPL ION and Aalyria Hardy (`make bpv7-block-all`, see `transport/bpv7/RESULTS.md`).
+JPL ION and Aalyria Hardy (`make bpv7-block-all`, see `transport/bpv7/RESULTS.md`). A BPSec
+payload signature (RFC 9172/9173 BIB) survives every receipt appended, through all four
+stacks (`make bpv7-bpsec-all`), and JPL ION built with real crypto accepts our BIB and
+signs one our code verifies (`make bpv7-bpsec-ion`, `bpv7-bpsec-ion-source`).
 
 ## Acceptance criteria (what "done" means)
 1. Out-of-order chunk integrity against a Merkle root; a tampered chunk is rejected.

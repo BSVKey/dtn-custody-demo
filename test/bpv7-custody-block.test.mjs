@@ -182,3 +182,12 @@ test("bpv7: the audit still refuses bad receipts; absence is a gap, a forgery is
   assert.equal(v.complete, false);
   assert.deepEqual(v.gaps, [{ afterHop: "dtn://source/", beforeHop: "dtn://relayb/", lastUnsigned: "dtn://relaya/" }]);
 });
+
+test("bpv7: a bundle with two custody blocks is refused, not read from the first", () => {
+  const { bytes } = chunkBundle();
+  const { relayA, hops } = twoHops();
+  const b = decodeBundle(stampBundle(bytes, relayA, { prevHop: "dtn://source/", receivedAt: 1, forwardedAt: 2 }));
+  const blk = b.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
+  b.blocks.unshift({ ...blk, number: 9 });
+  assert.equal(verifyBundleCustody(encodeBundle(b), { hops: hops.slice(0, 1) }).reason, "custody_block_malformed");
+});

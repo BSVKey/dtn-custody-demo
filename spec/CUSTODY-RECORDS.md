@@ -156,7 +156,11 @@ Records MAY travel inside the BPv7 bundle they describe instead of as separate b
   result MUST NOT be reported as complete. A missing receipt is reported as missing,
   never inferred; a bad receipt is a failure, not a gap.
 - **BPSec.** A BIB (RFC 9172) that targets the payload is unaffected by appending. A BIB
-  must not target block 224, since every custodian changes it.
+  must not target block 224, since every custodian changes it, and a BCB must not either,
+  since later custodians read the first receipt. Tested live with a payload BIB through
+  uD3TN, HDTN, ION and Hardy, and with JPL ION as BIB acceptor and signer
+  (`transport/bpv7/RESULTS.md` section 4, which also records where ION's MAC input
+  differs from RFC 9173).
 
 ## 3. Satellite downlink records (open-downlink-custody)
 

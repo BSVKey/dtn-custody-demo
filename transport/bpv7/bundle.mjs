@@ -36,7 +36,7 @@ function crcBytes(type, data) {
 
 // Encode a block array whose last element is the CRC: compute over the block with a
 // zeroed CRC field, then fill it in (section 4.2.1).
-function sealBlock(fields, type) {
+export function sealBlock(fields, type) {
   if (type === CRC_NONE) return encode(fields);
   const zeroed = encode([...fields, bstr(Buffer.alloc(crcLen(type)))]);
   return encode([...fields, bstr(crcBytes(type, zeroed))]);

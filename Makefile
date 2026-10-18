@@ -9,6 +9,8 @@ help:
 	@echo "make r2          - R2: custody chain over REAL µD3TN BPv7, held across a contact gap (needs Docker)"
 	@echo "make bpv7-block - custody receipts inside the BPv7 bundle, carried intact by unaware uD3TN nodes (needs Docker)"
 	@echo "make bpv7-block-all - the same through NASA HDTN, JPL ION and Aalyria Hardy too (needs Docker)"
+	@echo "make bpv7-bpsec-all - a BPSec payload BIB beside block 224 through all four stacks (needs Docker)"
+	@echo "make bpv7-bpsec-ion / bpv7-bpsec-ion-source - JPL ION (real crypto) accepts our BIB / signs one we verify"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
 	@echo "make clean       - remove run artifacts"
 
@@ -65,6 +67,30 @@ bpv7-block-hardy:
 	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy /app/transport/bpv7/interop/hardy-run.sh
 
 bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy
+
+# BPSec (RFC 9172/9173): a payload BIB beside block 224. bpv7-bpsec-all carries it through
+# the four unaware stacks (verified at our destination before and after hop 2 appends).
+# The ION checks need ION built with real crypto (ion/Dockerfile.bpsec, Mbed TLS): ION as
+# the acceptor of our BIB, and ION as the signer whose BIB our code verifies.
+bpv7-bpsec-all:
+	docker build -t dtn-custody-r2 -f r2/Dockerfile .
+	docker run --rm -e BPSEC=1 -v "$(CURDIR):/app" dtn-custody-r2 bash /app/transport/bpv7/interop/ud3tn-run.sh
+	docker build -t dtn-custody-hdtn -f hdtn/Dockerfile .
+	docker run --rm -e BPSEC=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hdtn /app/transport/bpv7/interop/hdtn-run.sh
+	docker build -t dtn-custody-ion -f ion/Dockerfile .
+	docker run --rm -e BPSEC=1 --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-ion /app/transport/bpv7/interop/ion-run.sh
+	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+	docker run --rm -e BPSEC=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy /app/transport/bpv7/interop/hardy-run.sh
+
+bpv7-bpsec-image:
+	docker build -t dtn-custody-ion -f ion/Dockerfile .
+	docker build -t dtn-custody-ion-bpsec -f ion/Dockerfile.bpsec .
+
+bpv7-bpsec-ion: bpv7-bpsec-image
+	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-ion-bpsec /app/transport/bpv7/interop/ion-bpsec-run.sh
+
+bpv7-bpsec-ion-source: bpv7-bpsec-image
+	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-ion-bpsec /app/transport/bpv7/interop/ion-bpsec-source-run.sh
 
 clean:
 	rm -rf run-output *.log *.pcap m0/.keys.json m0/.m0-config.json
