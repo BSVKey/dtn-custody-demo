@@ -11,15 +11,24 @@
 //   5. Later (--confirm): read each transaction's status and merkle proof from Arcade, check the
 //      proof against block headers, and prove sampled bundles custodied and paid at every hop.
 //
-// Teratestnet coins have no value. The script refuses anything that is not teratestnet.
-// The funding key is read from constellation/ttn-funding.wif (git-ignored) and never printed.
+// Teratestnet coins have no value. The funding key is read from constellation/ttn-funding.wif
+// (git-ignored) and never printed.
+//
+// --network=mainnet runs the same flow on Bitcoin BSV MAINNET through an ARC broadcaster
+// (default GorillaPool), with the miner's live fee policy, a separate key
+// (constellation/main-funding.wif), state (.main-state.json) and results (MAIN-RESULTS.md).
+// Mainnet coins are real: sending requires --spend-real-bsv as well; dry runs and --confirm do not.
+//
+// Payout keys are derived with HMAC-SHA256 keyed by the funding key, so only the holder of the
+// funding key can spend what the satellites are paid (and sweep it back).
 //
 //   node constellation/ttn-run.mjs --dry-run [--limit=N]          build and sign only, send nothing
 //   node constellation/ttn-run.mjs --fund=<txid> --limit=50         small test batch
 //   node constellation/ttn-run.mjs --fund=<txid>                    the full run
 //   node constellation/ttn-run.mjs --confirm [--write]              check confirmations, write results
+//   add --network=mainnet to any of these (and --spend-real-bsv to send)
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import os from "node:os";
 import { PrivateKey, Transaction, P2PKH, Script, MerklePath, SatoshisPerKilobyte } from "@bsv/sdk";
 import { makeConstellation, simulate, verifyAll, MOC } from "./sim.mjs";
@@ -28,10 +37,14 @@ import { batchProof } from "../agent/lib/batch.mjs";
 import { verifyPath, pinnedDirectory, assemblePath } from "../agent/lib/path.mjs";
 import { leafHash, buildTree } from "../agent/lib/merkle.mjs";
 
-const ARCADE = process.env.ARCADE_URL || "https://arcade-ttn-us-1.bsvblockchain.tech";
-const ASSET = process.env.ASSET_URL || "https://ttn.cls9.com/api/v1";
-const STATE = new URL("./.ttn-state.json", import.meta.url);
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
+const NET = arg("network", "teratestnet");
+if (!["teratestnet", "mainnet"].includes(NET)) { console.error("--network must be teratestnet or mainnet"); process.exit(2); }
+const MAIN = NET === "mainnet";
+const ARCADE = process.env.ARCADE_URL || (MAIN ? "https://arc.gorillapool.io" : "https://arcade-ttn-us-1.bsvblockchain.tech");
+const TXPATH = MAIN ? "/v1/tx" : "/tx"; // ARC and Arcade differ only in this prefix
+const ASSET = process.env.ASSET_URL || (MAIN ? "https://api.whatsonchain.com/v1/bsv/main" : "https://ttn.cls9.com/api/v1");
+const STATE = new URL(MAIN ? "./.main-state.json" : "./.ttn-state.json", import.meta.url);
 const has = (k) => process.argv.includes(`--${k}`);
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
 const DRY = has("dry-run");
@@ -51,21 +64,31 @@ async function getJson(url) {
   return { status: r.status, j };
 }
 
-// ---- Safety: teratestnet only ------------------------------------------------------------------
-if (!DRY) {
+// ---- Safety: the network named, and a deliberate flag before spending real coins ---------------
+let feeRate = MAIN ? 100 : 1; // sat/kB; mainnet replaced below by the broadcaster's live policy
+if (!DRY && MAIN) {
+  if (!has("confirm") && !has("spend-real-bsv")) { console.error("refusing to send on MAINNET without --spend-real-bsv"); process.exit(2); }
+  const pol = await getJson(`${ARCADE}/v1/policy`);
+  const mf = pol.j?.policy?.miningFee;
+  if (pol.status !== 200 || !mf) { console.error(`refusing to run: no fee policy from ${ARCADE}`); process.exit(2); }
+  feeRate = Math.max(1, (mf.satoshis / mf.bytes) * 1000);
+} else if (!DRY) {
   const h = await getJson(`${ARCADE}/health`);
   const hubs = (h.j.datahub_urls || []).map((d) => d.url).join(" ");
   if (h.status !== 200 || !/ttn|teratestnet/i.test(hubs + ARCADE)) { console.error(`refusing to run: ${ARCADE} does not look like a teratestnet Arcade`); process.exit(2); }
 }
-const wifFile = new URL("./ttn-funding.wif", import.meta.url);
+const wifFile = new URL(MAIN ? "./main-funding.wif" : "./ttn-funding.wif", import.meta.url);
 const funder = DRY && !existsSync(wifFile) ? PrivateKey.fromRandom() : PrivateKey.fromWif(readFileSync(wifFile, "utf8").trim());
 const funderHash = funder.toPublicKey().toHash();
-const funderAddr = funder.toPublicKey().toAddress([0x6f]);
+const funderAddr = funder.toPublicKey().toAddress(MAIN ? [0x00] : [0x6f]);
 const ourScript = new P2PKH().lock(funderHash).toHex();
 
 // The payout key of each satellite, station and operations node (separate from its Ed25519 custody key).
 const payoutKey = new Map();
-const payoutOf = (eid) => { if (!payoutKey.has(eid)) payoutKey.set(eid, PrivateKey.fromHex(createHash("sha256").update(`payout:${eid}`).digest("hex"))); return payoutKey.get(eid); };
+// Keyed by the funding key: anyone can read this code, so a public derivation would let anyone
+// spend the satellites' payments on mainnet.
+const payoutSecret = createHash("sha256").update(`payout-seed:${funder.toWif()}`).digest();
+const payoutOf = (eid) => { if (!payoutKey.has(eid)) payoutKey.set(eid, PrivateKey.fromHex(createHmac("sha256", payoutSecret).update(`payout:${eid}`).digest("hex"))); return payoutKey.get(eid); };
 
 // ---- The constellation (deterministic for a fixed start time and bundle count) -----------------
 function fly(bundles) {
@@ -85,7 +108,7 @@ let retries = 0;
 async function submit(tx) {
   const body = JSON.stringify({ rawTx: tx.toHexEF() });
   for (let attempt = 0; ; attempt++) {
-    const r = await fetch(`${ARCADE}/tx`, { method: "POST", headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(30000) }).catch((e) => ({ status: 0, text: async () => String(e) }));
+    const r = await fetch(`${ARCADE}${TXPATH}`, { method: "POST", headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(30000) }).catch((e) => ({ status: 0, text: async () => String(e) }));
     const text = await r.text();
     if (r.status >= 200 && r.status < 300) return { ok: true, status: r.status, text };
     if (/already|known|exists/i.test(text)) return { ok: true, status: r.status, text };
@@ -121,8 +144,13 @@ if (!has("confirm")) {
   }
   const available = fundTx.outputs[fundVout].satoshis;
   const epochCount = new Set(batches.map((b) => b.receipt.contactId.split(":")[0])).size;
-  const needed = batches.length * (PAY + 1) + epochCount * 10 + 1000;
-  console.log(`funding ${fmt(available)} sat at ${funderAddr}; this run needs about ${fmt(needed)} sat`);
+  // Fees: each payment pays its own (about 252 bytes) out of a PAY + payFee input; fan-outs and
+  // anchors pay at least 5 sat/kB (teratestnet nodes enforce a minimum their policy omits).
+  const payFee = Math.max(1, Math.ceil(260 * feeRate / 1000));
+  const bulkRate = Math.max(5, feeRate);
+  const nFan = Math.ceil(batches.length / 1000);
+  const needed = batches.length * (PAY + payFee) + Math.ceil((batches.length * 34 + nFan * 200) * bulkRate / 1000) + epochCount * Math.ceil(300 * bulkRate / 1000) + 1000;
+  console.log(`${MAIN ? "MAINNET" : "teratestnet"} via ${ARCADE}, fee ${feeRate} sat/kB${DRY && MAIN ? " (assumed for the dry run)" : ""}: funding ${fmt(available)} sat at ${funderAddr}; this run needs about ${fmt(needed)} sat`);
   if (available < needed) { console.error("not enough funds for this run; lower --limit or add funds"); process.exit(2); }
 
   // 1,000 payment inputs per fan-out transaction (a signature-operation limit on the regtest node;
@@ -136,12 +164,12 @@ if (!has("confirm")) {
     tx.addInput(prev
       ? { sourceTransaction: prev, sourceOutputIndex: prev.outputs.length - 1, unlockingScriptTemplate: new P2PKH().unlock(funder) }
       : { sourceTransaction: fundTx, sourceOutputIndex: fundVout, unlockingScriptTemplate: new P2PKH().unlock(funder) });
-    for (let k = 0; k < n; k++) tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), satoshis: PAY + 1 });
+    for (let k = 0; k < n; k++) tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), satoshis: PAY + payFee });
     tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), change: true });
     // Arcade's /v1/policy advertises 0 sat/kB, but teratestnet nodes enforce a minimum
     // (1 sat/kB per the quickstart's network notes): a zero-fee fan-out was REJECTED
     // "insufficient-fee" on 2026-10-18. Pay 5 sat/kB.
-    await tx.fee(new SatoshisPerKilobyte(5));
+    await tx.fee(new SatoshisPerKilobyte(bulkRate));
     await tx.sign();
     fanTxs.push(tx);
   }
@@ -155,7 +183,7 @@ if (!has("confirm")) {
     tx.addInput({ sourceTransaction: fanTxs[Math.floor(i / perFan)], sourceOutputIndex: i % perFan, unlockingScriptTemplate: new P2PKH().unlock(funder) });
     tx.addOutput({ lockingScript: new P2PKH().lock(payoutOf(b.thisHop).toPublicKey().toHash()), satoshis: PAY });
     tx.addOutput({ lockingScript: Script.fromASM(`OP_FALSE OP_RETURN ${Buffer.from("custody-batch/1").toString("hex")} ${b.claimId.slice(2)}`), satoshis: 0 });
-    await tx.sign(); // input PAY+1, output PAY: 1 sat fee
+    await tx.sign(); // input PAY + payFee, output PAY: payFee is the fee
     paid.push({ tx, claimId: b.claimId, thisHop: b.thisHop, txid: tx.id("hex"), bytes: tx.toBinary().length });
   }
   const tSign = (performance.now() - tSign0) / 1000;
@@ -171,7 +199,7 @@ if (!has("confirm")) {
     tx.addInput({ sourceTransaction: prev, sourceOutputIndex: prevOut, unlockingScriptTemplate: new P2PKH().unlock(funder) });
     tx.addOutput({ lockingScript: Script.fromASM(`OP_FALSE OP_RETURN ${Buffer.from("custody-epoch/1").toString("hex")} ${r.root}`), satoshis: 0 });
     tx.addOutput({ lockingScript: new P2PKH().lock(funderHash), change: true });
-    await tx.fee(1); await tx.sign();
+    await tx.fee(new SatoshisPerKilobyte(bulkRate)); await tx.sign();
     anchors.push({ ...r, tx, txid: tx.id("hex"), bytes: tx.toBinary().length });
     prev = tx; prevOut = 1;
   }
@@ -193,7 +221,7 @@ if (!has("confirm")) {
   for (const a of anchors) { const r = await submit(a.tx); if (!r.ok) rejected.push({ txid: a.txid, status: r.status, err: r.text, anchor: true }); }
   const tSend = (performance.now() - tSend0) / 1000;
   const state = {
-    startedAt: new Date().toISOString(), arcade: ARCADE, asset: ASSET, bundles, limit: batches.length, pay: PAY, concurrency: CONC,
+    startedAt: new Date().toISOString(), arcade: ARCADE, asset: ASSET, bundles, limit: batches.length, pay: PAY, concurrency: CONC, network: NET, feeRate,
     satellites: c.sats.length, orbitsNote, delivered: run.delivered.length, verifiedOffChain: base.verified, failedOffChain: base.failed,
     fanTxids: fanTxs.map((t) => t.id("hex")),
     paid: paid.map(({ claimId, thisHop, txid, bytes }) => ({ claimId, thisHop, txid, bytes })),
@@ -215,7 +243,8 @@ const headerRoot = new Map();
 async function merkleRootAt(height, blockHash) {
   const key = blockHash || height;
   if (!headerRoot.has(key)) {
-    const url = blockHash ? `${ASSET}/header/${blockHash}/json` : `${ASSET}/header/height/${height}/json`;
+    const url = MAIN ? `${ASSET}/block/${blockHash}/header`
+      : blockHash ? `${ASSET}/header/${blockHash}/json` : `${ASSET}/header/height/${height}/json`;
     const { status, j } = await getJson(url);
     const okHeight = status === 200 && (j.height == null || Number(j.height) === Number(height));
     headerRoot.set(key, okHeight ? (j.merkleroot || j.hashMerkleRoot || j.merkle_root || null) : null);
@@ -223,7 +252,7 @@ async function merkleRootAt(height, blockHash) {
   return headerRoot.get(key);
 }
 async function statusOf(txid) {
-  const { status, j } = await getJson(`${ARCADE}/tx/${txid}`);
+  const { status, j } = await getJson(`${ARCADE}${TXPATH}/${txid}`);
   if (status !== 200) return { txid, state: "UNKNOWN", http: status };
   const state = j.txStatus || j.status || j.state || "UNKNOWN";
   const height = j.blockHeight ?? j.block_height ?? null;
@@ -268,8 +297,9 @@ for (const d of sample) {
 const heights = statuses.map((s) => s.height).filter((h) => h != null);
 const ok = st.rejected.length === 0 && paidConfirmed === st.paid.length && anchorsConfirmed === st.anchors.length && proven === sample.length && sample.length > 0;
 const lines = [
-  `# Custody receipts and per-hop payments on teratestnet: ${fmt(st.satellites)} satellites`, "",
-  `Submitted ${st.startedAt.slice(0, 10)} from ${os.cpus()[0].model.trim()}, Node ${process.version}, through Arcade (${st.arcade}) to **teratestnet**, BSV's public Teranode test network. Teratestnet coins have no value. Reproduce: \`node constellation/ttn-run.mjs --fund=<txid>\`, then \`--confirm\`.`, "",
+  MAIN ? `# Custody receipts and per-hop payments on Bitcoin BSV mainnet: ${fmt(st.satellites)} satellites` : `# Custody receipts and per-hop payments on teratestnet: ${fmt(st.satellites)} satellites`, "",
+  MAIN ? `Submitted ${st.startedAt.slice(0, 10)} from ${os.cpus()[0].model.trim()}, Node ${process.version}, through ARC (${st.arcade}) to **Bitcoin BSV mainnet** at ${st.feeRate} sat/kB. Reproduce: \`node constellation/ttn-run.mjs --network=mainnet --spend-real-bsv --fund=<txid>\`, then \`--network=mainnet --confirm\`.`
+    : `Submitted ${st.startedAt.slice(0, 10)} from ${os.cpus()[0].model.trim()}, Node ${process.version}, through Arcade (${st.arcade}) to **teratestnet**, BSV's public Teranode test network. Teratestnet coins have no value. Reproduce: \`node constellation/ttn-run.mjs --fund=<txid>\`, then \`--confirm\`.`, "",
   "## What went on chain", "",
   "| | |", "|---|---|",
   `| Constellation | ${fmt(st.satellites)} satellites, ${st.orbitsNote}; ${fmt(st.delivered)} bundles delivered, ${fmt(st.verifiedOffChain)} verified off chain |`,
@@ -286,11 +316,11 @@ const lines = [
   "## Proven from the chain", "",
   `For ${sample.length} sampled bundles (${fmt(hopsChecked)} hops), each hop's custody receipt verified and the transaction paying that hop and committing that receipt was mined, with a merkle proof matching the block header: **${proven} of ${sample.length} bundles fully custodied and paid**.`, "",
   "## Limits", "",
-  "- Teratestnet is a public test network: real propagation and competing load, but no-value coins and test-network fee policy.",
+  MAIN ? "- Mainnet: real coins and fees. The satellites' payout addresses belong to keys held with the funding key, so their payments can be swept back." : "- Teratestnet is a public test network: real propagation and competing load, but no-value coins and test-network fee policy.",
   "- Payments come from one funding key to per-node payout addresses; the Operator Edition's non-custodial statements are the production settlement path.",
 ];
 const text = lines.join("\n") + "\n";
 console.log(text);
-console.log(`TTN_RESULT ${JSON.stringify({ ok, paid: st.paid.length, mined: paidConfirmed, anchors: anchorsConfirmed, merkleProofsMatchingHeaders: proofsChecked, of: statuses.length, sampledBundles: sample.length, proven, states })}`);
-if (has("write")) writeFileSync(new URL("./TTN-RESULTS.md", import.meta.url), text);
+console.log(`${MAIN ? "MAIN" : "TTN"}_RESULT ${JSON.stringify({ ok, paid: st.paid.length, mined: paidConfirmed, anchors: anchorsConfirmed, merkleProofsMatchingHeaders: proofsChecked, of: statuses.length, sampledBundles: sample.length, proven, states })}`);
+if (has("write")) writeFileSync(new URL(MAIN ? "./MAIN-RESULTS.md" : "./TTN-RESULTS.md", import.meta.url), text);
 process.exit(ok ? 0 : 1);
