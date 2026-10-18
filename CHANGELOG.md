@@ -27,8 +27,8 @@
   (each spending the last one's change): on teratestnet 15,000 payments went out in 155
   transactions in 20 seconds, about 750 payments per second against about 80 before, and all
   15,000 were mined with 100 of 100 bundles proven, but some nodes saw children before parents
-  and the tail waited for rebroadcast. The single-parent version is dry-run tested; a live run
-  is pending more teratestnet coins.
+  and the tail waited for rebroadcast. The single-parent version then ran live on mainnet: 300
+  payments in 5 transactions through three broadcasters, all accepted and mined in the next block.
 - **Fresh payout address per payment** (`--payout=per-payment`, now the default; per-node
   remains for earlier runs and is recorded in their state).
 - **SPV header check** in `--confirm`: each block header is rebuilt from its fields and must

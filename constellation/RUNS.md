@@ -16,7 +16,8 @@ transaction and output that paid it, so anyone can check a payment on chain. The
 | 2026-10-18 | teratestnet | Sweep test: 1,000 payout outputs | 2 sweep tx accepted (extended format built from known inputs) | `runs/2026-10-18-teratestnet-sweep.json` |
 | 2026-10-18 | **Bitcoin BSV mainnet** (via GorillaPool ARC) | Batch of 50, 1 tx each, 100 sat | 50 + 1 anchor mined, 51 proofs match headers | `runs/2026-10-18-mainnet-batch50.json` |
 | 2026-10-18 | **Bitcoin BSV mainnet** | Full run, 1 tx each, 100 sat, 100 sat/kB | 30,502 + 11 anchors mined (blocks 971658 to 971665), 30,513 proofs match headers with proof of work verified, 100/100 proven. 13 tx/s; last 4,605 waited one block. Fees 897,665 sat | `MAIN-RESULTS.md`, `runs/2026-10-18-mainnet-full.json` |
-| 2026-10-18 | **Bitcoin BSV mainnet** | Sweep of the full run's 30,502 payouts | 62 sweep tx sent, 0 rejected: 3,050,200 sat collected, 451,739 fees, 2,598,461 back to the funding address | `runs/2026-10-18-mainnet-sweep.json` |
+| 2026-10-18 | **Bitcoin BSV mainnet** | Sweep of the full run's 30,502 payouts | 62 sweep tx sent, 0 rejected, all mined: 3,050,200 sat collected, 451,739 fees, 2,598,461 back to the funding address | `runs/2026-10-18-mainnet-sweep.json` |
+| 2026-10-18 | **Bitcoin BSV mainnet** | Test: batch mode with one fan-out parent, 100 payments per tx, 300 receipts, sent through three broadcasters | 5 tx sent in 6.8 s, accepted by GorillaPool ARC, BSVA's mainnet Arcade and WhatsOnChain (5 of 5 each); 300 payments and the anchor mined in the next block, 4 proofs match a header with proof of work verified. Payments to fresh per-payment addresses | `runs/2026-10-18-mainnet-multibroadcast-batch100.json` |
 
 ## Checks without new payments
 
@@ -29,9 +30,9 @@ transaction and output that paid it, so anyone can check a payment on chain. The
 
 ## Not yet run live
 
-- Batch mode with a single fan-out parent (the design that replaced chained batches): dry-run only.
-- Sending through several broadcasters at once (`--broadcast`): built; the rebuild behind
-  `--rebroadcast` is verified, the multi-broadcaster send is not yet run live.
+- `--rebroadcast` sending: the rebuild is verified against all 30,544 mainnet txids, but no run
+  has needed resending since it was built.
+- Batch mode at full scale (30,502 receipts in 306 transactions) on mainnet.
 
 ## Who sent what
 
