@@ -160,6 +160,11 @@ This layer sits on top of a deployed, standardized transport; it does not reinve
   payment, incentive, or economic model, and only limited trust verification. It does not
   say who paid for a delivery, or how to prove the custody chain offline. That settlement
   and verifiable-custody layer is what this adds, on top of the standard, not instead of it.
+- **Our Internet-Draft.** The Custody Receipt Block is written up as an individual draft,
+  [draft-bsvkey-dtn-custody-receipt-block](https://datatracker.ietf.org/doc/draft-bsvkey-dtn-custody-receipt-block/),
+  with a discussion draft on [accountability between administrative domains](ietf/draft-bsvkey-dtn-interdomain-accountability-00.txt).
+  A one-page summary with the interoperability evidence and the questions for the DTN
+  Working Group is at [dtn.bsvkey.com/ietf](https://dtn.bsvkey.com/ietf/).
 
 ## Record format specification
 
