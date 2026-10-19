@@ -50,9 +50,11 @@ export function makeConstellation({ planes = 72, perPlane = 56, stations = 40, s
 //   geometry      the grid as a Walker delta shell: 550 km altitude, 53 degrees inclination,
 //                 planes spread over 360 degrees of right ascension, phasing factor 1; slot
 //                 phase 0 is the highest latitude, where the cross-plane band is off
-//   capacity      rate x tick / bundleBytes bundles per directed link per tick
+//   capacity      rate x tick / (8 x bundleBytes) bundles per directed link per tick (ISLs
+//                 only; station downlinks keep the RF model)
 // Intra-plane links are persistent; cross-plane links are persistent while in range and out
-// of the high-latitude band, and every time one comes up it must be acquired again.
+// of the high-latitude band, and every time one comes up it must be acquired again. Links
+// up in the first epoch count as already acquired.
 export const OPTICAL = {
   rates: { "10G": 10.0e9, "100G": 99.5328e9 },
   acqS: 10, maxRangeKm: 5500, altKm: 550, incDeg: 53, bundleBytes: 1048576,
@@ -114,10 +116,12 @@ function distances(t) {
 // links: "rf" (default, the grid model above) or "optical" (OPTICAL above): optical adds link
 // range, acquisition after every cross-plane link comes up, per-link capacity, and signs one
 // batch per node per contact, where a contact lasts as long as the link stays up (across
-// epochs), instead of one per node, neighbour and epoch.
-export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, failRate = 0.02, stationUpRate = 1, injectEpochs = 10, seed = c.seed, keyAt, links = "rf", rate = "10G", acqS = OPTICAL.acqS } = {}) {
+// epochs), instead of one per node, neighbour and epoch. bundleBytes sets the bundle size
+// used for link capacity.
+export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, failRate = 0.02, stationUpRate = 1, injectEpochs = 10, seed = c.seed, keyAt, links = "rf", rate = "10G", acqS = OPTICAL.acqS, bundleBytes = OPTICAL.bundleBytes } = {}) {
   const optical = links === "optical" ? { rate: OPTICAL.rates[rate], acqS } : null;
   if (links !== "rf" && !optical?.rate) throw new Error(`simulate: unknown links "${links}" or rate "${rate}"`);
+  if (optical && c.topology) throw new Error("simulate: optical links need the grid model, not c.topology");
   const rand = rng(seed);
   const satIndex = new Map(c.sats.map((x, i) => [x.eid, i]));
   const inflight = [];
@@ -127,17 +131,44 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
   const perEpoch = Math.ceil(bundles / injectEpochs);
   const t0 = Date.parse("2026-10-01T00:00:00Z");
   const tickMs = 6000;
+  const opt = optical && {
+    acqTicks: Math.ceil((optical.acqS * 1000) / tickMs),
+    perTick: Math.floor((optical.rate * tickMs) / 1000 / (8 * bundleBytes)),
+    acquisitions: 0, acquireWaits: 0, capacityWaits: 0, maxKm: 0, sumKm: 0, nKm: 0,
+  };
+  const sign = (r, contactId) => {
+    const kp = keyAt ? keyAt(r.node, r.from) : c.keys.get(r.node);
+    batches.push(batchReceipt(kp, { prevHop: r.prev, thisHop: r.node, contactId, from: r.from, to: r.to, bundleIds: r.ids }));
+  };
+  const open = new Map(); // optical: contacts still open, kept across epochs
+  let prevCross = null;
 
   for (let e = 0; e < epochs; e++) {
     // A constellation may bring its own topology source (for example real orbits); otherwise
     // the grid model above is used.
-    const topo = c.topology ? c.topology(e) : topology(c, e, rand, failRate, stationUpRate);
+    const topo = c.topology ? c.topology(e) : topology(c, e, rand, failRate, stationUpRate, optical);
     if (topo.stationsUp === 0) blackoutEpochs++;
     const dist = distances(topo);
-    const received = new Map(); // `${node}|${prev}` -> { ids, from, to }
+    let acquiring = null;
+    if (opt) {
+      // Cross-plane links that were down last epoch must be acquired again before use.
+      acquiring = prevCross ? new Set([...topo.cross].filter((x) => !prevCross.has(x))) : new Set();
+      opt.acquisitions += acquiring.size;
+      prevCross = topo.cross;
+      for (const d of topo.km) { opt.sumKm += d; opt.nKm++; if (d > opt.maxKm) opt.maxKm = d; }
+      // A contact ends when its link is down; sign it then. The source app and the ground
+      // network (station to operations) never drop.
+      const up = (r) => {
+        if (r.prev.startsWith("app:") || r.node === MOC) return true;
+        const a = satIndex.get(r.prev), b = satIndex.get(r.node);
+        return b === undefined ? topo.sees.get(a) === r.node : topo.adj[a].includes(b);
+      };
+      for (const [k, r] of open) if (!up(r)) { sign(r, `c${r.e}:${r.prev}>${r.node}`); open.delete(k); }
+    }
+    const received = opt ? open : new Map(); // `${node}|${prev}` -> { ids, from, to }
     const take = (node, prev, bundleId, t) => {
       const k = `${node}|${prev}`;
-      const r = received.get(k) || { node, prev, ids: [], from: t, to: t };
+      const r = received.get(k) || { node, prev, ids: [], from: t, to: t, e };
       r.ids.push(bundleId); r.to = Math.max(r.to, t); r.from = Math.min(r.from, t);
       received.set(k, r);
       hopEvents++;
@@ -152,6 +183,7 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
     }
     for (let k = 0; k < ticksPerEpoch; k++) {
       const t = t0 + (e * ticksPerEpoch + k) * tickMs;
+      const load = opt ? new Map() : null; // directed ISL -> bundles sent this tick
       for (let j = inflight.length - 1; j >= 0; j--) {
         const b = inflight[j];
         let next = null;
@@ -161,8 +193,15 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
           const i = satIndex.get(b.at);
           if (topo.sees.has(i)) next = topo.sees.get(i);
           else if (dist[i] > 0) {
-            const cand = topo.adj[i].filter((n) => dist[n] === dist[i] - 1);
+            let cand = topo.adj[i].filter((n) => dist[n] === dist[i] - 1);
+            if (opt && cand.length) {
+              const acquired = cand.filter((n) => k >= opt.acqTicks || !acquiring.has(Math.min(i, n) * 65536 + Math.max(i, n)));
+              const free = acquired.filter((n) => (load.get(i * 65536 + n) || 0) < opt.perTick);
+              if (!acquired.length) opt.acquireWaits++; else if (!free.length) opt.capacityWaits++;
+              cand = free;
+            }
             next = cand.length ? c.sats[cand[Math.floor(rand() * cand.length)]].eid : null;
+            if (opt && next) { const x = i * 65536 + satIndex.get(next); load.set(x, (load.get(x) || 0) + 1); }
           }
         }
         if (!next) { storedTicks++; b.waited++; continue; }
@@ -172,12 +211,11 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
         if (next === MOC) { b.arrived = e; done.push(b); inflight.splice(j, 1); }
       }
     }
-    // One batch receipt per (node, previous hop) for this epoch.
-    for (const r of received.values()) {
-      const kp = keyAt ? keyAt(r.node, r.from) : c.keys.get(r.node);
-      batches.push(batchReceipt(kp, { prevHop: r.prev, thisHop: r.node, contactId: `e${e}:${r.prev}>${r.node}`, from: r.from, to: r.to, bundleIds: r.ids }));
-    }
+    // RF: one batch receipt per (node, previous hop) for this epoch. Optical: contacts stay
+    // open until their link drops.
+    if (!opt) for (const r of received.values()) sign(r, `e${e}:${r.prev}>${r.node}`);
   }
+  if (opt) for (const r of open.values()) sign(r, `c${r.e}:${r.prev}>${r.node}`); // end of run
   // Route change evidence: bundles still in flight when the topology changed (their route
   // was recomputed from where they were), bundles that waited in storage, and bundles
   // whose delivered path was longer than the shortest path at the moment they started.
@@ -186,7 +224,12 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
   const detoured = done.filter((b) => b.minHops !== null && b.path.length - 1 > b.minHops).length;
   const sample = custodyReceipt(genKeypair(), { payloadId: "0xp", bundleId: done[0]?.bundleId || "0x", prevHop: "ipn:1000.0", thisHop: "ipn:1001.0", receivedAt: t0, forwardedAt: t0 + 1 });
   sampleReceiptBytes = Buffer.byteLength(JSON.stringify(sample));
-  return { delivered: done, stranded: inflight, batches, hopEvents, storedTicks, sampleReceiptBytes, crossedEpoch, waited, detoured, blackoutEpochs };
+  const opticalStats = opt && {
+    rate, acqS, bundleBytes, acqTicks: opt.acqTicks, bundlesPerLinkTick: opt.perTick, acquisitions: opt.acquisitions,
+    acquireWaits: opt.acquireWaits, capacityWaits: opt.capacityWaits,
+    meanLinkKm: opt.nKm ? opt.sumKm / opt.nKm : 0, maxLinkKm: opt.maxKm, maxLightMs: (opt.maxKm / C_KM_S) * 1000,
+  };
+  return { delivered: done, stranded: inflight, batches, hopEvents, storedTicks, sampleReceiptBytes, crossedEpoch, waited, detoured, blackoutEpochs, optical: opticalStats || null };
 }
 
 // Ground side: index every batch by bundle, rebuild and verify each delivered bundle.
