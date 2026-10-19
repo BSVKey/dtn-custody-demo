@@ -1,13 +1,12 @@
 {
-  "name": "dtn-custody-demo",
+  "name": "@bsvkey/dtn-custody",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "main": "index.mjs",
   "exports": {
     ".": "./index.mjs"
   },
-  "description": "Verifiable data-custody + relay-payment layer over DTN (feasibility demo).",
+  "description": "Verifiable data custody and relay payment for delay/disruption-tolerant networks (BPv7), settled on BSV.",
   "scripts": {
     "demo": "node run-demo.mjs",
     "test": "node --test",
@@ -22,7 +21,28 @@
     "type": "git",
     "url": "https://github.com/BSVKey/dtn-custody-demo.git"
   },
-  "dependencies": {
+  "files": [
+    "index.mjs",
+    "agent/",
+    "examples/quickstart.mjs",
+    "docs/QUICKSTART.md",
+    "spec/CUSTODY-RECORDS.md",
+    "NOTICE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "dtn",
+    "bpv7",
+    "bundle-protocol",
+    "custody",
+    "merkle",
+    "bsv",
+    "satellite"
+  ],
+  "homepage": "https://github.com/BSVKey/dtn-custody-demo#readme",
+  "devDependencies": {
     "@bsv/sdk": "^2.7.1",
     "satellite.js": "7.1.0"
   }

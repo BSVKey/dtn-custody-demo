@@ -10,7 +10,7 @@ that delivery was paid for. It runs beside any BPv7 node and has no dependencies
 Node 18 or later.
 
 ```bash
-npm install github:BSVKey/dtn-custody-demo
+npm install @bsvkey/dtn-custody
 ```
 
 or clone it and run the example:
@@ -30,7 +30,7 @@ delivery bound:    true (receipt 0x...)
 ## 2. The four calls
 
 ```js
-import { genKeypair, prepare, makeRelay, makeDest } from "dtn-custody-demo";
+import { genKeypair, prepare, makeRelay, makeDest } from "@bsvkey/dtn-custody";
 ```
 
 | Role | Call | What it does |

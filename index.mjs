@@ -1,7 +1,7 @@
 // Public entry point: the custody agent's API in one import. Zero dependencies; the
 // live BSV paths (live/, constellation/) stay separate and are not exported here.
 //
-//   import { genKeypair, prepare, makeRelay, makeDest } from "dtn-custody-demo";
+//   import { genKeypair, prepare, makeRelay, makeDest } from "@bsvkey/dtn-custody";
 //
 // See docs/QUICKSTART.md and examples/quickstart.mjs.
 export { prepare, chunk } from "./agent/source.mjs";

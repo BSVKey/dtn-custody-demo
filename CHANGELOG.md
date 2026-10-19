@@ -5,7 +5,7 @@
 ### Added
 
 - **Quickstart for integrators** (`docs/QUICKSTART.md`, `examples/quickstart.mjs`, `index.mjs`): one
-  import for the whole agent API (`npm install github:BSVKey/dtn-custody-demo`), a 40-line
+  import for the whole agent API (`npm install @bsvkey/dtn-custody`), a 40-line
   source to relays to destination example, the refusal rules, and where to plug in a real
   network. Tested in the suite and run in CI.
 - **Signed TREB hop-records** (`transport/bpv7/treb-signed.mjs`): a proposed optional profile for
