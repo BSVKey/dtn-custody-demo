@@ -1,0 +1,94 @@
+{
+ "class": "10G",
+ "className": "10G IM/DD OOK (ESTOL-OOK-43010)",
+ "rateBps": 10000000000,
+ "acquisitionS": 30,
+ "durationS": 600,
+ "handoffAtS": 300,
+ "seed": 1,
+ "bundleBytes": 1048576,
+ "load": 0.8,
+ "bundles": 572204,
+ "delivered": 572204,
+ "undelivered": 0,
+ "viaC2": 286563,
+ "fades": 21,
+ "resent": 474,
+ "peakHeldAtB": 30224,
+ "peakHeldAtBBytes": 31692161024,
+ "lastDeliveryS": 600.0025272319998,
+ "e2ePreHandoffMedianS": 2.2140158905474436,
+ "e2ePreHandoffMaxS": 30.486219366400007,
+ "e2eMedianS": 5.892666151313847,
+ "e2eP99S": 30.49579652713794,
+ "e2eMaxS": 31.695786901527413,
+ "batchReceipts": 20,
+ "batchReceiptBytes": 3596,
+ "perBundleReceiptBytesAll": 319217916,
+ "closeUsMedian": 71.5,
+ "closeUsMax": 483.5,
+ "stampUsMedian": 122.2,
+ "sampled": 401,
+ "perBundleAudit": {
+  "complete": 199,
+  "gaps": 201,
+  "gapViaC2": 201,
+  "failed": 1,
+  "reasons": {
+   "payload_hash_mismatch": 1
+  }
+ },
+ "batchAudit": {
+  "complete": 199,
+  "gaps": 201,
+  "gapViaC2": 201,
+  "contentMismatch": 1,
+  "badSig": 0,
+  "proofsChecked": 1403
+ },
+ "simMs": 23999.4077,
+ "links": {
+  "SA": {
+   "kind": "feeder",
+   "upIntervals": 1,
+   "sent": 572204,
+   "resent": 0
+  },
+  "AB": {
+   "kind": "in-plane",
+   "upIntervals": 48,
+   "sent": 572204,
+   "resent": 1
+  },
+  "BC": {
+   "kind": "cross-plane",
+   "upIntervals": 6,
+   "sent": 285641,
+   "resent": 465
+  },
+  "BC2": {
+   "kind": "cross-plane (after handoff and acquisition)",
+   "upIntervals": 53,
+   "sent": 286563,
+   "resent": 1
+  },
+  "CD": {
+   "kind": "in-plane",
+   "upIntervals": 49,
+   "sent": 285641,
+   "resent": 5
+  },
+  "C2D": {
+   "kind": "in-plane",
+   "upIntervals": 57,
+   "sent": 286563,
+   "resent": 2
+  },
+  "DG": {
+   "kind": "delivery",
+   "upIntervals": 1,
+   "sent": 572204,
+   "resent": 0
+  }
+ }
+}

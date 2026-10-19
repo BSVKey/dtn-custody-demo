@@ -6,8 +6,14 @@ how much CPU and how much latency does that add at real link rates? It also answ
 scaling objection to per-hop accountability: per-bundle receipts do not scale to
 high-rate links, but batched receipts (one signature per node per contact) do.
 
-Every number below comes from a run of `bench/overhead.mjs` and `bench/overhead.c` on
-the machine described here, on 2026-10-18 (US Central). Figures marked "derived" are
+It also measures the time a custodian adds before it can forward a bundle, before and after a
+fast path that keeps the -01 wire format (section "Latency before forwarding"), and runs
+both receipt modes across optical inter-satellite links modeled on public optical ISL
+parameters (section "Optical inter-satellite links").
+
+Every number below comes from a run of `bench/overhead.mjs`, `bench/overhead.c`,
+`bench/latency.mjs` or `constellation/optical-isl.mjs` on the machine described here, on
+2026-10-18 (US Central). Figures marked "derived" are
 measured costs multiplied out by the arithmetic stated next to them. Nothing was run on
 flight hardware.
 
@@ -36,7 +42,8 @@ fields as the reference `custody-batch/1` record (`agent/lib/batch.mjs`), built 
 repository's `cbor.mjs` and `cose.mjs`. It is the benchmark's encoding, not a specified one.
 
 Two tree builders were measured. The *reference* builder (`agent/lib/merkle.mjs`) builds the
-whole tree when the batch closes. The *streaming* builder (in `bench/overhead.mjs`) folds
+whole tree when the batch closes. The *streaming* builder (in `bench/overhead.mjs`; the same algorithm is now
+`agent/lib/stream-merkle.mjs`, with tests and inclusion proofs) folds
 each leaf in as the bundle arrives, so closing costs log2(N) hashes and one signature. The
 streaming builder produces the same root as the reference builder; the script checks this
 at 8 tree sizes (1 to 4,097 leaves) before it measures anything.
@@ -70,6 +77,14 @@ make overhead-c
 make overhead-arm64
 ```
 
+```bash
+node bench/latency.mjs
+```
+
+```bash
+node constellation/optical-isl.mjs --class 10G --acq 30
+```
+
 `make overhead` runs the JS benchmark natively. `make overhead-c` builds
 `bench/Dockerfile.overhead` and runs the C harness (TweetNaCl and libsodium builds) and
 the JS benchmark in a Linux container. `make overhead-arm64` runs the same image built for
@@ -77,7 +92,10 @@ linux/arm64 under QEMU user-mode emulation (Docker binfmt), with the largest bat
 100,000 leaves to keep the run short. `--json file` writes the raw measurements. The raw
 outputs of the runs on this page are committed next to the script:
 `bench/overhead-x86-win.md` and `.json` (native), `bench/overhead-x86-linux.md`
-(container, including the C results) and `bench/overhead-arm64-qemu.md` (emulated).
+(container, including the C results), `bench/overhead-arm64-qemu.md` (emulated),
+`bench/latency-x86-win.md` and `.json` (latency), and `constellation/optical-runs/` (one
+`.md` and `.json` per optical run). For the optical script, `--class` is 2.5G, 10G or 100G
+and `--acq` is the cross-plane acquisition time in seconds.
 
 ## Results (x86-64 native run unless stated)
 
@@ -186,6 +204,133 @@ Batch close time is not forwarding latency. Bundles leave at line rate; the clos
 decides when the receipt for the window exists. With the streaming builder that is under
 0.1 ms after the window ends in every case measured.
 
+## Latency before forwarding: before and after
+
+The time a custodian adds between the last byte of a bundle arriving and the outgoing
+bundle being ready for the convergence layer (`bench/latency.mjs`, medians, one core). The
+reference `stampBundleV2` starts only once the whole bundle is in hand. It decodes every block,
+checking every CRC including CRC-32C over the payload. Then it hashes the payload, signs, and
+re-encodes every block, computing every CRC again. The fast path
+(`transport/bpv7/fast-stamp.mjs`) applies four of the candidate changes:
+
+1. **Hash incrementally.** SHA-256 and the payload CRC-32C run as each convergence-layer
+   segment arrives, so both are ready when the last byte lands.
+2. **Precompute.** The constant prefix of the COSE Sig_structure and the CBOR of the
+   repeating receipt fields (this hop, previous hop) are encoded once.
+3. **Splice.** The new block 224 is inserted before the payload. Every other block is forwarded
+   as the exact bytes received: nothing is re-encoded and no other CRC is recomputed.
+4. **Gathering write.** The bundle is handed over as a list of buffers; the payload is a view,
+   not a copy.
+
+The wire format is unchanged. For every case in `test/bpv7-fast-stamp.test.mjs`, the output
+is byte-identical to `stampBundleV2`: the first and later custodians, a Previous Node block,
+fragments, each CRC type, a subject, and a block filled to 64 receipts.
+
+| Bundle | Before: `stampBundleV2` | Splice only (whole bundle in hand) | After: incremental, 1,472 B segments (UDP or LTP over a 1,500 B MTU) | After: incremental, 64 KiB segments (TCPCLv4) |
+|---|---|---|---|---|
+| 1 KiB | 52.7 us | 40.9 us | 39.6 us | 38.9 us |
+| 64 KiB | 700 us | 332 us | 56.1 us (12.5x less) | 53.5 us (13.1x less) |
+| 1 MiB | 10.06 ms | 4.99 ms | 126 us (80x less) | 163 us (62x less) |
+
+The Ed25519 signature alone took 28.6 us in this run. That is the floor for any per-bundle
+receipt, and most of what remains at 1 KiB. The 1 MiB "after" figures vary between runs:
+an earlier run on the same machine (not saved) gave 57 to 60 us. Treat them as tens to
+low hundreds of microseconds.
+
+What was not changed, and why:
+
+- **Signing while the convergence layer starts sending.** RFC 9171 section 4.1 makes the
+  payload the last block, and block 224 precedes it, so only the bytes before block 224 can
+  go out while the signature is computed. In this bundle that is the 39 B primary block:
+  31 ns at 10 Gbps and 3 ns at 100 Gbps, against a 28.6 us signature. Not worth doing, and
+  any real fix would need a different block order, which is a format change. See
+  `docs/custody-receipt-02-proposals.md`.
+- **Batched per-contact receipts.** These remove the signature from the forwarding path
+  entirely (added latency 0), but how the batch receipt is carried is not in -01. They are
+  written up as proposal 1 in `docs/custody-receipt-02-proposals.md`.
+
+The incremental work is moved, not removed. The CPU per bundle, counting the work done while
+the segments arrive, was 4.7 to 4.9 ms per MiB in this JavaScript code (about 220 MB/s). Most
+of that is the byte-at-a-time CRC-32C, which Node does not provide natively. A BPA in C with
+hardware CRC-32C would spend far less, but that was not measured here. So on one JS core this
+path keeps up with about 1.7 Gbps of arriving payload, whether or not receipts are signed.
+
+## Optical inter-satellite links (modeled on public optical ISL parameters)
+
+`constellation/optical-isl.mjs` runs both receipt modes across optical crosslinks whose
+rates and timings come from published standards. It does not model, and makes no claim
+about, any operator's proprietary laser system.
+
+**Sources modeled.**
+
+- ESA, *ESA Specification for Terabit/s Optical Links (ESTOL)*, ESA-CSC-T-SP-0001, issue 3.1,
+  24 June 2026, prepared by ESA, JAXA and their industries:
+  - 2.5G IM/DD OOK, user net data rate up to 2.221 Gbps (ESTOL-OOK-41010);
+  - 10G IM/DD OOK, 10.0 Gbps (ESTOL-OOK-43010);
+  - 100G DP-QPSK, 99.5328 Gbps (ESTOL-HCO-31010);
+  - PAT acquisition (warm start) shall be below 60 s and should be below 30 s
+    (ESTOL-PAT-00030, -00040); re-acquisition below 10 s, repeated automatically until the
+    scheduled link end (ESTOL-PAT-00050, -00060).
+- ESTOL builds on the SDA *Optical Communications Terminal (OCT) Standard*, SDA 9100-001-09,
+  version 4.0.0 (28 June 2024), and on CCSDS 141.11-O-1, *Optical high data rate (HDR)
+  communication, 1064 nm*. The 2.5 Gbps class is the SDA OCT class. The OCT timing figures
+  were taken through ESTOL's references to them, not read from the OCT document directly.
+- A 2025 study of pointing, acquisition and tracking delays reports modeled LEO
+  acquisition delays clustering around 50 seconds and calls sub-2-second setup optimistic
+  (arXiv:2511.16063). The runs bracket that with 30 s and 60 s.
+- DTN over these links: the convergence layer is modeled as reliable, as TCPCLv4 (RFC 9174)
+  or LTP (RFC 5326) would be: a transmission cut by an outage is resent when the link
+  returns. It is not run as real UDP, TCPCLv4 or LTP traffic.
+
+**Scenario.** Custodians A and B are in plane 1, C and D in plane 2. B's cross-plane link to
+C ends at the handoff, half-way through 600 s of traffic. B then waits for a new cross-plane
+link to C2 to be acquired (30 s, or 60 s in the worst-case run). C2 is a relay that does not
+run custody, so bundles routed through it must show a gap. Every link fades at random (on
+average one fade per 120 s per link) and re-acquires in 2 to 10 s. Traffic is 1 MiB bundles
+at 80% of the link rate. Every bundle is scheduled through the links. Every custodian folds
+every bundle into a per-contact batch and signs one batch receipt when each contact ends.
+
+A sample of 401 bundles is also carried as real BPv7 bytes, stamped at each custodian with
+per-bundle receipts through the fast path. Custodian C tampers with one sampled bundle: it
+changes the payload and recomputes the CRCs. At the ground, the sample is audited from block
+224 (`verifyBundleV2`) and, separately, from the batch receipts plus inclusion proofs.
+
+| | 2.5G, 30 s acquisition | 10G, 30 s | 10G, 60 s | 100G, 30 s |
+|---|---|---|---|---|
+| Bundles (1 MiB), all delivered | 127,086 | 572,204 | 572,204 | 5,695,312 |
+| Routed through the unaware relay after the handoff | 63,646 | 286,563 | 286,563 | 2,852,218 |
+| Fades during traffic / transmissions cut and resent | 21 / 117 | 21 / 474 | 15 / 469 | 21 / 4,576 |
+| Held in custody at B across the handoff (peak) | 6,713 bundles, 7.04 GB | 30,224, 31.69 GB | 58,834, 61.69 GB | 300,803, 315.41 GB |
+| End-to-end delay, median before the handoff / max overall | 2.23 s / 31.7 s | 2.21 s / 31.7 s | 0.50 s / 65.0 s | 2.21 s / 31.7 s |
+| Batch receipts signed, total bytes | 20, 3,580 B | 20, 3,596 B | 14, 2,518 B | 20, 3,612 B |
+| Per-bundle receipt bytes the same traffic would carry (block 224 at the last hop) | 70,897,920 B | 319,217,916 B | 319,217,916 B | 3,177,272,424 B |
+| Batch close (root + sign), median / max | 111 / 5,890 us | 72 / 484 us | 96 / 424 us | 76 / 2,402 us |
+| Per-bundle stamp after the last 64 KiB segment, median per hop | 95 us | 122 us | 108 us | 106 us |
+| Per-bundle audit: complete / gap at the unaware relay / failed | 200 / 200 / 1 | 199 / 201 / 1 | 199 / 201 / 1 | 199 / 201 / 1 |
+| Batch audit: complete / gap at the unaware relay / content changed | 200 / 200 / 1 | 199 / 201 / 1 | 199 / 201 / 1 | 199 / 201 / 1 |
+
+What the runs show:
+
+- **Custody survives the link events.** Every bundle was delivered across fades, cut
+  transmissions and the cross-plane handoff. B held up to 315 GB in custody while the new
+  100G link was acquired.
+- **Both audits agree on every sampled bundle.** Bundles routed through the unaware relay
+  show a gap at exactly that relay. The tampered bundle fails both audits: block 224 reports
+  `payload_hash_mismatch` at the first custodian, and the earlier custodians' inclusion
+  proofs fail in the batch audit. No batch receipt failed signature verification.
+- **Batch receipts stay small.** About 20 receipts and 3.6 KB for the whole run at every
+  rate, against 3.2 GB of per-bundle receipts for the same 100G traffic.
+- **The handoff dominates delay, not custody.** End-to-end delay is set by acquisition time
+  and by the backlog draining at the 20% spare capacity. The receipts add tens to a few
+  hundred microseconds per hop in per-bundle mode and nothing in batch mode.
+
+Limits of the model: one chain of five nodes, not a constellation; no propagation delay;
+fades drawn at random, not from measured fade statistics; and the convergence layer is
+modeled, not run. Unsampled bundles carry no payload bytes in the sim. Their payload hash
+is a stand-in value, so only the sample exercises real bundle bytes. At 100G one bundle in 14,203 was
+sampled, so per-bundle stamping was not run on every bundle; its cost per bundle is in the
+tables above.
+
 ## Emulated ARM (aarch64 under QEMU, not flight hardware)
 
 The same image built for linux/arm64 and run under QEMU user-mode emulation on the same
@@ -234,8 +379,10 @@ about 20 emulated cores for the stamp path (1,966%). Full tables: `bench/overhea
   (about 12.3 KB on a Cortex-M4, `flight/RESULTS.md`) and is about 30 times slower to sign
   than OpenSSL on this CPU; at one signature per contact that does not matter, at one per
   bundle it does. The ARM figures above are emulated.
-- **Not covered:** fragments, link loss and retransmission, contact-plan effects, storage
-  I/O, and the cost of carrying batch receipts to the verifier.
+- **Not covered:** fragments in the rate benchmarks (the fast path is tested on them),
+  measured link loss statistics (the optical runs use modeled fades), real convergence-layer
+  traffic, contact-plan effects, storage I/O, and the cost of carrying batch receipts to the
+  verifier.
 
 ## Conclusion
 
@@ -250,5 +397,11 @@ hashes per bundle, and, if the operator wants the receipt to cover the bytes, a 
 the payload. At 1 MiB bundles that costs under 5% of one core at 100 Gbps when the
 identity is bound, and about six cores when every byte is hashed. A verifier also checks one
 signature per node per contact instead of one per bundle per hop, which removes the
-verification-flood concern raised for per-bundle receipts. So the operator's cost is one
-signature per contact, off the forwarding path, plus hashing they can size to their link.
+verification-flood concern raised for per-bundle receipts. Where an operator does want
+per-bundle receipts as -01 specifies them, hashing as the bytes arrive and splicing the block
+in cut the added time per hop from 10 ms to well under a millisecond for a 1 MiB bundle,
+with the same bytes on the wire. On optical crosslinks modeled on public ESTOL and SDA OCT
+parameters, both modes held custody through fades and a cross-plane handoff and found the
+same gaps and the same tampering. Batch mode did it with about 20 signatures for the whole
+run. So the operator's cost is one signature per contact, off the forwarding path, plus
+hashing they can size to their link.

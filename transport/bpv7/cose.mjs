@@ -14,7 +14,21 @@ export const ALG_EDDSA = -8;
 const PROTECTED = encode(new Map([[1, ALG_EDDSA]]));
 const EMPTY = Buffer.alloc(0);
 
-const toBeSigned = (prot, payload, aad = EMPTY) => encode(["Signature1", bstr(prot), bstr(aad), bstr(payload)]);
+// Sig_structure. With the usual protected header and no external_aad, everything before the
+// payload is constant, so it is encoded once (the same bytes the generic encoder produces).
+const SIG1_PREFIX = Buffer.concat([Buffer.from([0x84]), encode("Signature1"), encode(bstr(PROTECTED)), encode(bstr(EMPTY))]);
+export function toBeSigned(prot, payload, aad = EMPTY) {
+  if (aad.length === 0 && prot.equals(PROTECTED)) return Buffer.concat([SIG1_PREFIX, encode(bstr(payload))]);
+  return encode(["Signature1", bstr(prot), bstr(aad), bstr(payload)]);
+}
+
+// The encoded COSE_Sign1 of `payload`, built directly: the same bytes as encode(sign1(priv, payload)).
+const SIGN1_HEAD = Buffer.concat([Buffer.from([0x84]), encode(bstr(PROTECTED)), Buffer.from([0xa0])]);
+const SIG_HEAD = Buffer.from([0x58, 0x40]);
+export function sign1Encoded(priv, payload) {
+  const sig = nodeSign(null, toBeSigned(PROTECTED, payload), priv);
+  return Buffer.concat([SIGN1_HEAD, encode(bstr(payload)), SIG_HEAD, sig]);
+}
 
 // Sign `payload` (bytes) with an Ed25519 KeyObject. Returns the COSE_Sign1 as a JS array
 // ready to be CBOR-encoded inside a larger structure. { detached: true } leaves the payload out.

@@ -1,0 +1,94 @@
+{
+ "class": "100G",
+ "className": "100G DP-QPSK (ESTOL-HCO-31010)",
+ "rateBps": 99532800000,
+ "acquisitionS": 30,
+ "durationS": 600,
+ "handoffAtS": 300,
+ "seed": 1,
+ "bundleBytes": 1048576,
+ "load": 0.8,
+ "bundles": 5695312,
+ "delivered": 5695312,
+ "undelivered": 0,
+ "viaC2": 2852218,
+ "fades": 21,
+ "resent": 4576,
+ "peakHeldAtB": 300803,
+ "peakHeldAtBBytes": 315414806528,
+ "lastDeliveryS": 600.0002633744856,
+ "e2ePreHandoffMedianS": 2.2097133742537096,
+ "e2ePreHandoffMaxS": 30.480884938271572,
+ "e2eMedianS": 5.887537900906295,
+ "e2eP99S": 30.48987020511771,
+ "e2eMaxS": 31.689867571341438,
+ "batchReceipts": 20,
+ "batchReceiptBytes": 3612,
+ "perBundleReceiptBytesAll": 3177272424,
+ "closeUsMedian": 75.5,
+ "closeUsMax": 2402.4,
+ "stampUsMedian": 106.3,
+ "sampled": 401,
+ "perBundleAudit": {
+  "complete": 199,
+  "gaps": 201,
+  "gapViaC2": 201,
+  "failed": 1,
+  "reasons": {
+   "payload_hash_mismatch": 1
+  }
+ },
+ "batchAudit": {
+  "complete": 199,
+  "gaps": 201,
+  "gapViaC2": 201,
+  "contentMismatch": 1,
+  "badSig": 0,
+  "proofsChecked": 1403
+ },
+ "simMs": 136012.6878,
+ "links": {
+  "SA": {
+   "kind": "feeder",
+   "upIntervals": 1,
+   "sent": 5695312,
+   "resent": 0
+  },
+  "AB": {
+   "kind": "in-plane",
+   "upIntervals": 48,
+   "sent": 5695312,
+   "resent": 2
+  },
+  "BC": {
+   "kind": "cross-plane",
+   "upIntervals": 6,
+   "sent": 2843094,
+   "resent": 4565
+  },
+  "BC2": {
+   "kind": "cross-plane (after handoff and acquisition)",
+   "upIntervals": 53,
+   "sent": 2852218,
+   "resent": 1
+  },
+  "CD": {
+   "kind": "in-plane",
+   "upIntervals": 49,
+   "sent": 2843094,
+   "resent": 6
+  },
+  "C2D": {
+   "kind": "in-plane",
+   "upIntervals": 57,
+   "sent": 2852218,
+   "resent": 2
+  },
+  "DG": {
+   "kind": "delivery",
+   "upIntervals": 1,
+   "sent": 5695312,
+   "resent": 0
+  }
+ }
+}

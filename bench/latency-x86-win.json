@@ -1,0 +1,66 @@
+{
+ "label": "x86-64 native, Windows 11, Node 24",
+ "when": "2026-10-19T01:37:04.248Z",
+ "node": "v24.14.1",
+ "cpu": "AMD Ryzen 5 7600 6-Core Processor",
+ "rows": [
+  {
+   "size": 1024,
+   "bundleBytes": 1077,
+   "headBytes": 39,
+   "beforeUs": 52.7,
+   "spliceUs": 40.9,
+   "incremental": {
+    "1472": {
+     "segments": 1,
+     "onPathUs": 39.6,
+     "cpuUs": 40.1
+    },
+    "65536": {
+     "segments": 1,
+     "onPathUs": 38.9,
+     "cpuUs": 39.4
+    }
+   }
+  },
+  {
+   "size": 65536,
+   "bundleBytes": 65591,
+   "headBytes": 39,
+   "beforeUs": 699.6,
+   "spliceUs": 332.4,
+   "incremental": {
+    "1472": {
+     "segments": 45,
+     "onPathUs": 56.1,
+     "cpuUs": 326.8
+    },
+    "65536": {
+     "segments": 2,
+     "onPathUs": 53.5,
+     "cpuUs": 337.8
+    }
+   }
+  },
+  {
+   "size": 1048576,
+   "bundleBytes": 1048631,
+   "headBytes": 39,
+   "beforeUs": 10059.3,
+   "spliceUs": 4987.1,
+   "incremental": {
+    "1472": {
+     "segments": 713,
+     "onPathUs": 126.2,
+     "cpuUs": 4719
+    },
+    "65536": {
+     "segments": 17,
+     "onPathUs": 162.9,
+     "cpuUs": 4846.8
+    }
+   }
+  }
+ ],
+ "signUs": 28.6
+}

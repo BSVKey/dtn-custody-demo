@@ -20,9 +20,16 @@ export function crc16x25(buf) {
   return (c ^ 0xffff) & 0xffff;
 }
 export function crc32c(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) c = (c >>> 8) ^ T32C[(c ^ b) & 0xff];
-  return (c ^ 0xffffffff) >>> 0;
+  return (crc32cUpdate(0xffffffff, buf) ^ 0xffffffff) >>> 0;
+}
+// Incremental CRC-32C: start from 0xffffffff, feed bytes as they arrive, xor 0xffffffff at the end.
+export function crc32cUpdate(c, buf, start = 0, end = buf.length) {
+  for (let i = start; i < end; i++) c = (c >>> 8) ^ T32C[(c ^ buf[i]) & 0xff];
+  return c;
+}
+export function crc16x25Update(c, buf, start = 0, end = buf.length) {
+  for (let i = start; i < end; i++) c = (c >>> 8) ^ T16[(c ^ buf[i]) & 0xff];
+  return c;
 }
 export const CRC_NONE = 0, CRC16 = 1, CRC32C = 2;
 const crcLen = (t) => (t === CRC16 ? 2 : t === CRC32C ? 4 : 0);
