@@ -206,26 +206,36 @@ with one version 1 receipt and a BIB on the same path.
 
 Sections 3 to 6 show stacks that carry block 224 without knowing it. Here Aalyria's Hardy
 signs. `hardy-custody-receipt` is a new crate in a local Hardy checkout
-(`../hardy-custody-receipt`, branch `custody-receipt-filter`, commit 235eed9d on Hardy
-02563815): an Egress Rewriter, the BPA filter hook that edits extension blocks per
+(`../hardy-custody-receipt`, branch `custody-receipt-filter`, commits 235eed9d and b5e8dab6
+on Hardy 02563815): an Egress Rewriter, the BPA filter hook that edits extension blocks per
 transmission, registered in `hardy-bpa-server` behind a `custody-receipt` feature and a
 `custody-receipt:` configuration section (`eid`, `key-file`, `policy`). For each forwarded
 bundle it signs a version 2 receipt in Rust (COSE_Sign1, EdDSA over Ed25519, `ed25519-dalek`)
 and appends it to block 224 through Hardy's scoped `ExtensionEditor`, adding the block when
 absent. It hashes the payload bytes held and edits nothing but block 224. prevHop is the
-Previous Node block, else the CLA ingress peer.
+Previous Node block, else the CLA ingress peer. For a fragment it names the fragment
+identity `[source, [time, seq], offset, total length]` and hashes the fragment's payload.
 
 `make bpv7-hardy-custodian` (`interop/hardy-custodian/run.sh`, image
 `dtn-custody-hardy-custodian`, built from the Hardy checkout by
-`interop/hardy-custodian/Dockerfile`, which also runs the crate's tests):
+`interop/hardy-custodian/Dockerfile`, which also runs the crate's tests). Hardy runs twice,
+once with `policy: always` and once with `policy: block-present`:
 
 ```
 our CLA (as peer ipn:1.0) --gRPC CLA--> Hardy ipn:20, custody-receipt filter --gRPC CLA--> our CLA (peer ipn:30.0)
   A: no block 224                        signs, adds block 224                             verifyBundleV2
   B: one JS receipt (ipn:1.0)            signs, appends receipt 2                          verifyBundleV2, then a JS hop 3
+  D1..D3: fragments of a JS-stamped      signs each fragment                               verifyBundleV2 per fragment
+          bundle, block 224 in each
+  F: payload under a BCB                 does not sign, logs why                           no block 224 added
+  G: payload under a BCB, one JS receipt does not sign, logs why                           block 224 unchanged
+  E1, E2 (policy block-present)          signs E2 (block present) only                     E1 unsigned, E2 two receipts
 ```
 
-Fresh Ed25519 keys each run, Hardy's from a seed file. Hardy 235eed9d, 15 of 15 checks PASS:
+Fresh Ed25519 keys each run, Hardy's from a seed file. F and G are encrypted by Hardy's own
+`bundle encrypt` (BCB-AES-GCM, A256GCM) under a fresh AES key the BPA is not given. Hardy
+b5e8dab6, built clean from the commit: policy always 31 of 31 PASS, policy block-present
+4 of 4 PASS, exit 0.
 
 | Check | Result |
 |---|---|
@@ -241,27 +251,53 @@ Fresh Ed25519 keys each run, Hardy's from a seed file. Hardy 235eed9d, 15 of 15 
 | C: a JS custodian `ipn:30.0` appends after Hardy, route `[ipn:1.0, ipn:20.0, ipn:30.0]` | ok, 3 custodied, complete |
 | Control: Hardy's receipt under the wrong pinned key | refused, `signature_invalid` |
 | Control: one payload bit flipped after Hardy | refused, `payload_hash_mismatch` |
+| D1, D2, D3 (offsets 0, 347, 694 of a 1,040-byte ADU): still fragments, block 224 present, replicate flag set | PASS, each |
+| D1 to D3: Hardy's receipt names the fragment | `["ipn:1.1", [t, 3], 0, 1040]`, `[..., 347, 1040]`, `[..., 694, 1040]`, payloadHash of that fragment's slice |
+| D1 to D3: the JS whole-bundle receipt copied into each fragment | byte-identical after Hardy |
+| D1 to D3: `verifyBundleV2`, route pinned `[ipn:1.0, ipn:20.0]` | ok, 2 custodied, complete each; Hardy's receipt hash-checked, the whole-bundle one listed in `hashUnchecked: [0]` (draft: a whole-bundle receipt cannot be hash-checked in a fragment) |
+| F (BCB payload): blocks `[12, 1]` in, `[12, 6, 1]` out | no block 224 added, BCB and ciphertext unchanged |
+| G (BCB payload, JS receipt over the ciphertext): `[12, 224, 1]` in, `[12, 224, 6, 1]` out | block 224 byte-identical, no Hardy receipt |
+| G: `verifyBundleV2` | ok, 1 custodied, 1 gap: last unsigned `ipn:20.0` (the audit names Hardy as the node that held it without signing) |
+| F, G: Hardy's log | 2 lines, one per bundle: `Custody Receipt Block: not signing, the payload is BCB-covered and the filter cannot read its ciphertext bundle=ipn:1.1` |
+| E1 (block-present, no block 224): `[1]` in, `[6, 1]` out | no block 224 added, payload and other blocks unchanged |
+| E2 (block-present, one JS receipt) | 1 receipt in, 2 out, JS receipt byte-identical; `verifyBundleV2` on `[ipn:1.0, ipn:20.0]` ok, complete |
 
 A went from 814 to 1,014 bytes (Hardy's receipt is 170 bytes in the block, plus its
 Previous Node block); B from 877 to 1,064.
+
+Choice for a BCB-covered payload: skip, with an info-level log line, and no receipt. A
+receipt's payloadHash binds the payload block's data as held, which under a BCB is the
+ciphertext (`receipt-v2.mjs` hashes the same bytes, as G shows). A Rewriter reads block
+bodies only through the BPA's decrypting reader: with the key it would get plaintext, which
+would make a receipt no other node can check, and without the key it gets no bytes at all.
+Hardy's filter interface does not expose the wire bytes of a block, so signing over the
+ciphertext would need a change to Hardy itself. Skipping keeps every receipt Hardy signs
+checkable, and the transit-gap audit still names the node (G above).
 
 The encoders also agree byte for byte offline. `interop/hardy-custodian/vector.mjs` signs
 two receipts with the JS code (whole bundle; fragment with subject) under a generated seed,
 saved as `vector.json`; the Rust test `custody-receipt/tests/js_vector.rs` pins those bytes
 and reproduces them exactly (Ed25519 is deterministic), and verifies JS receipts. The crate's
 unit tests cover appending without touching earlier receipts and refusing version 1, mixed,
-malformed and full (64) blocks. `cargo fmt --check` and `cargo clippy -D warnings` pass on
-the crate and on `hardy-bpa-server` with the feature.
+malformed and full (64) blocks. `custody-receipt/tests/pipeline.rs` runs the filter inside
+a real Hardy BPA: a whole bundle, three fragments, a BCB-covered payload (unsigned) and
+`policy: block-present` (4 tests). 10 of 10 crate tests pass; `cargo fmt --check` and
+`cargo clippy -D warnings` pass on the crate and on `hardy-bpa-server` with the feature.
 
-Limits: the prototype signs every forwarded non-administrative bundle (`policy: always`;
-`block-present` signs only bundles already carrying block 224), and leaves unsigned a
-payload under a BCB, since the filter's reader yields plaintext and the receipt binds the
-bytes on the wire. Nothing has been sent upstream.
+Limits: Hardy does not fragment on egress, so the fragments in D were made by our sender,
+as a fragmenting upstream node would; Hardy signs each one as it forwards it. Nothing has
+been sent upstream.
 
-Reproduce:
+Reproduce (the Make target, or the same Docker commands where Make is not installed):
 
 ```
 make bpv7-hardy-custodian                       # HARDY_SRC defaults to ../hardy-custody-receipt
+
+docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+docker build -t dtn-custody-hardy-custodian --build-arg HARDY_REVISION=$(git -C ../hardy-custody-receipt rev-parse --short HEAD) \
+  -f transport/bpv7/interop/hardy-custodian/Dockerfile ../hardy-custody-receipt
+docker run --rm --entrypoint bash -v "$PWD:/app" dtn-custody-hardy-custodian /app/transport/bpv7/interop/hardy-custodian/run.sh
+
 cd ../hardy-custody-receipt && cargo test -p hardy-custody-receipt   # needs Rust 1.95+
 node transport/bpv7/interop/hardy-custodian/vector.mjs               # a new vector (new seed)
 ```
