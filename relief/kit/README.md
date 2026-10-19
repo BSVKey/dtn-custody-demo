@@ -44,11 +44,42 @@ bash relief/kit/run-local.sh          # five µD3TN nodes on one machine, 20 s s
    before it goes to the field. Keep the hub's file especially safe, since it decrypts
    everything. `directory.json` is public.
 3. **On each device:** run µD3TN with a TCPCLv3 link (`-c "sqlite:file:/data/bundles.sqlite;tcpclv3:*,4224"`),
-   configure its contacts (who it can reach, and when), and start
+   configure its contacts (who it can reach, and when, in both directions, so resend requests
+   can travel back toward the clinics), and start
    `node relief/kit/node.mjs --config <node>.json --data <dir>`. Clinic tablets, courier
    Android phones (Termux) and a small Linux computer at the satellite terminal are enough.
 4. **At the hub:** open the dashboard, and pay relays from the hub's records:
    `node relief/kit/payout.mjs --config deploy/district-hub.json --data <hub data dir>`.
+
+## When chunks go missing
+
+If a report stays incomplete for `resendAfterMs` (10 minutes by default) after its last chunk
+arrived, the hub asks the clinic to resend exactly the missing chunks, or the manifest if
+that is what was lost. The request is signed by the hub, so a clinic ignores requests from
+anyone else, and it travels back along the route the report came in on: each relay remembers
+where each report came from, and a replacement device with no memory follows the route
+written into the request. Requests back off (doubling) and stop after `maxResends` (6). A
+chunk refused for tampering is requested again in the same way.
+
+Over real µD3TN, killing the courier phone's app partway through a 2 MB transfer lost the
+1,550 to 1,700 chunks that arrived while it was down, because µD3TN does not hold bundles
+for an application that is not running. In three of three runs the hub asked for exactly
+those, and the file arrived byte-identical ([`../realnet/resend-crash.sh`](../realnet/resend-crash.sh)).
+
+## When a device is lost or stolen
+
+```bash
+node relief/kit/provision.mjs --revoke courier-07 --dir deploy/ --reason "phone lost"
+```
+
+This issues the node a new key (a new `deploy/courier-07.json` for the replacement device)
+and records the old key as revoked in `directory.json` and in the hub's config. Copy the hub's
+config to the hub: a running hub notices the change within seconds. From then on the hub refuses
+anything signed with the old key (`key_revoked`), and that relay is not paid for it; anything
+that reached the hub before the revocation still counts, judged by the hub's own clock rather
+than by timestamps the lost device signed. Chunks refused this way are requested again from the
+clinic and come through the replacement device. A lost hub key cannot be revoked this way:
+provision a new deployment.
 
 ## What the hub refuses
 
@@ -58,7 +89,8 @@ bash relief/kit/run-local.sh          # five µD3TN nodes on one machine, 20 s s
 | `signer_not_pinned_hop_key` | A custody receipt was signed by a key that is not the named relay's. That relay is not paid for it. |
 | `custodian_not_pinned` | A receipt from a node that is not in the deployment. |
 | `uncustodied_gap` | A stretch of the route with no signed handoff. |
-| `unknown_clinic`, `signer_not_pinned_source_key` | A report from a device the hub does not know, or signed by the wrong key. |
+| `unknown_clinic`, `signer_not_pinned_source_key` | A report from a device the hub does not know, or signed by the wrong key. The manifest is discarded, so a forged one sent first cannot block the genuine report. |
+| `key_revoked` | Signed with a key revoked before the frame reached the hub. Not paid; the chunk is requested again. |
 | `decrypt_failed` | Not sealed to this hub, or sealed under a different report id. |
 
 ## Lessons from the real-network runs
@@ -72,14 +104,16 @@ bash relief/kit/run-local.sh          # five µD3TN nodes on one machine, 20 s s
 - **Expect a reconnection lag after a long outage.** After a 120 s blackout, delivery resumed
   3 s after the link came back in one run and about 100 s after in another, while the TCP
   connection was re-established.
+- **An application crash loses what arrives meanwhile.** µD3TN does not hold bundles for an
+  application that is not running; the hub's resend requests recover them.
 - **Files are sealed as raw bytes,** not base64, so nothing extra crosses the satellite link
   (a 48 KB file is 49 chunks of 1 KB).
 
 ## Not covered yet
 
-- **Lost-bundle recovery at the application layer.** The hub reports a report as `in transit`
-  until every chunk arrives; it does not yet ask the clinic to resend a missing chunk.
-- **Key rotation and device loss.** A lost device's key must be removed from the deployment and
-  the directory reissued; there is no automated revocation yet.
+- **Revocations reach the hub only.** Clinics and relays do not need the revocation list today
+  (only the hub verifies custody), but a deployment that adds relay-to-relay checks would need
+  to distribute it.
+- **A lost hub.** The hub's key cannot be revoked by this tool; provision a new deployment.
 - **Health-data rules.** Decrypted reports are health data; where they are stored and who can
   open the dashboard must follow the rules where the kit is used.

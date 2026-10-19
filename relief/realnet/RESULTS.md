@@ -60,6 +60,24 @@ for all 51 bundles it carried; nothing was refused.
 4. **Raw-byte sealing saves satellite bandwidth.** Sealing files as raw bytes instead of base64
    cut the attachment from 65 chunks to 49.
 
+## Lost-chunk resend after an application crash
+
+[`resend-crash.sh`](resend-crash.sh): four µD3TN nodes on TCPCLv3 with links both ways. A 2 MB
+file (2,049 chunks) is sent; the courier phone's relief app is killed partway through and
+restarted four seconds later. µD3TN does not hold bundles for an application that is not
+running, so everything that reached the courier while its app was down was lost. The hub saw
+the report stay incomplete and asked the clinic, back through the village relay and the courier,
+for exactly the missing chunks.
+
+| Run | Courier took before the crash | Clinic resent | Resend requests | Result |
+|---|---|---|---|---|
+| 1 | 495 | 1,554 | 1 | verified, byte-identical, nothing refused, no duplicates |
+| 2 | 369 | 1,696 | 1 | verified, byte-identical, nothing refused, no duplicates |
+| 3 | 486 | 1,563 | 1 | verified, byte-identical, nothing refused, no duplicates |
+
+In each run what the courier took plus what the clinic resent is exactly 2,049. An earlier
+exploratory run needed a second request for one more chunk. Results: [`runs/`](runs/).
+
 ## What this does not show
 
 - Real radios, real distances or real power cuts: the links are Linux kernel links with real

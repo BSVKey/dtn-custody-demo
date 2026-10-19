@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- **Lost-chunk resend** (`relief/kit`): a hub whose report stays incomplete asks the clinic,
+  in a request signed by the hub and routed back the way the report came, to resend exactly
+  the missing chunks or manifest; backs off and stops after `maxResends`. Over real µD3TN it
+  recovered every chunk lost to a courier app crash in three of three runs
+  (`relief/realnet/resend-crash.sh`).
+- **Device key revocation**: `provision.mjs --revoke <node>` issues a replacement key and
+  records the old one as revoked; a running hub reloads its config and refuses anything signed
+  with the old key from then on (`key_revoked`), by its own clock, while earlier work still
+  counts. The dashboard shows resend requests and revoked devices.
+- **The field pilot kit in the npm package**: `@bsvkey/dtn-custody/relief-kit/*`, with
+  `@bsv/sdk` as an optional peer dependency for payouts. The default install still has no
+  runtime dependencies.
+
+### Fixed
+
+- The kit's command-line tools now run on Windows and through symlinks (the entry check
+  compared a URL path with a file path).
+
 ## 2026-10-19
 
 ### Added

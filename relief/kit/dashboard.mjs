@@ -47,6 +47,7 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--mute)}
 <section class="card"><h2>Urgent</h2><div id="urgent" class="mute">Nothing urgent reported.</div></section>
 <section class="card"><h2>Reports</h2><div class="scroll"><table><thead><tr><th>Clinic</th><th>Status</th><th>Report</th><th>Route and holds</th></tr></thead><tbody id="reports"></tbody></table></div></section>
 <section class="card"><h2>Relay payouts (verified custody only)</h2><div class="scroll"><table><thead><tr><th>Relay</th><th>Bundles</th><th>Sats</th></tr></thead><tbody id="payouts"></tbody></table></div></section>
+<section class="card"><h2>Revoked devices</h2><div id="revoked" class="mute">None.</div></section>
 <section class="card"><h2>Refused</h2><div class="scroll"><table><thead><tr><th>When</th><th>What</th><th>Reason</th></tr></thead><tbody id="refusals"></tbody></table></div></section>
 <p class="mute" id="updated"></p>
 </main>
@@ -58,15 +59,16 @@ function summary(s){if(!s||typeof s!=="object")return"";const p=[];if(s.patients
 async function tick(){
  let s;try{s=await (await fetch("api/state",{cache:"no-store"})).json()}catch{document.getElementById("updated").textContent="Hub not reachable; retrying.";return}
  const rep=s.reports,ver=rep.filter(r=>r.status==="verified"),pay=Object.entries(s.payouts),sats=pay.reduce((a,[,p])=>a+p.sats,0);
- document.getElementById("stats").innerHTML=[[ver.length,"reports verified"],[rep.filter(r=>r.status==="in_transit").length,"in transit"],[s.refusals.length,"refused"],[sats.toLocaleString(),"sats owed to relays"]].map(([b,t])=>"<div class=stat><b>"+b+"</b><span>"+t+"</span></div>").join("");
+ document.getElementById("stats").innerHTML=[[ver.length,"reports verified"],[rep.filter(r=>r.status==="in_transit").length,"in transit"],[s.resendRequests||0,"resend requests"],[s.refusals.length,"refused"],[sats.toLocaleString(),"sats owed to relays"]].map(([b,t])=>"<div class=stat><b>"+b+"</b><span>"+t+"</span></div>").join("");
  const urg=ver.flatMap(r=>(r.summary?.urgent||[]).map(u=>"<div><span class=urgent>"+esc(u)+"</span> <span class=mute>("+name(r.clinic)+")</span></div>"));
  document.getElementById("urgent").innerHTML=urg.length?urg.join(""):"Nothing urgent reported.";
  document.getElementById("reports").innerHTML=rep.slice().reverse().map(r=>{
-  const st=r.status==="verified"?"<span class=ok>verified</span>":r.status==="in_transit"?"<span class=warn>in transit "+r.received+"/"+(r.chunkCount??"?")+"</span>":"<span class=bad>refused: "+esc(r.reason)+"</span>";
+  const st=r.status==="verified"?"<span class=ok>verified</span>"+(r.resends?" <span class=mute>after "+r.resends+" resend request"+(r.resends===1?"":"s")+"</span>":""):r.status==="in_transit"?"<span class=warn>in transit "+r.received+"/"+(r.chunkCount??"?")+"</span>":"<span class=bad>refused: "+esc(r.reason)+"</span>";
   const route=(r.route||[]).map(name).join(" &rarr; ");const holds=(r.holds||[]).map(h=>"<div class=warn>held "+mins(h.transitMs)+" on "+name(h.from)+" &rarr; "+name(h.to)+"</div>").join("");
   return "<tr><td>"+name(r.clinic)+"</td><td>"+st+"</td><td>"+(r.file?esc(r.file.name)+"<div class=mute>"+summary(r.summary)+"</div>":"")+"</td><td>"+route+holds+"</td></tr>"}).join("")||"<tr><td colspan=4 class=mute>No reports yet.</td></tr>";
  document.getElementById("payouts").innerHTML=pay.map(([e,p])=>"<tr><td>"+name(e)+"</td><td>"+p.bundles+"</td><td>"+p.sats.toLocaleString()+"</td></tr>").join("")||"<tr><td colspan=3 class=mute>None yet.</td></tr>";
  document.getElementById("refusals").innerHTML=s.refusals.slice().reverse().map(f=>"<tr><td>"+new Date(f.at).toLocaleTimeString()+"</td><td>"+(f.payloadId?esc(f.payloadId)+(f.index!=null?" chunk "+f.index:""):"frame")+(f.claimedBy?"<div class=mute>claimed by "+name(f.claimedBy)+"</div>":"")+"</td><td class=bad><code>"+esc(f.reason)+"</code></td></tr>").join("")||"<tr><td colspan=3 class=mute>None.</td></tr>";
+ document.getElementById("revoked").innerHTML=(s.revoked||[]).map(r=>"<div>"+name(r.eid)+" <span class=mute>since "+new Date(r.revokedAt).toLocaleString()+" ("+esc(r.reason)+")</span></div>").join("")||"None.";
  document.getElementById("updated").textContent="Updated "+new Date(s.generatedAt).toLocaleTimeString()+" from "+s.hub;
 }
 tick();setInterval(tick,5000);

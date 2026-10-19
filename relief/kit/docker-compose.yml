@@ -21,18 +21,18 @@ services:
 
   district-hub:
     <<: *node
-    environment: { NODE_NAME: district-hub }
+    environment: { NODE_NAME: district-hub, CONTACTS: "dtn://village-kalo.dtn/@village-kalo:4224@1" }   # back toward the clinics, for resend requests
     ports: ["127.0.0.1:8080:8080"]   # decrypted health data: local machine only
     volumes: ["deploy:/deploy:ro", "hub-data:/data"]
 
   village-kalo:
     <<: *node
-    environment: { NODE_NAME: village-kalo, CONTACTS: "dtn://district-hub.dtn/@district-hub:4224@${SAT_DELAY:-60}" }
+    environment: { NODE_NAME: village-kalo, CONTACTS: "dtn://district-hub.dtn/@district-hub:4224@${SAT_DELAY:-60} dtn://courier-07.dtn/@courier-07:4224@1" }
     volumes: ["deploy:/deploy:ro", "village-data:/data"]
 
   courier-07:
     <<: *node
-    environment: { NODE_NAME: courier-07, CONTACTS: "dtn://village-kalo.dtn/@village-kalo:4224@${RIDE:-20}" }
+    environment: { NODE_NAME: courier-07, CONTACTS: "dtn://village-kalo.dtn/@village-kalo:4224@${RIDE:-20} dtn://clinic-north.dtn/@clinic-north:4224@1 dtn://clinic-river.dtn/@clinic-river:4224@1" }
     volumes: ["deploy:/deploy:ro", "courier-data:/data"]
 
   clinic-north:
