@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "transport": "uD3TN BPv7, TCPCLv3 CLA (RFC 7242), 5 network namespaces",
+  "shaping": "iptables random loss (0.5% Wi-Fi, 1% satellite) + tbf 512 kbit/s + TCP delay relay 280 ms +-20 ms (kernel has no netem)",
+  "timing": {
+    "rideS": 30,
+    "blackoutS": [
+      20,
+      70
+    ]
+  },
+  "verified": 3,
+  "refused": 0,
+  "duplicates": 0,
+  "attachmentByteIdentical": true,
+  "elapsedS": 83,
+  "reports": [
+    {
+      "file": "report-river.json",
+      "bytes": 408,
+      "chunks": 1,
+      "route": "clinic-river > courier-07 > village-kalo > district-hub",
+      "linkS": [
+        "clinic-river>courier-07 0.0",
+        "courier-07>village-kalo 23.1",
+        "village-kalo>district-hub 54.0"
+      ]
+    },
+    {
+      "file": "report-north.json",
+      "bytes": 399,
+      "chunks": 1,
+      "route": "clinic-north > courier-07 > village-kalo > district-hub",
+      "linkS": [
+        "clinic-north>courier-07 0.0",
+        "courier-07>village-kalo 23.0",
+        "village-kalo>district-hub 54.0"
+      ]
+    },
+    {
+      "file": "wound-scan-0423.bin",
+      "bytes": 49152,
+      "chunks": 49,
+      "route": "clinic-north > courier-07 > village-kalo > district-hub",
+      "linkS": [
+        "clinic-north>courier-07 0.0",
+        "courier-07>village-kalo 23.0",
+        "village-kalo>district-hub 54.0"
+      ]
+    }
+  ],
+  "payouts": {
+    "dtn://courier-07.dtn/": {
+      "bundles": 51,
+      "sats": 2550
+    },
+    "dtn://village-kalo.dtn/": {
+      "bundles": 51,
+      "sats": 2550
+    }
+  },
+  "refusals": []
+}

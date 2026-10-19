@@ -39,14 +39,22 @@ node relief/run.mjs --json   # the hub's evidence (reports, gap records, payouts
   [`scenario.json`](scenario.json) through the offline simulator; nothing waits. The
   reports are synthetic. The payouts are computed, not broadcast; `live/` and
   `constellation/` show the real BSV payment path.
-- **Not covered here:** provisioning keys onto devices before deployment, losing or
-  replacing a device, and the data-protection rules for health data where it is used.
-  Those are the first things a field pilot needs to settle.
+- **Not covered in this walk-through:** provisioning keys onto devices, which
+  [`kit/provision.mjs`](kit/provision.mjs) now does; losing or replacing a device; and the
+  data-protection rules for health data where it is used.
+
+## Beyond the walk-through
+
+| | What | Run |
+|---|---|---|
+| **Field pilot kit** | Deployable software: provisioning, a node daemon for clinic tablets, courier phones and satellite relays over real µD3TN, a hub dashboard, and BSV payouts. See [`kit/README.md`](kit/README.md). | `docker compose -f relief/kit/docker-compose.yml up --build` |
+| **Real network** | The scenario over five Linux network namespaces with real loss, rate limits, delay and a real 100%-loss satellite blackout. Results: [`realnet/RESULTS.md`](realnet/RESULTS.md). | `sudo bash relief/realnet/run.sh` |
+| **Regional scale** | 480 clinics, 48 couriers, 16 satellite relays over 3 days, routes that change, long outages, batch receipts, payouts for proven handoffs, six attacks. Results: [`scale/RESULTS.md`](scale/RESULTS.md). | `node relief/scale/run.mjs` |
 
 ## Taking it to the field
 
-A pilot needs no new hardware: a BPv7 node such as µD3TN on the clinic tablets, the
-couriers' Android phones and a small computer at the satellite terminal, with this agent
-beside it (`npm install @bsvkey/dtn-custody`, see [`docs/QUICKSTART.md`](../docs/QUICKSTART.md)).
-The scenario file is a standard contact plan, so the same schedule compiles for HDTN, ION and
-Hardy: `node contact-plans/compile.mjs relief/scenario.json`. To discuss a pilot, open an issue.
+Start from [`kit/README.md`](kit/README.md). A pilot needs no new hardware: µD3TN and the kit's
+daemon on the clinic tablets, the couriers' Android phones and a small computer at the
+satellite terminal. The scenario file is a standard contact plan, so the same schedule compiles
+for HDTN, ION and Hardy: `node contact-plans/compile.mjs relief/scenario.json`. To discuss a
+pilot, open an issue.

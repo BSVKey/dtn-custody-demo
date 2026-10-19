@@ -51,6 +51,9 @@ transport/
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
   bpv7/              Custody Receipt Block: the custody chain inside the BPv7 bundle (block 224)
 relief/              disaster relief: clinic reports by courier and satellite, with proof
+  kit/               field pilot kit: provisioning, node daemon, hub dashboard, payouts, Docker
+  realnet/           the scenario over real network namespaces with a real blackout
+  scale/             480 clinics, 48 couriers, 16 relays, six attacks
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
@@ -93,7 +96,14 @@ infrastructure:
   reports by motorbike courier and a solar-powered satellite terminal to a district hub. Every
   chunk and handoff verifies, the 70-minute power cut is a gap record, relay operators are paid
   only for custody they can prove, and an impostor relay is refused. `node relief/run.mjs`, see
-  `relief/README.md`.
+  `relief/README.md`. It is also a **deployable field pilot kit** (`relief/kit/`): key
+  provisioning, a node daemon for clinic tablets, courier phones and satellite relays over real
+  µD3TN, a hub dashboard and BSV relay payouts, in one `docker compose up`. Over five Linux
+  network namespaces with real loss, rate limits, delay and a real 100%-loss satellite
+  blackout, every file arrived verified and byte-identical in all five runs (`relief/realnet/`). At
+  regional scale, 480 clinics, 48 couriers and 16 relays over three days, every delivered bundle
+  verified, payouts follow proven handoffs only, and six attacks are each contained to exactly
+  the bundles they touch (`relief/scale/`).
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
