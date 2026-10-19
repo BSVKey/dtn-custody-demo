@@ -36,7 +36,7 @@ export function bundleIdentity(bundle) {
   return id;
 }
 const sameId = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const payloadHash = (bundle) => createHash("sha256").update(payloadOf(bundle)).digest();
+export const payloadHash = (bundle) => createHash("sha256").update(payloadOf(bundle)).digest();
 
 // The block's items, and which version they are: { version: 0 (none) | 1 | 2, items }.
 export function readBlockItems(bundle) {

@@ -1,0 +1,448 @@
+
+
+
+
+Delay/Disruption Tolerant Networking                   Embryo Space Inc.
+Internet-Draft                                           19 October 2026
+Intended status: Informational                                          
+Expires: 22 April 2027
+
+
+Accountability Between Administrative Domains in Delay-Tolerant Networks
+             draft-bsvkey-dtn-interdomain-accountability-00
+
+Abstract
+
+   As bundles cross Administrative Domains run by different agencies and
+   companies, each domain can show only its own logs of what it carried.
+   This document describes how work already before the DTN Working Group
+   fits together to give portable, independently verifiable evidence of
+   inter-domain carriage: the DTN Peering Protocol for routes and domain
+   identity, the Traceroute Extension Block for path diagnostics, signed
+   custody receipts for evidence of holding, the Secure Bundle Audit
+   Mechanism for dropped security operations, and the BPSec COSE
+   context.  It proposes a small number of connections between them, all
+   optional and none requiring a change to the Bundle Protocol:
+   endorsing custodian keys with a domain's peering key, advertising a
+   domain's receipt policy with its routes, checking a route's domain
+   path against the custody evidence, an optional signature for
+   traceroute hop-records, and sizing unsigned stretches with the Hop
+   Count.
+
+About This Document
+
+   This note is to be removed before publishing as an RFC.
+
+   This is a framework for discussion.  A reference implementation of
+   the custody receipts and of the signed hop-record profile is at
+   https://github.com/BSVKey/dtn-custody-demo (Apache-2.0).
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+
+
+
+
+
+
+                          Expires 22 April 2027                 [Page 1]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 22 April 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Requirements  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   4.  The Building Blocks . . . . . . . . . . . . . . . . . . . . .   4
+   5.  Connecting Them . . . . . . . . . . . . . . . . . . . . . . .   4
+     5.1.  Custodian Keys Endorsed by the Domain's Peering Key . . .   5
+     5.2.  Receipt Policy Advertised With Routes . . . . . . . . . .   5
+     5.3.  Checking a Route's Domain Path Against the Evidence . . .   5
+     5.4.  An Optional Signature for Traceroute Hop-Records  . . . .   5
+     5.5.  Sizing Unsigned Stretches . . . . . . . . . . . . . . . .   6
+     5.6.  Per-Hop Block Lifecycle . . . . . . . . . . . . . . . . .   6
+     5.7.  Settlement  . . . . . . . . . . . . . . . . . . . . . . .   6
+   6.  Deployment  . . . . . . . . . . . . . . . . . . . . . . . . .   6
+   7.  Open Questions  . . . . . . . . . . . . . . . . . . . . . . .   6
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   7
+   10. References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+     10.1.  Normative References . . . . . . . . . . . . . . . . . .   7
+     10.2.  Informative References . . . . . . . . . . . . . . . . .   7
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   8
+
+
+
+
+
+
+
+
+                          Expires 22 April 2027                 [Page 2]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+1.  Introduction
+
+   The DTN Peering Protocol [I-D.taylor-dtn-dpp] describes the Solar
+   System DTN as a set of Administrative Domains: space agencies,
+   commercial operators and research networks that advertise
+   reachability to one another.  Its own scenarios include a commercial
+   operator advertising transit capacity to a government science
+   network, and two agencies' networks exchanging traffic.
+
+   Every one of those relationships raises the same questions after the
+   fact.  Did the other domain carry the bundle?  When did it hold it?
+   Which domains did a bundle actually cross, and did that match the
+   route that was advertised?  Today the answers are each domain's own
+   logs, which another domain can only take on trust.
+
+   Several pieces of work before the DTN Working Group each address part
+   of this.  This document does not define a new protocol.  It describes
+   how those pieces fit, states the requirements they meet together, and
+   proposes the connections that are missing.
+
+2.  Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   Administrative Domain (AD), DPP speaker and AD identity are used as
+   in [I-D.taylor-dtn-dpp].  Custodian and custody receipt are used as
+   in [I-D.bsvkey-dtn-custody-receipt-block].  Hop-record is used as in
+   [I-D.koo-dtn-traceroute-eb].
+
+3.  Requirements
+
+   1.  Evidence is portable: a third party can verify it, later and
+       offline, without contacting the domains that produced it.
+
+   2.  Participation is optional per node and per domain; nodes that do
+       not take part forward bundles as they do today.
+
+   3.  No change to the Bundle Protocol or to BPSec is needed.
+
+   4.  Missing evidence is reported as missing and never inferred.
+
+   5.  Evidence is bound to a specific bundle and the payload bytes
+       held, so it cannot be moved to another bundle.
+
+
+
+
+                          Expires 22 April 2027                 [Page 3]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+   6.  Keys used for evidence chain to an identity the domains already
+       verify for routing.
+
+4.  The Building Blocks
+
+   The work considered here is the DTN Peering Protocol
+   [I-D.taylor-dtn-dpp], the Traceroute Extension Block
+   [I-D.koo-dtn-traceroute-eb], the Custody Receipt Block
+   [I-D.bsvkey-dtn-custody-receipt-block], the Secure Bundle Audit
+   Mechanism [I-D.tian-dtn-sbam], Bundle-in-Bundle Encapsulation
+   [I-D.ietf-dtn-bibe] and CCSDS custody transfer [CCSDS734.6], and the
+   BPSec COSE context [I-D.ietf-dtn-bpsec-cose].
+
+      +============+==========================+=====================+
+      | Work       | Question it answers      | Evidence?           |
+      +============+==========================+=====================+
+      | DTN        | Which domains route      | Identity only       |
+      | Peering    | which destinations, and  |                     |
+      | Protocol   | who a domain is (DNS-    |                     |
+      |            | rooted Ed25519 identity) |                     |
+      +------------+--------------------------+---------------------+
+      | Traceroute | Which nodes a diagnostic | No: hop-records are |
+      | Extension  | bundle passed, with      | unauthenticated and |
+      | Block      | times and link details   | diagnostic only     |
+      +------------+--------------------------+---------------------+
+      | Custody    | Which custodians held a  | Yes: signed per     |
+      | Receipt    | bundle, and when, bound  | custodian           |
+      | Block      | to the bundle and        |                     |
+      |            | payload                  |                     |
+      +------------+--------------------------+---------------------+
+      | Secure     | Whether security         | Yes, for the        |
+      | Bundle     | operations added by the  | source's security   |
+      | Audit      | source were dropped or   | operations          |
+      | Mechanism  | altered                  |                     |
+      +------------+--------------------------+---------------------+
+      | BIBE;      | Who must retransmit      | No: reliability,    |
+      | CCSDS      |                          | not evidence        |
+      | custody    |                          |                     |
+      | transfer   |                          |                     |
+      +------------+--------------------------+---------------------+
+      | BPSec COSE | How COSE algorithms are  | A shared toolkit    |
+      | context    | profiled for BPSec       |                     |
+      +------------+--------------------------+---------------------+
+
+            Table 1: Existing work and the question each answers
+
+5.  Connecting Them
+
+
+
+
+                          Expires 22 April 2027                 [Page 4]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+5.1.  Custodian Keys Endorsed by the Domain's Peering Key
+
+   The custody receipt draft leaves key distribution out of scope.  DPP
+   already gives every AD an Ed25519 key published in DNS at
+   _dtn_domain.<AD-Domain> and verified by peers in a challenge-response
+   handshake.  The same algorithm and the same key encoding (DER
+   SubjectPublicKeyInfo, base64) are used by custody receipts.
+
+   Proposal: an AD endorses each of its custodians with a small
+   COSE_Sign1 by its DPP key over the custodian's node ID, public key
+   and validity period.  A verifier that knows the AD (from the route,
+   or from the custodian's node ID) fetches the AD key from DNS, checks
+   the endorsement, and then checks the receipt.  Only one key per AD is
+   published in DNS; custodian keys rotate without DNS changes.  How
+   endorsements are distributed (with the bundle, over DPP, or by a
+   published list) is an open question.
+
+5.2.  Receipt Policy Advertised With Routes
+
+   DPP advertisements carry extensible attributes.  Proposal: an
+   optional attribute stating an AD's receipt policy for the routes it
+   advertises: none, offered (its custodians sign when the block is
+   present), or required (it will only carry bundles under a receipt
+   agreement).  Peers can then prefer routes whose evidence they will be
+   able to check.
+
+5.3.  Checking a Route's Domain Path Against the Evidence
+
+   A DPP route carries ad_path, the list of ADs it traverses.  Once a
+   bundle is delivered, the ADs of its endorsed custodians can be
+   compared with the ad_path of the route that was used.  A domain on
+   the path with no receipt is a gap in the evidence; a receipt from a
+   domain not on the path shows the bundle left the advertised route.
+   Both are reported, neither is inferred.
+
+5.4.  An Optional Signature for Traceroute Hop-Records
+
+   The Traceroute Extension Block and the Custody Receipt Block record
+   nearly the same facts per hop: the node, the node it received from,
+   and a time.  TREB's records are, by its own security section,
+   unauthenticated and diagnostic only.
+
+
+
+
+
+
+
+
+
+
+                          Expires 22 April 2027                 [Page 5]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+   Proposal: an optional eighth element in a TREB hop-record, a
+   COSE_Sign1 by the recording node with a detached payload (the CBOR
+   encoding of the seven existing fields) and external additional
+   authenticated data of the bundle identity and the SHA-256 of the
+   payload block's data.  A reader that ignores the eighth element sees
+   an unchanged TREB hop-record; a verifier with the node's key gets
+   custody-grade evidence.  A shared hop-record shape lets diagnostics
+   and accountability use one structure where both are wanted.
+
+5.5.  Sizing Unsigned Stretches
+
+   Both drafts observe that the Previous Node block names only the last
+   node of an unsigned stretch.  TREB already uses the Hop Count block
+   to count the hops made by transparent nodes.  Recording the Hop Count
+   value in each custody receipt does the same for receipts, so a
+   verifier can say how many unsigned hops lie between two signed ones.
+
+5.6.  Per-Hop Block Lifecycle
+
+   Blocks that nodes change in transit lose end-to-end BPSec protection
+   by construction.  The receipt block and signed hop-records follow a
+   third pattern: entries are appended, never changed, and each is
+   signed by the node that added it, so earlier entries stay verifiable
+   end to end without any BPSec operation outliving a hop.  Such blocks
+   should not be targets of a BIB or BCB.  This is offered as input to
+   the group's discussion of per-hop blocks.
+
+5.7.  Settlement
+
+   How domains price or settle carriage is out of scope.  This framework
+   only ensures that bilateral agreements can refer to evidence both
+   parties, and a third party, can check.  For high volumes, a custodian
+   can sign one receipt per contact over a Merkle root of the bundles it
+   held, with inclusion proofs per bundle, as the reference
+   implementation does.
+
+6.  Deployment
+
+   Each connection is independent and optional.  Custody receipts are
+   carried byte-identical today by µD3TN, NASA HDTN, JPL ION and Hardy,
+   none of which implement them, and a payload BIB beside them still
+   verifies.  A domain can start signing receipts without any peer
+   changing, and verifiers report every stretch it does not cover.
+
+7.  Open Questions
+
+   *  Is the DTN Working Group the right home for inter-domain
+      accountability, or only for its protocol pieces?
+
+
+
+                          Expires 22 April 2027                 [Page 6]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+   *  How should custodian endorsements be distributed?
+
+   *  Should the receipt policy attribute be defined in DPP or in a
+      separate document?
+
+   *  Would the TREB authors welcome an optional signed hop-record, and
+      should custody receipts adopt the TREB hop-record shape?
+
+8.  Security Considerations
+
+   The framework rests on three assumptions: AD keys published in DNS
+   are as trustworthy as DPP requires; custodian endorsements are
+   checked for validity periods and revocation; and verifiers never
+   accept a key carried with the evidence itself.  A compromised
+   custodian key can sign false receipts until its endorsement expires
+   or is revoked.  Evidence can be stripped by any forwarder; stripping
+   shows as a gap.  Receipts and hop-records reveal routes and timing to
+   anyone who can read the bundle.
+
+9.  IANA Considerations
+
+   This document has no IANA actions.
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+10.2.  Informative References
+
+   [I-D.taylor-dtn-dpp]
+              Taylor, R., "DTN Peering Protocol", Work in Progress,
+              Internet-Draft, draft-taylor-dtn-dpp-01, 19 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-taylor-dtn-
+              dpp-01>.
+
+
+
+
+
+
+
+
+                          Expires 22 April 2027                 [Page 7]
+
+Internet-Draft       DTN Inter-Domain Accountability        October 2026
+
+
+   [I-D.koo-dtn-traceroute-eb]
+              Cheol, K. H., "Traceroute Extension Block for Bundle
+              Protocol Version 7", Work in Progress, Internet-Draft,
+              draft-koo-dtn-traceroute-eb-02, 6 October 2026,
+              <https://datatracker.ietf.org/doc/html/draft-koo-dtn-
+              traceroute-eb-02>.
+
+   [I-D.bsvkey-dtn-custody-receipt-block]
+              Embryo Space Inc., "Signed Custody Receipts Carried in a
+              Bundle Protocol Version 7 Extension Block", Work in
+              Progress, Internet-Draft, draft-bsvkey-dtn-custody-
+              receipt-block-01, October 2026,
+              <https://datatracker.ietf.org/doc/draft-bsvkey-dtn-
+              custody-receipt-block/>.
+
+   [I-D.tian-dtn-sbam]
+              Dowling, B., Hale, B., Tian, X., and B. Wimalasiri,
+              "Securing BPSec Against Arbitrary Packet Dropping", Work
+              in Progress, Internet-Draft, draft-tian-dtn-sbam-05, 2
+              July 2026, <https://datatracker.ietf.org/doc/html/draft-
+              tian-dtn-sbam-05>.
+
+   [I-D.ietf-dtn-bibe]
+              Taylor, R. and A. Montilla, "Bundle-in-Bundle
+              Encapsulation", Work in Progress, Internet-Draft, draft-
+              ietf-dtn-bibe-00, 7 September 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-dtn-
+              bibe-00>.
+
+   [I-D.ietf-dtn-bpsec-cose]
+              Sipos, B., "Bundle Protocol Security (BPSec) COSE
+              Context", Work in Progress, Internet-Draft, draft-ietf-
+              dtn-bpsec-cose-17, 3 August 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-dtn-
+              bpsec-cose-17>.
+
+   [CCSDS734.6]
+              Consultative Committee for Space Data Systems, "Custody
+              Transfer and Compressed Bundle Status Reporting",
+              CCSDS 734.6-O-1, June 2026.
+
+Author's Address
+
+   Embryo Space Inc.
+   Brownsville, TX
+   United States of America
+   Email: embryospace@gmail.com
+
+
+
+
+                          Expires 22 April 2027                 [Page 8]

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE rfc [
+  <!ENTITY nbsp "&#160;">
+]>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude"
+     ipr="trust200902"
+     docName="draft-bsvkey-dtn-interdomain-accountability-00"
+     category="info"
+     consensus="false"
+     version="3">
+  <front>
+    <title abbrev="DTN Inter-Domain Accountability">Accountability Between Administrative Domains in Delay-Tolerant Networks</title>
+    <seriesInfo name="Internet-Draft" value="draft-bsvkey-dtn-interdomain-accountability-00"/>
+    <author>
+      <organization>Embryo Space Inc.</organization>
+      <address>
+        <postal>
+          <city>Brownsville</city>
+          <region>TX</region>
+          <country>United States of America</country>
+        </postal>
+        <email>embryospace@gmail.com</email>
+      </address>
+    </author>
+    <date year="2026" month="October" day="19"/>
+    <area>Internet</area>
+    <workgroup>Delay/Disruption Tolerant Networking</workgroup>
+    <keyword>DTN</keyword>
+    <keyword>BPv7</keyword>
+    <keyword>accountability</keyword>
+    <keyword>peering</keyword>
+
+    <abstract>
+      <t>As bundles cross Administrative Domains run by different agencies
+      and companies, each domain can show only its own logs of what it
+      carried. This document describes how work already before the DTN
+      Working Group fits together to give portable, independently
+      verifiable evidence of inter-domain carriage: the DTN Peering
+      Protocol for routes and domain identity, the Traceroute Extension
+      Block for path diagnostics, signed custody receipts for evidence of
+      holding, the Secure Bundle Audit Mechanism for dropped security
+      operations, and the BPSec COSE context. It proposes a small number
+      of connections between them, all optional and none requiring a
+      change to the Bundle Protocol: endorsing custodian keys with a
+      domain's peering key, advertising a domain's receipt policy with its
+      routes, checking a route's domain path against the custody evidence,
+      an optional signature for traceroute hop-records, and sizing
+      unsigned stretches with the Hop Count.</t>
+    </abstract>
+
+    <note removeInRFC="true">
+      <name>About This Document</name>
+      <t>This is a framework for discussion. A reference implementation of
+      the custody receipts and of the signed hop-record profile is at
+      <eref target="https://github.com/BSVKey/dtn-custody-demo"/>
+      (Apache-2.0).</t>
+    </note>
+  </front>
+
+  <middle>
+    <section anchor="intro">
+      <name>Introduction</name>
+      <t>The DTN Peering Protocol <xref target="I-D.taylor-dtn-dpp"/>
+      describes the Solar System DTN as a set of Administrative Domains:
+      space agencies, commercial operators and research networks that
+      advertise reachability to one another. Its own scenarios include a
+      commercial operator advertising transit capacity to a government
+      science network, and two agencies' networks exchanging traffic.</t>
+      <t>Every one of those relationships raises the same questions after
+      the fact. Did the other domain carry the bundle? When did it hold it?
+      Which domains did a bundle actually cross, and did that match the
+      route that was advertised? Today the answers are each domain's own
+      logs, which another domain can only take on trust.</t>
+      <t>Several pieces of work before the DTN Working Group each address
+      part of this. This document does not define a new protocol. It
+      describes how those pieces fit, states the requirements they meet
+      together, and proposes the connections that are missing.</t>
+    </section>
+
+    <section anchor="terms">
+      <name>Terminology</name>
+      <t>The key words "<bcp14>MUST</bcp14>", "<bcp14>MUST NOT</bcp14>",
+      "<bcp14>REQUIRED</bcp14>", "<bcp14>SHALL</bcp14>", "<bcp14>SHALL
+      NOT</bcp14>", "<bcp14>SHOULD</bcp14>", "<bcp14>SHOULD NOT</bcp14>",
+      "<bcp14>RECOMMENDED</bcp14>", "<bcp14>NOT RECOMMENDED</bcp14>",
+      "<bcp14>MAY</bcp14>", and "<bcp14>OPTIONAL</bcp14>" in this document are
+      to be interpreted as described in BCP&nbsp;14 <xref target="RFC2119"/>
+      <xref target="RFC8174"/> when, and only when, they appear in all
+      capitals, as shown here.</t>
+      <t>Administrative Domain (AD), DPP speaker and AD identity are used
+      as in <xref target="I-D.taylor-dtn-dpp"/>. Custodian and custody
+      receipt are used as in
+      <xref target="I-D.bsvkey-dtn-custody-receipt-block"/>. Hop-record is
+      used as in <xref target="I-D.koo-dtn-traceroute-eb"/>.</t>
+    </section>
+
+    <section anchor="reqs">
+      <name>Requirements</name>
+      <ol>
+        <li>Evidence is portable: a third party can verify it, later and
+        offline, without contacting the domains that produced it.</li>
+        <li>Participation is optional per node and per domain; nodes that
+        do not take part forward bundles as they do today.</li>
+        <li>No change to the Bundle Protocol or to BPSec is needed.</li>
+        <li>Missing evidence is reported as missing and never inferred.</li>
+        <li>Evidence is bound to a specific bundle and the payload bytes
+        held, so it cannot be moved to another bundle.</li>
+        <li>Keys used for evidence chain to an identity the domains already
+        verify for routing.</li>
+      </ol>
+    </section>
+
+    <section anchor="blocks">
+      <name>The Building Blocks</name>
+      <t>The work considered here is the DTN Peering Protocol
+      <xref target="I-D.taylor-dtn-dpp"/>, the Traceroute Extension Block
+      <xref target="I-D.koo-dtn-traceroute-eb"/>, the Custody Receipt Block
+      <xref target="I-D.bsvkey-dtn-custody-receipt-block"/>, the Secure Bundle
+      Audit Mechanism <xref target="I-D.tian-dtn-sbam"/>, Bundle-in-Bundle
+      Encapsulation <xref target="I-D.ietf-dtn-bibe"/> and CCSDS custody
+      transfer <xref target="CCSDS734.6"/>, and the BPSec COSE context
+      <xref target="I-D.ietf-dtn-bpsec-cose"/>.</t>
+      <table>
+        <name>Existing work and the question each answers</name>
+        <thead><tr><th>Work</th><th>Question it answers</th><th>Evidence?</th></tr></thead>
+        <tbody>
+          <tr><td>DTN Peering Protocol</td><td>Which domains route which destinations, and who a domain is (DNS-rooted Ed25519 identity)</td><td>Identity only</td></tr>
+          <tr><td>Traceroute Extension Block</td><td>Which nodes a diagnostic bundle passed, with times and link details</td><td>No: hop-records are unauthenticated and diagnostic only</td></tr>
+          <tr><td>Custody Receipt Block</td><td>Which custodians held a bundle, and when, bound to the bundle and payload</td><td>Yes: signed per custodian</td></tr>
+          <tr><td>Secure Bundle Audit Mechanism</td><td>Whether security operations added by the source were dropped or altered</td><td>Yes, for the source's security operations</td></tr>
+          <tr><td>BIBE; CCSDS custody transfer</td><td>Who must retransmit</td><td>No: reliability, not evidence</td></tr>
+          <tr><td>BPSec COSE context</td><td>How COSE algorithms are profiled for BPSec</td><td>A shared toolkit</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section anchor="framework">
+      <name>Connecting Them</name>
+      <section anchor="keys">
+        <name>Custodian Keys Endorsed by the Domain's Peering Key</name>
+        <t>The custody receipt draft leaves key distribution out of scope.
+        DPP already gives every AD an Ed25519 key published in DNS at
+        _dtn_domain.&lt;AD-Domain&gt; and verified by peers in a
+        challenge-response handshake. The same algorithm and the same key
+        encoding (DER SubjectPublicKeyInfo, base64) are used by custody
+        receipts.</t>
+        <t>Proposal: an AD endorses each of its custodians with a small
+        COSE_Sign1 by its DPP key over the custodian's node ID, public key
+        and validity period. A verifier that knows the AD (from the route,
+        or from the custodian's node ID) fetches the AD key from DNS,
+        checks the endorsement, and then checks the receipt. Only one key
+        per AD is published in DNS; custodian keys rotate without DNS
+        changes. How endorsements are distributed (with the bundle, over
+        DPP, or by a published list) is an open question.</t>
+      </section>
+      <section anchor="policy">
+        <name>Receipt Policy Advertised With Routes</name>
+        <t>DPP advertisements carry extensible attributes. Proposal: an
+        optional attribute stating an AD's receipt policy for the routes
+        it advertises: none, offered (its custodians sign when the block
+        is present), or required (it will only carry bundles under a
+        receipt agreement). Peers can then prefer routes whose evidence
+        they will be able to check.</t>
+      </section>
+      <section anchor="path">
+        <name>Checking a Route's Domain Path Against the Evidence</name>
+        <t>A DPP route carries ad_path, the list of ADs it traverses. Once a
+        bundle is delivered, the ADs of its endorsed custodians can be
+        compared with the ad_path of the route that was used. A domain on
+        the path with no receipt is a gap in the evidence; a receipt from a
+        domain not on the path shows the bundle left the advertised route.
+        Both are reported, neither is inferred.</t>
+      </section>
+      <section anchor="treb">
+        <name>An Optional Signature for Traceroute Hop-Records</name>
+        <t>The Traceroute Extension Block and the Custody Receipt Block
+        record nearly the same facts per hop: the node, the node it
+        received from, and a time. TREB's records are, by its own
+        security section, unauthenticated and diagnostic only.</t>
+        <t>Proposal: an optional eighth element in a TREB hop-record,
+        a COSE_Sign1 by the recording node with a detached payload (the
+        CBOR encoding of the seven existing fields) and external
+        additional authenticated data of the bundle identity and the
+        SHA-256 of the payload block's data. A reader that ignores the
+        eighth element sees an unchanged TREB hop-record; a verifier with
+        the node's key gets custody-grade evidence. A shared hop-record
+        shape lets diagnostics and accountability use one structure where
+        both are wanted.</t>
+      </section>
+      <section anchor="hops">
+        <name>Sizing Unsigned Stretches</name>
+        <t>Both drafts observe that the Previous Node block names only the
+        last node of an unsigned stretch. TREB already uses the Hop Count
+        block to count the hops made by transparent nodes. Recording the
+        Hop Count value in each custody receipt does the same for
+        receipts, so a verifier can say how many unsigned hops lie between
+        two signed ones.</t>
+      </section>
+      <section anchor="perhop">
+        <name>Per-Hop Block Lifecycle</name>
+        <t>Blocks that nodes change in transit lose end-to-end BPSec
+        protection by construction. The receipt block and signed
+        hop-records follow a third pattern: entries are appended, never
+        changed, and each is signed by the node that added it, so earlier
+        entries stay verifiable end to end without any BPSec operation
+        outliving a hop. Such blocks should not be targets of a BIB or BCB.
+        This is offered as input to the group's discussion of per-hop
+        blocks.</t>
+      </section>
+      <section anchor="settlement">
+        <name>Settlement</name>
+        <t>How domains price or settle carriage is out of scope. This
+        framework only ensures that bilateral agreements can refer to
+        evidence both parties, and a third party, can check. For high
+        volumes, a custodian can sign one receipt per contact over a Merkle
+        root of the bundles it held, with inclusion proofs per bundle, as
+        the reference implementation does.</t>
+      </section>
+    </section>
+
+    <section anchor="deploy">
+      <name>Deployment</name>
+      <t>Each connection is independent and optional. Custody receipts are
+      carried byte-identical today by µD3TN, NASA HDTN, JPL ION and Hardy,
+      none of which implement them, and a payload BIB beside them still
+      verifies. A domain can start signing receipts without any peer
+      changing, and verifiers report every stretch it does not cover.</t>
+    </section>
+
+    <section anchor="open">
+      <name>Open Questions</name>
+      <ul>
+        <li>Is the DTN Working Group the right home for inter-domain
+        accountability, or only for its protocol pieces?</li>
+        <li>How should custodian endorsements be distributed?</li>
+        <li>Should the receipt policy attribute be defined in DPP or in a
+        separate document?</li>
+        <li>Would the TREB authors welcome an optional signed hop-record,
+        and should custody receipts adopt the TREB hop-record shape?</li>
+      </ul>
+    </section>
+
+    <section anchor="security">
+      <name>Security Considerations</name>
+      <t>The framework rests on three assumptions: AD keys published in DNS
+      are as trustworthy as DPP requires; custodian endorsements are
+      checked for validity periods and revocation; and verifiers never
+      accept a key carried with the evidence itself. A compromised
+      custodian key can sign false receipts until its endorsement expires
+      or is revoked. Evidence can be stripped by any forwarder; stripping
+      shows as a gap. Receipts and hop-records reveal routes and timing to
+      anyone who can read the bundle.</t>
+    </section>
+
+    <section anchor="iana">
+      <name>IANA Considerations</name>
+      <t>This document has no IANA actions.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Normative References</name>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+      </references>
+      <references>
+        <name>Informative References</name>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.taylor-dtn-dpp.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.koo-dtn-traceroute-eb.xml"/>
+        <reference anchor="I-D.bsvkey-dtn-custody-receipt-block" target="https://datatracker.ietf.org/doc/draft-bsvkey-dtn-custody-receipt-block/">
+          <front>
+            <title>Signed Custody Receipts Carried in a Bundle Protocol Version 7 Extension Block</title>
+            <author><organization>Embryo Space Inc.</organization></author>
+            <date year="2026" month="October"/>
+          </front>
+          <seriesInfo name="Internet-Draft" value="draft-bsvkey-dtn-custody-receipt-block-01"/>
+        </reference>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.tian-dtn-sbam.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-dtn-bibe.xml"/>
+        <xi:include href="https://bib.ietf.org/public/rfc/bibxml3/reference.I-D.ietf-dtn-bpsec-cose.xml"/>
+        <reference anchor="CCSDS734.6">
+          <front>
+            <title>Custody Transfer and Compressed Bundle Status Reporting</title>
+            <author><organization>Consultative Committee for Space Data Systems</organization></author>
+            <date year="2026" month="June"/>
+          </front>
+          <seriesInfo name="CCSDS" value="734.6-O-1"/>
+        </reference>
+      </references>
+    </references>
+  </back>
+</rfc>

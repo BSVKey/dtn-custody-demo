@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-19
+
+### Added
+
+- **Signed TREB hop-records** (`transport/bpv7/treb-signed.mjs`): a proposed optional profile for
+  the Traceroute Extension Block (draft-koo-dtn-traceroute-eb-02). The 7-field hop-record is
+  unchanged; an optional eighth element is a COSE_Sign1 with a detached payload, bound to the
+  bundle identity and payload hash through external AAD. `cose.mjs` gains detached payloads and
+  external AAD.
+- **Inter-domain accountability framework** (`ietf/draft-bsvkey-dtn-interdomain-accountability-00`,
+  not submitted): how the DTN Peering Protocol, TREB, custody receipts, SBAM and BPSec COSE fit
+  together, with proposals for custodian keys endorsed by a domain's DPP key, a receipt-policy
+  route attribute, checking ad_path against the evidence, signed hop-records and Hop Count gap sizing.
+- **Per-hop block case study** (`docs/per-hop-block-case-study.md`) for the working group's
+  per-hop block discussion, and a **CCSDS route note** (`docs/ccsds-path.md`).
+
 ## 2026-10-18
 
 ### Added
