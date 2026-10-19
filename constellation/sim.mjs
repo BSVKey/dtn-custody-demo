@@ -168,8 +168,13 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
     const received = opt ? open : new Map(); // `${node}|${prev}` -> { ids, from, to }
     const take = (node, prev, bundleId, t) => {
       const k = `${node}|${prev}`;
-      const r = received.get(k) || { node, prev, ids: [], from: t, to: t, e };
-      r.ids.push(bundleId); r.to = Math.max(r.to, t); r.from = Math.min(r.from, t);
+      let r = received.get(k);
+      // A bundle that loops back over a link it already crossed in this contact gets a new
+      // contact record: one record must not stand for two passes, or the path cannot be
+      // rebuilt from the records.
+      if (r && r.seen.has(bundleId)) { sign(r, `${opt ? "c" : "e"}${r.e}:${r.prev}>${r.node}#${r.ids.length}`); r = null; }
+      r = r || { node, prev, ids: [], seen: new Set(), from: t, to: t, e };
+      r.ids.push(bundleId); r.seen.add(bundleId); r.to = Math.max(r.to, t); r.from = Math.min(r.from, t);
       received.set(k, r);
       hopEvents++;
     };

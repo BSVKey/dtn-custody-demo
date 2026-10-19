@@ -69,16 +69,36 @@ export function assemblePath(entries, source) {
     list.push(e);
     byPrev.set(e.receipt.prevHop, list);
   }
+  const start = (e) => e.receipt.from ?? e.receipt.receivedAt;
+  for (const list of byPrev.values()) list.sort((x, y) => start(x) - start(y));
   const out = [];
   const used = new Set();
   let at = source;
   for (;;) {
-    const next = (byPrev.get(at) || []).filter((e) => !used.has(e)).sort((x, y) => (x.receipt.from ?? x.receipt.receivedAt) - (y.receipt.from ?? y.receipt.receivedAt))[0];
+    const next = (byPrev.get(at) || []).find((e) => !used.has(e));
     if (!next) break;
     used.add(next);
     out.push(next);
     at = next.receipt.thisHop;
     if (out.length > entries.length) break;
   }
-  return out;
+  if (out.length === entries.length) return out;
+  // The earliest-start choice fails when a route loops back through a node whose batches
+  // overlap in time (long contacts, as on persistent optical links): it can take a later
+  // branch first and strand the rest. Search for an order that uses every record, trying
+  // the earliest start first at each step; bounded, and the greedy result stands otherwise.
+  let budget = 100000;
+  const seen = new Set(), walk = [];
+  const dfs = (from) => {
+    if (walk.length === entries.length) return true;
+    for (const e of byPrev.get(from) || []) {
+      if (seen.has(e)) continue;
+      if (--budget < 0) return false;
+      seen.add(e); walk.push(e);
+      if (dfs(e.receipt.thisHop)) return true;
+      seen.delete(e); walk.pop();
+    }
+    return false;
+  };
+  return dfs(source) ? walk : out;
 }
