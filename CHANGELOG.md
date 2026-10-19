@@ -15,6 +15,15 @@
   route attribute, checking ad_path against the evidence, signed hop-records and Hop Count gap sizing.
 - **Per-hop block case study** (`docs/per-hop-block-case-study.md`) for the working group's
   per-hop block discussion, and a **CCSDS route note** (`docs/ccsds-path.md`).
+- **LunaNet profile** (`docs/lunanet-profile.md`, `lunar/`): how block 224 maps onto the DTN
+  services in NASA's LunaNet Interoperability Specification v5 (BPv7, TCPCL/UDPCL/LTPCL/EPPCL,
+  BPSec, SANA/IANA registration), with what is and is not tested. `node lunar/run.mjs` runs
+  three providers (lander, relay orbiter, Earth ground station) through a non-signing surface
+  relay, a 47-minute far-side occultation and the Earth-Moon light time, with a payload BIB.
+- **Light-time audit** (`auditLightTime` in `lunar/lunanet.mjs`): flags a receipt claiming a
+  custodian received a bundle sooner than light could carry it from the previous custodian,
+  so a backdated receipt is caught even when its signature is genuine. Uses only the times
+  every receipt already carries; no format change. 4 tests.
 
 ## 2026-10-18
 

@@ -43,6 +43,8 @@ delegation (for a US company, normally NASA). The DTN work sits in the Space Int
 
 ## To check before anything is sent
 
-- The exact titles, status and dates of 734.20, 734.5 and 734.6 on public.ccsds.org.
+- The exact titles, status and dates of 734.20, 734.5 and 734.6 on public.ccsds.org. NASA's
+  LunaNet Interoperability Specification v5 (January 2025) cites the CCSDS BPv7 profile as
+  734.2-P-1.1, to be published as 734.2-B-2, so check which number is current.
 - Which agencies currently lead the SIS-DTN working group and who chairs it.
 - Whether a US company can observe CCSDS meetings without a NASA sponsor.
