@@ -27,6 +27,9 @@ protocol, agent library, DTN adapters, and on-chain verifiers are here under Apa
 so anyone can build verifiable data-custody and relay settlement on BSV. See
 [Open core vs. hosted service](#open-core-vs-hosted-service).
 
+**New here? Start with [`docs/QUICKSTART.md`](docs/QUICKSTART.md)**: install, the four calls, and a
+runnable example (`npm run quickstart`) in five minutes.
+
 Full design, milestones, and acceptance criteria: [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md).
 
 ## One-line scope
@@ -36,6 +39,8 @@ across the blackout → delivery bound to a real BSV settlement → provenance a
 
 ## Layout
 ```
+index.mjs            public entry point: the whole agent API in one import
+examples/            quickstart.mjs, the smallest end-to-end integration
 agent/               the application agent
   lib/               canonical hashing, Merkle tree, keys, receipts, gap object
   source.mjs         chunk + Merkle + signed manifest
@@ -140,6 +145,7 @@ Run it:
 ```bash
 npm test        # acceptance criteria, offline, deterministic
 npm run demo    # the end-to-end pipeline with readable output
+npm run quickstart  # the 40-line integration example (docs/QUICKSTART.md)
 ```
 
 ## Standards and heritage

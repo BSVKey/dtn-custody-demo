@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
   "description": "Verifiable data-custody + relay-payment layer over DTN (feasibility demo).",
   "scripts": {
     "demo": "node run-demo.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "quickstart": "node examples/quickstart.mjs"
   },
   "engines": {
     "node": ">=18"
