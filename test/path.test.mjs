@@ -68,3 +68,40 @@ test("path: a reroute back through a satellite already visited is accepted and c
   const back = hop(3, 2, ["0xb1"], 250), out = hop(2, 9, ["0xb1"], 300);
   assert.deepEqual(verifyPath([link(H12, "0xb1"), link(H23, "0xb1"), link(back, "0xb1"), link(out, "0xb1")], opts("0xb1")), { ok: true, hops: 4, revisits: 1 });
 });
+
+test("leafTimes: a batch commits each bundle's time, and the proof carries it", () => {
+  const b = batchReceipt(keys[2], { prevHop: node(1), thisHop: node(2), contactId: "c", from: 100, to: 900, bundleIds: ["0xb2", "0xb1"], times: [700, 150] });
+  assert.equal(b.receipt.leafTimes, true);
+  const p = batchProof(b, "0xb1");
+  assert.equal(p.t, 150);
+  assert.equal(inBatch(b.receipt, "0xb1", p), true);
+  assert.equal(inBatch(b.receipt, "0xb1", { ...p, t: 151 }), false, "a changed time breaks the proof");
+  assert.equal(inBatch(b.receipt, "0xb1", { ...p, t: undefined }), false, "a proof without its time is refused");
+  assert.throws(() => batchReceipt(keys[2], { prevHop: node(1), thisHop: node(2), contactId: "c", from: 100, to: 200, bundleIds: ["0xb1"], times: [250] }), /inside the window/);
+  assert.throws(() => batchReceipt(keys[2], { prevHop: node(1), thisHop: node(2), contactId: "c", from: 100, to: 200, bundleIds: ["0xb1", "0xb1"], times: [110, 120] }), /once per batch/);
+});
+
+test("leafTimes: a looping route with overlapping long contacts verifies in its true order", () => {
+  // 1 -> 2 -> 3 -> 2 -> 4 -> 9. Every contact is open 0..1000, so the windows alone cannot
+  // order the hops; the committed times can.
+  const id = "0xloop";
+  const h = (from, to, t, cid = `${from}-${to}`) => batchReceipt(keys[to], { prevHop: node(from), thisHop: node(to), contactId: cid, from: 0, to: 1000, bundleIds: [id], times: [t] });
+  const recs = [h(1, 2, 100), h(2, 3, 200), h(3, 2, 300, "3-2"), h(2, 4, 400), h(4, 9, 500)];
+  const app = batchReceipt(keys[1], { prevHop: "app:1", thisHop: node(1), contactId: "src", from: 0, to: 1000, bundleIds: [id], times: [50] });
+  const entries = [app, ...recs].reverse().map((b) => ({ receipt: b.receipt, proof: batchProof(b, id) }));
+  const path = assemblePath(entries, "app:1");
+  assert.deepEqual(path.map((x) => x.receipt.thisHop), [node(1), node(2), node(3), node(2), node(4), node(9)]);
+  const v = verifyPath(path, { bundleId: id, source: "app:1", destination: node(9), authorize: dir });
+  assert.equal(v.ok, true, v.reason);
+  assert.equal(v.revisits, 1);
+  // Swap two hops' order: the committed times make it a time regression.
+  const swapped = [path[0], path[1], path[4], path[3], path[2], path[5]];
+  assert.equal(verifyPath(swapped, { bundleId: id, source: "app:1", destination: node(9), authorize: dir }).ok, false);
+});
+
+test("leafTimes: batches without times are unchanged", () => {
+  const a = batchReceipt(keys[2], { prevHop: node(1), thisHop: node(2), contactId: "c", from: 1, to: 2, bundleIds: ["0xb1"] });
+  assert.equal(a.receipt.leafTimes, undefined);
+  assert.equal(batchProof(a, "0xb1").t, undefined);
+  assert.equal(inBatch(a.receipt, "0xb1", batchProof(a, "0xb1")), true);
+});

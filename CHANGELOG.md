@@ -4,6 +4,27 @@
 
 ### Added
 
+- **Optical mode for the constellation run** (`node constellation/run.mjs --links=optical
+  [--rate=10G|100G] [--acq=10]`): crosslinks modeled on public optical ISL parameters (ESA
+  ESTOL v3.1 rates and re-acquisition, SDA OCT-class range), one batch per node per contact,
+  and a report of re-acquisitions, waits and link lengths. `--write` writes
+  `constellation/OPTICAL-RESULTS.md`.
+- **Per-bundle times in batch receipts** (`agent/lib/batch.mjs`, optional `times`): each leaf
+  commits "id@time", the record is signed `leafTimes: true`, and the inclusion proof carries
+  the time, which `verifyPath` checks against the window and uses as the hop's exact time.
+  Batches without it are unchanged.
+
+### Fixed
+
+- **Looping routes over long-open contacts** failed verification at scale: under 30%
+  cross-link failure with optical contacts, 2,275 of 10,000 bundles could not be ordered from
+  windows alone. Optical batches now commit per-bundle times, a bundle crossing a link twice
+  in one contact starts a new batch, `assemblePath` searches (bounded) for a time-consistent
+  order when the earliest-start walk fails, and the constellation verifier's hop cap is 512
+  (routes there reached 314 hops). 10,000 of 10,000 now verify; RF output is unchanged.
+  `docs/custody-receipt-02-proposals.md` updated: batch leaves need per-bundle times when
+  contacts stay open.
+
 - **Relief field pilot kit** (`relief/kit/`): `provision.mjs` (keys and per-device configs,
   refuses to overwrite a deployment), `node.mjs` (clinic outbox, relay custody, hub verify,
   decrypt, frame log replayed on restart), a hub dashboard, `payout.mjs` (BSV relay payouts with

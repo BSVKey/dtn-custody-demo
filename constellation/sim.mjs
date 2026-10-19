@@ -138,7 +138,9 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
   };
   const sign = (r, contactId) => {
     const kp = keyAt ? keyAt(r.node, r.from) : c.keys.get(r.node);
-    batches.push(batchReceipt(kp, { prevHop: r.prev, thisHop: r.node, contactId, from: r.from, to: r.to, bundleIds: r.ids }));
+    // Optical contacts stay open for many epochs, so their batches commit each bundle's time
+    // (leafTimes) to keep looping routes orderable; rf batches close every epoch and do not.
+    batches.push(batchReceipt(kp, { prevHop: r.prev, thisHop: r.node, contactId, from: r.from, to: r.to, bundleIds: r.ids, ...(opt ? { times: r.times } : {}) }));
   };
   const open = new Map(); // optical: contacts still open, kept across epochs
   let prevCross = null;
@@ -173,8 +175,8 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
       // contact record: one record must not stand for two passes, or the path cannot be
       // rebuilt from the records.
       if (r && r.seen.has(bundleId)) { sign(r, `${opt ? "c" : "e"}${r.e}:${r.prev}>${r.node}#${r.ids.length}`); r = null; }
-      r = r || { node, prev, ids: [], seen: new Set(), from: t, to: t, e };
-      r.ids.push(bundleId); r.seen.add(bundleId); r.to = Math.max(r.to, t); r.from = Math.min(r.from, t);
+      r = r || { node, prev, ids: [], times: [], seen: new Set(), from: t, to: t, e };
+      r.ids.push(bundleId); r.times.push(t); r.seen.add(bundleId); r.to = Math.max(r.to, t); r.from = Math.min(r.from, t);
       received.set(k, r);
       hopEvents++;
     };
@@ -240,7 +242,10 @@ export function simulate(c, { bundles = 10000, epochs = 40, ticksPerEpoch = 10, 
 // Ground side: index every batch by bundle, rebuild and verify each delivered bundle.
 export function epochStart(e, ticksPerEpoch = 10) { return Date.parse("2026-10-01T00:00:00Z") + e * ticksPerEpoch * 6000; }
 
-export function verifyAll(c, run, { authorize, maxHops = 256 } = {}) {
+// maxHops 512: under heavy outages a route across a 4,032-satellite grid can detour past
+// 256 hops (seen with optical links at 30% cross-link failure); the cap is the verifier's
+// bound on work per bundle, not a property of the records.
+export function verifyAll(c, run, { authorize, maxHops = 512 } = {}) {
   const auth = authorize || pinnedDirectory(new Map([...c.keys].map(([eid, kp]) => [eid, kp.pub])));
   const byBundle = new Map();
   for (const b of run.batches) for (const id of b.leaves) {

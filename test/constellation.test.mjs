@@ -62,14 +62,14 @@ test("constellation: optical links under harsh outages, bundles that loop back o
 });
 
 test("assemblePath: rebuilds a looping route when contact windows overlap", () => {
-  // app -> A -> B -> A -> C. The B>A and A>C contacts opened before A>B did, so choosing
-  // the earliest-starting record at A takes A>C first and strands B. The search finds the
-  // order that uses every record.
-  const e = (prevHop, thisHop, from) => ({ receipt: { prevHop, thisHop, from }, proof: null });
+  // app -> A -> B -> A -> C, every contact open until 100. The B>A and A>C contacts opened
+  // before A>B did, so choosing the earliest-starting record at A takes A>C first and
+  // strands B. The search finds the order that uses every record with rising hop times.
+  const e = (prevHop, thisHop, from, to = 100) => ({ receipt: { prevHop, thisHop, from, to }, proof: null });
   const recs = [e("app:A", "A", 0), e("A", "B", 5), e("B", "A", 1), e("A", "C", 2)];
   const p = assemblePath(recs, "app:A").map((x) => `${x.receipt.prevHop}>${x.receipt.thisHop}`);
   assert.deepEqual(p, ["app:A>A", "A>B", "B>A", "A>C"]);
   // A simple chain is unchanged: earliest start first.
-  const chain = [e("app:X", "X", 0), e("X", "Y", 1), e("Y", "Z", 2)];
+  const chain = [e("app:X", "X", 0, 0), e("X", "Y", 1, 1), e("Y", "Z", 2, 2)];
   assert.deepEqual(assemblePath(chain, "app:X").map((x) => x.receipt.thisHop), ["X", "Y", "Z"]);
 });
