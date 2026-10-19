@@ -4,3 +4,5 @@
 Dockerfile text eol=lf
 *.mjs text eol=lf
 *.json text eol=lf
+*.mp4 binary
+*.jpg binary
