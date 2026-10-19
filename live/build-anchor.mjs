@@ -1,5 +1,5 @@
 // Build (and SIGN, but do NOT broadcast) the provenance-anchor transaction that commits
-// the manifest root to the BSV chain in an OP_RETURN. Claude builds and signs; the
+// the manifest root to the BSV chain in an OP_RETURN. This script builds and signs; the
 // operator broadcasts. No funds move until you broadcast the printed txhex.
 //
 // Usage: WALLET_JSON="/path/to/throwaway-wallet.json" node live/build-anchor.mjs
