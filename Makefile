@@ -80,7 +80,13 @@ bpv7-block-prevnode:
 	docker run --rm -e BPSEC=1 -v "$(CURDIR):/app" dtn-custody-r2-prevnode bash /app/transport/bpv7/interop/ud3tn-run.sh
 	docker run --rm -e BPSEC=1 -e RECEIPT=2 -v "$(CURDIR):/app" dtn-custody-r2-prevnode bash /app/transport/bpv7/interop/ud3tn-run.sh
 
-bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy bpv7-block-mix
+# Block 224 (receipt v2) and a payload BIB across LTP between two ION nodes, with the
+# Earth-Moon light time on the link (LunaNet's LTPCL option). Uses the Mars image (ION + iproute2).
+bpv7-block-ion-ltp:
+	docker build -t dtn-custody-mars -f mars/Dockerfile .
+	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-mars /app/transport/bpv7/interop/ion-ltp-run.sh
+
+bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-ion-ltp bpv7-block-hardy bpv7-block-mix
 
 # A second implementation of the Custody Receipt Block inside a real BPA: Aalyria's Hardy
 # built from a local checkout (HARDY_SRC) with the custody-receipt Egress Rewriter, which

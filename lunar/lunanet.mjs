@@ -11,19 +11,26 @@ import { encodeBundle, decodeBundle, encodeEid, putBlock, BLOCK, CRC16, CRC32C }
 import { stampBundleV2, verifyBundleV2, readBlockItems, receiptFields } from "../transport/bpv7/receipt-v2.mjs";
 import { addBib, verifyBibs } from "../transport/bpv7/bpsec.mjs";
 import { genKeypair } from "../agent/lib/keys.mjs";
+import { moonDistanceKm, minEarthMoonLightMs, R_MOON_KM } from "./ephemeris.mjs";
 
-// Speed of light, and the one-way delays used below (mean Earth-Moon distance 384,400 km).
+// Speed of light, and the one-way delays used below. The trunk distance is not fixed: it
+// comes from the lunar ephemeris at the time of the contact (ephemeris.mjs).
 export const C_KM_PER_MS = 299.792458;
 export const lightMs = (km) => km / C_KM_PER_MS;
 export const LINKS = {
   surface: { km: 2, label: "lander to surface relay (lunar surface wireless)" },
   proximity: { km: 3000, label: "surface relay to relay orbiter (proximity link)" },
-  trunk: { km: 384400, label: "relay orbiter to Earth ground station (direct-with-Earth)" },
+  trunk: { km: null, label: "relay orbiter to Earth ground station (direct-with-Earth), from the ephemeris" },
 };
 
 // DTN time is milliseconds since 2000-01-01T00:00:00Z (RFC 9171 section 4.2.6).
 const DTN_EPOCH = Date.parse("2000-01-01T00:00:00Z");
 export const dtnTime = (iso) => Date.parse(iso) - DTN_EPOCH;
+const unixMs = (dtn) => dtn + DTN_EPOCH;
+
+// The relay orbiter's greatest distance from the Moon's centre (a low lunar orbit here; an
+// NRHO relay would pass tens of thousands of km and loosen the bound accordingly).
+export const ORBIT_RADIUS_KM = R_MOON_KM + 3000;
 
 export const EID = {
   source: "ipn:101.1",       // the lander's science instrument
@@ -71,7 +78,7 @@ export function lunanetRun({ backdateGroundMs = 0, payload } = {}) {
     blocks: [{ type: BLOCK.PAYLOAD, number: 1, crcType: CRC32C, data }],
   }, { targets: [1], key: bibKey, source: EID.source, scope: 7 }));
 
-  const surfaceMs = lightMs(LINKS.surface.km), proxMs = lightMs(LINKS.proximity.km), trunkMs = lightMs(LINKS.trunk.km);
+  const surfaceMs = lightMs(LINKS.surface.km), proxMs = lightMs(LINKS.proximity.km);
   // 1. Lander takes custody from its instrument and holds briefly before its contact.
   const landerIn = t0 + 200, landerOut = t0 + 60_000;
   bytes = stampBundleV2(bytes, { kp: keys.lander, eid: EID.lander }, { prevHop: EID.source, receivedAt: landerIn, forwardedAt: landerOut });
@@ -83,7 +90,9 @@ export function lunanetRun({ backdateGroundMs = 0, payload } = {}) {
   const orbiterOut = orbiterIn + occultationMs;
   bytes = stampBundleV2(bytes, { kp: keys.orbiter, eid: EID.orbiter }, { receivedAt: orbiterIn, forwardedAt: orbiterOut });
   bytes = withPreviousNode(bytes, EID.orbiter);
-  // 4. The Earth ground station receives after the Earth-Moon light time.
+  // 4. The Earth ground station receives after the Earth-Moon light time at that moment.
+  const trunkKm = moonDistanceKm(unixMs(orbiterOut)) - 6378.137;
+  const trunkMs = lightMs(trunkKm);
   const groundIn = orbiterOut + Math.ceil(trunkMs) - backdateGroundMs, groundOut = groundIn + 2_000;
   bytes = stampBundleV2(bytes, { kp: keys.ground, eid: EID.ground }, { receivedAt: groundIn, forwardedAt: groundOut });
   bytes = withPreviousNode(bytes, EID.ground);
@@ -92,7 +101,7 @@ export function lunanetRun({ backdateGroundMs = 0, payload } = {}) {
   const bib = verifyBibs(decodeBundle(bytes), bibKey);
   const timing = auditLightTime(bytes, {
     [`${EID.lander}>${EID.orbiter}`]: surfaceMs + proxMs,
-    [`${EID.orbiter}>${EID.ground}`]: trunkMs,
+    [`${EID.orbiter}>${EID.ground}`]: minEarthMoonLightMs(unixMs(orbiterOut), { orbitRadiusKm: ORBIT_RADIUS_KM }),
   });
-  return { bytes, chain, bib, timing, occultationMs, trunkMs, receiptBytes: bytes.length };
+  return { bytes, chain, bib, timing, occultationMs, trunkMs, trunkKm, moonKm: moonDistanceKm(unixMs(orbiterOut)), receiptBytes: bytes.length };
 }

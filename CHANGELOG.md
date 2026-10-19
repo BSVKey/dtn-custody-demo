@@ -24,6 +24,14 @@
   custodian received a bundle sooner than light could carry it from the previous custodian,
   so a backdated receipt is caught even when its signature is genuine. Uses only the times
   every receipt already carries; no format change. 4 tests.
+- **Block 224 over LTP** (`transport/bpv7/interop/ion-ltp-run.sh`, `make bpv7-block-ion-ltp`):
+  receipt version 2 and a payload BIB cross two JPL ION nodes joined by LTP over UDP, with the
+  Earth-Moon light time (1,282 ms each way) on the link. The block arrives byte-identical, the
+  BIB verifies, and the unsigned ION stretch is reported as a gap.
+- **Lunar ephemeris** (`lunar/ephemeris.mjs`): the light-time audit's Earth-Moon floor now
+  comes from the Moon's distance at the moment of the contact (Meeus, chapter 47; reproduces
+  his worked example to 0.1 km), less the Earth's radius and the orbiter's orbit radius.
+  3 tests.
 
 ## 2026-10-18
 
