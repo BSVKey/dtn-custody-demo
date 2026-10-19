@@ -39,6 +39,13 @@
 
 ### Fixed
 
+- **BIB over the primary block follows RFC 9173 erratum 9192** (`transport/bpv7/bpsec.mjs`). The
+  published Appendix A.3 vector wraps the primary block in a byte string inside the MAC input;
+  RFC 9172 section 4 forbids that, and erratum 9192 (reported by Rick Taylor, 2026-09-28)
+  corrects it. Signing now emits the bare form and reproduces the erratum's corrected vector byte
+  for byte; verification tries it first and falls back to the published A.3 form during the
+  transition (reported as `a3PrimaryFallback`). Payload and other targets are unchanged.
+
 - **Payout keys are derived under a secret from the funding key** (`constellation/payout.mjs`).
   They were derived from a public formula, which on mainnet would let anyone who read the
   code spend the satellites' payments.

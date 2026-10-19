@@ -25,16 +25,21 @@ function primaryBytes(bundle) {
 
 const uints = (...ns) => Buffer.concat(ns.map((n) => encode(n)));
 
-// Integrity-protected plaintext, RFC 9173 section 3.7. When the target is the primary
-// block, steps 2 and 3 are skipped and the primary block is appended as a CBOR byte string
-// (as in the Appendix A.3 vector); any other target's data is appended as a byte string.
+// Integrity-protected plaintext, RFC 9173 section 3.7. Any target other than the primary
+// block contributes its block-type-specific data as a CBOR byte string. When the target is the
+// primary block, steps 2 and 3 are skipped and the canonical primary block is appended BARE:
+// RFC 9172 section 4 forbids any encapsulating CBOR encoding. The published Appendix A.3 vector
+// wraps it in a byte string, which RFC 9173 erratum 9192 (reported 2026-09-28) corrects; sign
+// emits only the normative form, and verify falls back to the A.3 form (option a3Primary,
+// on by default during the transition, as Hardy does) so BIBs from implementations that copied
+// A.3 still verify.
 //
 // mode "ion": JPL ION (c5a4d87, bpv7/bpsec/utils/bpsec_util.c canonicalizePayloadBlock)
 // appends the whole serialized target block instead (header with flags 0, data, CRC),
 // so its MACs differ from RFC 9173 for every non-primary target. Found and confirmed
 // live 2026-10-18 (transport/bpv7/RESULTS.md); kept only to interoperate with ION.
 export const IPPT_MODE = { RFC9173: "rfc9173", ION: "ion" };
-export function ippt(bundle, target, bib, scope, mode = IPPT_MODE.RFC9173) {
+export function ippt(bundle, target, bib, scope, mode = IPPT_MODE.RFC9173, { a3Primary = false } = {}) {
   const parts = [encode(scope & 0x7)];
   const isPrimary = target.number === 0;
   if (!isPrimary && scope & SCOPE.PRIMARY) parts.push(primaryBytes(bundle));
@@ -43,7 +48,7 @@ export function ippt(bundle, target, bib, scope, mode = IPPT_MODE.RFC9173) {
   if (mode === IPPT_MODE.ION && !isPrimary) {
     parts.push(sealBlock([target.type, target.number, 0, target.crcType ?? CRC_NONE, bstr(target.data)], target.crcType ?? CRC_NONE));
   } else {
-    parts.push(encode(bstr(isPrimary ? primaryBytes(bundle) : target.data)));
+    parts.push(isPrimary ? (a3Primary ? encode(bstr(primaryBytes(bundle))) : primaryBytes(bundle)) : encode(bstr(target.data)));
   }
   return Buffer.concat(parts);
 }
@@ -101,10 +106,11 @@ export function parseAsb(data) {
 // Verify every BIB in the bundle with `key`. { ok, bibs: [{ number, source, targets }] }
 // or { ok:false, reason, ... }. mode "ion" verifies a BIB made by JPL ION, which also
 // keeps the target's CRC, so that check is relaxed in that mode only.
-export function verifyBibs(bundle, key, { mode = IPPT_MODE.RFC9173 } = {}) {
+export function verifyBibs(bundle, key, { mode = IPPT_MODE.RFC9173, a3Primary = true } = {}) {
   const bibs = bundle.blocks.filter((b) => b.type === BLOCK.BIB);
   if (!bibs.length) return { ok: false, reason: "no_bib" };
   const out = [];
+  let a3Fallbacks = 0; // BIBs over the primary block that verified only in the pre-erratum A.3 form
   for (const b of bibs) {
     let asb;
     try { asb = parseAsb(b.data); } catch (e) { return { ok: false, reason: "bib_malformed", detail: e.message }; }
@@ -126,13 +132,18 @@ export function verifyBibs(bundle, key, { mode = IPPT_MODE.RFC9173 } = {}) {
       }
       const r = (asb.results[i] || []).find(([id]) => id === RESULT_MAC);
       if (!r) return { ok: false, reason: "no_mac_result", bib: b.number, target: n };
-      const want = mac(variant, macKey, ippt(bundle, t, b, scope, mode));
       const got = Buffer.from(r[1]);
-      if (got.length !== want.length || !timingSafeEqual(got, want)) {
+      const same = (w) => got.length === w.length && timingSafeEqual(got, w);
+      let okMac = same(mac(variant, macKey, ippt(bundle, t, b, scope, mode)));
+      if (!okMac && n === 0 && a3Primary) {
+        okMac = same(mac(variant, macKey, ippt(bundle, t, b, scope, mode, { a3Primary: true })));
+        if (okMac) a3Fallbacks++;
+      }
+      if (!okMac) {
         return { ok: false, reason: "mac_mismatch", bib: b.number, target: n };
       }
     }
     out.push({ number: b.number, source: asb.source, targets: asb.targets });
   }
-  return { ok: true, bibs: out };
+  return { ok: true, bibs: out, ...(a3Fallbacks ? { a3PrimaryFallback: a3Fallbacks } : {}) };
 }

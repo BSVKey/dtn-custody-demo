@@ -35,15 +35,33 @@ test("bpsec: RFC 9173 A.1 (HMAC 512, no extra scope) final bundle byte for byte"
   assert.equal(verifyBibs(decodeBundle(encodeBundle(out)), KEY).ok, true);
 });
 
-test("bpsec: RFC 9173 A.3 (targets: primary block and Bundle Age, HMAC 256) security block byte for byte", () => {
+test("bpsec: RFC 9173 A.3 as corrected by erratum 9192 (primary block bare in the IPPT), byte for byte", () => {
   const b = base();
   b.blocks.unshift({ type: BLOCK.BUNDLE_AGE, number: 2, flags: 0, crcType: 0, data: hex("19012c") });
   const out = addBib(b, { targets: [0, 2], key: KEY, source: "ipn:3.0", shaVariant: SHA.HMAC256, scope: 0, number: 3 });
   const bib = out.blocks.find((x) => x.type === BLOCK.BIB);
-  assert.equal(bib.data.toString("hex"), hex(`8200020101820282030082820105820300828182015820cac6ce8e4c5dae57988b
-    757e49a6dd1431dc04763541b2845098265bc817241b81820158203ed614c0d97f49
+  // Erratum 9192, Section A.3.3.2: the corrected abstract security block.
+  assert.equal(bib.data.toString("hex"), hex(`82000201018202820300828201058203008281820158208e059b8e71f721826418
+    5a666bf3e453076f2b883f4dce9b3cdb6464ed0dcf0f81820158203ed614c0d97f49
     b3633627779aa18a338d212bf3c92b97759d9739cd50725596`).toString("hex"));
-  assert.equal(verifyBibs(out, KEY).ok, true);
+  assert.equal(ippt(b, { number: 0 }, { number: 3, flags: 0 }, 0).toString("hex"),
+    "00880700008202820102820282020182" + "02820201820018281a000f4240", "erratum Figure 16 primary block IPPT");
+  const v = verifyBibs(out, KEY);
+  assert.equal(v.ok, true);
+  assert.equal(v.a3PrimaryFallback, undefined, "verified in the normative form");
+});
+
+test("bpsec: the published (pre-erratum) A.3 BIB still verifies through the transition fallback, and not without it", () => {
+  const b = base();
+  b.blocks.unshift({ type: BLOCK.BUNDLE_AGE, number: 2, flags: 0, crcType: 0, data: hex("19012c") });
+  const published = hex(`8200020101820282030082820105820300828182015820cac6ce8e4c5dae57988b
+    757e49a6dd1431dc04763541b2845098265bc817241b81820158203ed614c0d97f49
+    b3633627779aa18a338d212bf3c92b97759d9739cd50725596`);
+  const withBib = { ...b, blocks: [b.blocks[0], { type: BLOCK.BIB, number: 3, flags: 0, crcType: 0, data: published }, b.blocks[1]] };
+  const v = verifyBibs(withBib, KEY);
+  assert.equal(v.ok, true);
+  assert.equal(v.a3PrimaryFallback, 1);
+  assert.equal(verifyBibs(withBib, KEY, { a3Primary: false }).reason, "mac_mismatch");
 });
 
 test("bpsec: RFC 9173 A.4 (HMAC 384, full scope 0x07) IPPT and security block byte for byte", () => {
