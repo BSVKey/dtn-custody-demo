@@ -33,7 +33,9 @@ export function verifyPath(links, { bundleId, source, destination, authorize, ma
     let t0, t1;
     if (r.kind === BATCH_KIND) {
       if (!inBatch(r, bundleId, proof)) return fail("not_in_batch", i);
-      t0 = r.from; t1 = r.to;
+      // With leafTimes the proof carries the exact time this bundle passed (and inBatch has
+      // checked it is committed and inside the window); otherwise only the window is known.
+      if (r.leafTimes) { t0 = proof.t; t1 = proof.t; } else { t0 = r.from; t1 = r.to; }
     } else if (r.kind === "custody/1") {
       if (r.bundleId !== bundleId) return fail("wrong_bundle", i);
       t0 = r.receivedAt; t1 = r.forwardedAt;
@@ -69,16 +71,45 @@ export function assemblePath(entries, source) {
     list.push(e);
     byPrev.set(e.receipt.prevHop, list);
   }
+  // A batch proof with a per-bundle time (leafTimes) pins the hop exactly.
+  const start = (e) => e.proof?.t ?? e.receipt.from ?? e.receipt.receivedAt;
+  const end = (e) => e.proof?.t ?? e.receipt.to ?? e.receipt.forwardedAt ?? start(e);
+  for (const list of byPrev.values()) list.sort((x, y) => start(x) - start(y));
   const out = [];
   const used = new Set();
   let at = source;
   for (;;) {
-    const next = (byPrev.get(at) || []).filter((e) => !used.has(e)).sort((x, y) => (x.receipt.from ?? x.receipt.receivedAt) - (y.receipt.from ?? y.receipt.receivedAt))[0];
+    const next = (byPrev.get(at) || []).find((e) => !used.has(e));
     if (!next) break;
     used.add(next);
     out.push(next);
     at = next.receipt.thisHop;
     if (out.length > entries.length) break;
   }
-  return out;
+  // A route has one time per hop, rising along the path and inside each record's window.
+  // Track the earliest time the bundle can be at each step; a record fits if that time is
+  // still inside its window.
+  const feasible = (list) => { let cur = -Infinity; for (const e of list) { cur = Math.max(cur, start(e)); if (cur > end(e)) return false; } return true; };
+  if (out.length === entries.length && feasible(out)) return out;
+  // The earliest-start walk fails when a route loops back through a node whose records
+  // overlap in time (long contacts, as on persistent optical links). Search, bounded, for an
+  // order that uses every record and admits rising hop times, trying the record whose
+  // window closes first at each step; the earliest-start result stands otherwise.
+  for (const list of byPrev.values()) list.sort((x, y) => end(x) - end(y) || start(x) - start(y));
+  let budget = 200000;
+  const seen = new Set(), walk = [];
+  const dfs = (from, cur) => {
+    if (walk.length === entries.length) return true;
+    for (const e of byPrev.get(from) || []) {
+      if (seen.has(e)) continue;
+      const t = Math.max(cur, start(e));
+      if (t > end(e)) continue;
+      if (--budget < 0) return false;
+      seen.add(e); walk.push(e);
+      if (dfs(e.receipt.thisHop, t)) return true;
+      seen.delete(e); walk.pop();
+    }
+    return false;
+  };
+  return dfs(source, -Infinity) ? walk : out;
 }

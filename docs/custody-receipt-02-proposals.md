@@ -33,11 +33,33 @@ the contact ends.
   block 224 naming its contact id, so a verifier knows whom to ask. That costs tens of bytes,
   not a signature, and is not evidence by itself.
 
-**Gap audit.** It works as in -01. Batch receipts carry no per-bundle times, so the verifier
-orders the custodians by following prevHop to thisHop. An unsigned stretch is a gap. A
-payload changed after a custodian fails that custodian's inclusion proof. The optical ISL
-sim (`constellation/optical-isl.mjs`) audits the same sample both ways and gets identical
-results.
+**Gap audit.** It works as in -01. The verifier orders the custodians by following prevHop to
+thisHop. An unsigned stretch is a gap. A payload changed after a custodian fails that
+custodian's inclusion proof. The optical ISL sim (`constellation/optical-isl.mjs`) audits
+the same sample both ways and gets identical results.
+
+**Per-bundle times in the leaf (needed when contacts stay open).** Following prevHop to
+thisHop is not enough when a route loops back through a node it already visited and the
+batches there cover long, overlapping windows, as they do on persistent optical links: the
+records say which bundles passed, not in what order, and several orders fit. In the
+4,032-satellite constellation with optical crosslinks and 30% cross-link failure, windows-only
+batches left 2,275 of 10,000 delivered bundles unverifiable (`time_regression`), and a bounded
+search for a consistent order still left 1,012 (it does not scale on heavily looping routes).
+Committing each bundle's custody time in its leaf fixed all of them:
+
+- Leaf: SHA-256(0x00 || CBOR [bundle identity, payload hash, custody time]); the batch receipt
+  says it uses this rule (the reference implementation signs `leafTimes: true`).
+- The inclusion proof carries the time; the verifier checks it lies in the batch window and
+  uses it as that hop's exact time, so ordering is exact and a reordered or replayed hop is a
+  time regression.
+- A bundle appears at most once per batch: a second pass over the same link in one contact
+  starts a new batch.
+- Cost: one integer per leaf and per proof; no extra signatures.
+
+Result with per-bundle times: 10,000 of 10,000 verified under those outages; the harsh-outage
+simulation and verification took 25 s, where a deeper search had not finished in 10 minutes
+(`constellation/OPTICAL-RESULTS.md`).
+Batches closed every epoch, as in the RF runs, did not need it (0 failures either way).
 
 **Cost the verifier and node take on.** A node that must prove any bundle later keeps
 32 bytes per bundle per contact. A verifier needs the batch receipt and a proof from each

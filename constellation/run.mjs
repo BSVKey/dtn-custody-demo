@@ -5,16 +5,26 @@
 //   node constellation/run.mjs                 4,032 satellites, 10,000 bundles
 //   node constellation/run.mjs --small         144 satellites, 500 bundles (seconds)
 //   node constellation/run.mjs --write         also write constellation/RESULTS.md
+//   node constellation/run.mjs --links=optical [--rate=10G|100G] [--acq=10]
+//                                              optical inter-satellite links, modeled on public
+//                                              parameters (see OPTICAL in sim.mjs); --write then
+//                                              writes constellation/OPTICAL-RESULTS.md
 import { writeFileSync } from "node:fs";
 import os from "node:os";
 import { genKeypair } from "../agent/lib/keys.mjs";
 import { signRecord } from "../agent/lib/receipt.mjs";
 import { pinnedDirectory, verifyPath, assemblePath } from "../agent/lib/path.mjs";
 import { batchProof } from "../agent/lib/batch.mjs";
-import { makeConstellation, simulate, verifyAll, MOC } from "./sim.mjs";
+import { makeConstellation, simulate, verifyAll, MOC, OPTICAL } from "./sim.mjs";
 
 const small = process.argv.includes("--small");
-const cfg = small ? { planes: 12, perPlane: 12, stations: 6, bundles: 500, epochs: 30 } : { planes: 72, perPlane: 56, stations: 40, bundles: 10000, epochs: 40 };
+const arg = (name, dflt) => { const a = process.argv.find((x) => x.startsWith(`--${name}=`)); return a ? a.slice(name.length + 3) : dflt; };
+const links = arg("links", "rf");
+if (!["rf", "optical"].includes(links)) { console.error(`--links must be rf or optical, not ${links}`); process.exit(2); }
+const optical = links === "optical";
+const linkCfg = optical ? { links, rate: arg("rate", "10G"), acqS: Number(arg("acq", OPTICAL.acqS)) } : {};
+if (optical && (!OPTICAL.rates[linkCfg.rate] || !(linkCfg.acqS >= 0))) { console.error(`--rate must be one of ${Object.keys(OPTICAL.rates).join(", ")}; --acq a number of seconds`); process.exit(2); }
+const cfg = { ...(small ? { planes: 12, perPlane: 12, stations: 6, bundles: 500, epochs: 30 } : { planes: 72, perPlane: 56, stations: 40, bundles: 10000, epochs: 40 }), ...linkCfg };
 const ms = (t) => `${((performance.now() - t) / 1000).toFixed(1)} s`;
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
 
@@ -101,7 +111,7 @@ const harshV = verifyAll(cHarsh, harsh);
 const env = `${os.cpus()[0].model.trim()}, Node ${process.version}, one thread`;
 const lines = [
   `# Constellation-scale custody: ${fmt(c.sats.length)} satellites`, "",
-  `Run ${new Date().toISOString().slice(0, 10)} on ${env}. Reproduce: \`node constellation/run.mjs${small ? " --small" : ""}\`.`, "",
+  `Run ${new Date().toISOString().slice(0, 10)} on ${env}. Reproduce: \`node constellation/run.mjs${small ? " --small" : ""}${optical ? ` --links=optical --rate=${cfg.rate} --acq=${cfg.acqS}` : ""}\`.`, "",
   "## Setup", "",
   `| | |`, `|---|---|`,
   `| Satellites | ${fmt(c.sats.length)} (${cfg.planes} planes x ${cfg.perPlane}) |`,
@@ -109,6 +119,17 @@ const lines = [
   `| Bundles | ${fmt(cfg.bundles)} from random satellites to mission operations |`,
   `| Epochs | ${cfg.epochs} (topology recomputed each epoch: polar cross-links down, ${2}% random cross-link failures) |`,
   `| Signing keys | ${fmt(c.keys.size)} (one per satellite, station and operations), generated in ${tKeys} |`, "",
+  ...(optical ? [
+    "## Optical inter-satellite links (modeled)", "",
+    "Modeled on public parameters, not any operator's system: ESA ESTOL v3.1 rates and re-acquisition time, which build on the SDA Optical Communications Terminal standard and CCSDS 141.11-O-1; a 5,500 km maximum link range from a vendor datasheet for an SDA OCT-class terminal. Station downlinks keep the RF model.", "",
+    "| | |", "|---|---|",
+    `| Link rate | ${cfg.rate === "10G" ? "10" : "99.5"} Gbps per directed crosslink, ${fmt(run.optical.bundlesPerLinkTick)} bundles of ${fmt(run.optical.bundleBytes)} bytes per link per tick |`,
+    `| Acquisition | a cross-plane link that comes back up is unusable for ${run.optical.acqS} s (${run.optical.acqTicks} ticks) |`,
+    `| Re-acquisitions | ${fmt(run.optical.acquisitions)} |`,
+    `| Hops that waited for acquisition | ${fmt(run.optical.acquireWaits)} |`,
+    `| Hops that waited for link capacity | ${fmt(run.optical.capacityWaits)} |`,
+    `| Crosslink length | mean ${fmt(run.optical.meanLinkKm)} km, max ${fmt(run.optical.maxLinkKm)} km (${run.optical.maxLightMs.toFixed(1)} ms one way) |`,
+    `| Batch receipts | one per node per contact, held open across epochs until the link drops |`, ""] : []),
   "## Delivery and routing", "",
   `| | |`, `|---|---|`,
   `| Delivered | ${fmt(run.delivered.length)} of ${fmt(cfg.bundles)} (${fmt(run.stranded.length)} still in flight at the end) |`,
@@ -148,12 +169,14 @@ const lines = [
   "Each attack is caught for the bundles it touches and no others (no false alarms on the rest).", "",
   "## Limits", "",
   "- Orbital mechanics are a grid approximation (in-plane and cross-plane neighbours, a moving polar band, station access that shifts each epoch), not a propagated ephemeris.",
-  "- Transport is simulated; this measures the custody records, routing churn and verification cost, not radio or laser links.",
+  optical
+    ? "- Laser links are modeled (range, acquisition, capacity), not flown: no pointing jitter, weather at ground terminals or terminal hardware is simulated, and no operator's crosslinks were used."
+    : "- Transport is simulated; this measures the custody records, routing churn and verification cost, not radio or laser links.",
   "- Keys here come from a pinned directory; fleet provisioning, rotation and revocation are in the Operator Edition.",
 ];
 const text = lines.join("\n") + "\n";
 console.log(text);
 const ok = base.failed === 0 && attacks.every((a) => a.pass) && sweep.every((x) => x.verified === x.delivered) && harshV.failed === 0;
 console.log(`CONSTELLATION_RESULT ${JSON.stringify({ ok, satellites: c.sats.length, delivered: run.delivered.length, verified: base.verified })}`);
-if (process.argv.includes("--write")) writeFileSync(new URL("./RESULTS.md", import.meta.url), text);
+if (process.argv.includes("--write")) writeFileSync(new URL(optical ? "./OPTICAL-RESULTS.md" : "./RESULTS.md", import.meta.url), text);
 process.exit(ok ? 0 : 1);
