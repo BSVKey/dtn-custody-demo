@@ -1,0 +1,21 @@
+# Overhead benchmark (bench/overhead.mjs + bench/overhead.c) in a pinned Linux image.
+# Native:   docker build -t dtn-custody-overhead -f bench/Dockerfile.overhead . && docker run --rm dtn-custody-overhead
+# Emulated: add --platform linux/arm64 to both commands (QEMU user-mode emulation via Docker binfmt).
+FROM node:20-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential curl ca-certificates libsodium-dev \
+    && rm -rf /var/lib/apt/lists/*
+# TweetNaCl, the flight signer's Ed25519, fetched and pinned exactly as in flight/Dockerfile.
+RUN mkdir -p /opt/tweetnacl && cd /opt/tweetnacl \
+    && curl -fsSLO https://tweetnacl.cr.yp.to/20140427/tweetnacl.c \
+    && curl -fsSLO https://tweetnacl.cr.yp.to/20140427/tweetnacl.h \
+    && echo "02e65bc3013ff2168983365e55906bc783c4c7e0a60d8100f17bb303a17175c4  tweetnacl.c" > SHA256SUMS \
+    && echo "43f29ad721d9927b747b0100ab4160c119e7bb180c7c98a66e4bf79d31244287  tweetnacl.h" >> SHA256SUMS \
+    && sha256sum -c SHA256SUMS
+WORKDIR /app
+COPY package.json /app/
+COPY agent /app/agent
+COPY transport/bpv7 /app/transport/bpv7
+COPY flight /app/flight
+COPY bench /app/bench
+ENTRYPOINT ["bash", "/app/bench/run-overhead.sh"]

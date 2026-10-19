@@ -1,0 +1,627 @@
+{
+ "label": "x86-64 native, Windows 11, Node 24",
+ "when": "2026-10-19T01:17:53.536Z",
+ "node": "v24.14.1",
+ "cpu": "AMD Ryzen 5 7600 6-Core Processor",
+ "threads": 12,
+ "arch": "x64",
+ "platform": "win32",
+ "maxLeaves": 1000000,
+ "cose": {
+  "receiptPayloadBytes": 96,
+  "coseSign1Bytes": 170,
+  "sign": {
+   "perSec": 28891.04659546235,
+   "us": 34.61279939083483,
+   "n": 14446
+  },
+  "verify": {
+   "perSec": 10759.276976587174,
+   "us": 92.94304832713755,
+   "n": 5380
+  }
+ },
+ "sha": {
+  "1024": {
+   "perSec": 595106.095660494,
+   "us": 1.6803726382438144,
+   "n": 297554,
+   "MBps": 609.3886419563459
+  },
+  "65536": {
+   "perSec": 35260.54021363516,
+   "us": 28.36031421927287,
+   "n": 17631,
+   "MBps": 2310.834763440794
+  },
+  "1048576": {
+   "perSec": 2007.842585141325,
+   "us": 498.04701195219127,
+   "n": 1004,
+   "MBps": 2105.37554655715
+  }
+ },
+ "perBundle": {
+  "1024": {
+   "bundleBytes": 1077,
+   "firstReceiptBytes": 168,
+   "nextReceiptBytes": 156,
+   "stamp": {
+    "perSec": 13162.836405261774,
+    "us": 75.9714676390155,
+    "n": 6582
+   },
+   "verify": {
+    "perSec": 8771.000105987918,
+    "us": 114.01208390332877,
+    "n": 4386
+   },
+   "decode": {
+    "perSec": 189842.74703786953,
+    "us": 5.267517540717642,
+    "n": 94922
+   }
+  },
+  "65536": {
+   "bundleBytes": 65591,
+   "firstReceiptBytes": 168,
+   "nextReceiptBytes": 156,
+   "stamp": {
+    "perSec": 1348.4204602728364,
+    "us": 741.6084444444443,
+    "n": 675
+   },
+   "verify": {
+    "perSec": 2160.2268857721583,
+    "us": 462.9143385753931,
+    "n": 1081
+   },
+   "decode": {
+    "perSec": 3567.3600156131993,
+    "us": 280.3193385650224,
+    "n": 1784
+   }
+  },
+  "1048576": {
+   "bundleBytes": 1048631,
+   "firstReceiptBytes": 168,
+   "nextReceiptBytes": 156,
+   "stamp": {
+    "perSec": 105.50988547996845,
+    "us": 9477.784905660377,
+    "n": 53
+   },
+   "verify": {
+    "perSec": 233.61369639164678,
+    "us": 4280.57094017094,
+    "n": 117
+   },
+   "decode": {
+    "perSec": 272.16138653710993,
+    "us": 3674.290510948905,
+    "n": 137
+   }
+  }
+ },
+ "batch": {
+  "leafContent": {
+   "perSec": 353108,
+   "us": 2.8319947438177553,
+   "n": 176554
+  },
+  "leafIdentity": {
+   "perSec": 404509.8381960647,
+   "us": 2.472127759511508,
+   "n": 202255
+  },
+  "closes": [
+   {
+    "n": 1000,
+    "closeUs": 1748.4108391608393,
+    "perLeafUs": 1.7484108391608393,
+    "proofBytes": 320,
+    "proofVerifyUs": 17.5785156799325
+   },
+   {
+    "n": 10000,
+    "closeUs": 18933.985185185185,
+    "perLeafUs": 1.8933985185185185,
+    "proofBytes": 448,
+    "proofVerifyUs": 26.46826001799799
+   },
+   {
+    "n": 100000,
+    "closeUs": 211191.06666666668,
+    "perLeafUs": 2.1119106666666667,
+    "proofBytes": 544,
+    "proofVerifyUs": 34.17025900362195
+   },
+   {
+    "n": 1000000,
+    "closeUs": 2220503.2,
+    "perLeafUs": 2.2205032,
+    "proofBytes": 640,
+    "proofVerifyUs": 38.026719869947534
+   }
+  ],
+  "receiptBytes": 169,
+  "jsonReceiptBytes": 470,
+  "stream": [
+   {
+    "n": 1000,
+    "perLeafUs": 1.310336387434555,
+    "closeUs": 47.213435936172225
+   },
+   {
+    "n": 10000,
+    "perLeafUs": 1.3672564864864867,
+    "closeUs": 49.68962536023055
+   },
+   {
+    "n": 100000,
+    "perLeafUs": 1.2636148,
+    "closeUs": 57.16188843164152
+   },
+   {
+    "n": 1000000,
+    "perLeafUs": 1.4299493,
+    "closeUs": 65.82563191153238
+   }
+  ],
+  "leafContentBuf": {
+   "perSec": 323409.28849956533,
+   "us": 3.0920571410902573,
+   "n": 161705
+  },
+  "leafIdentityBuf": {
+   "perSec": 408905.3012250119,
+   "us": 2.4455540121494326,
+   "n": 204454
+  },
+  "verifyReceipt": {
+   "perSec": 10759.276976587174,
+   "us": 92.94304832713755,
+   "n": 5380
+  }
+ },
+ "derived": {
+  "bytesPerGB": [
+   {
+    "size": 1024,
+    "bundlesPerGB": 976562.5,
+    "perBundleFirst": 164062500,
+    "perBundleNext": 152343750,
+    "batch": {
+     "100000000/1": 13520,
+     "100000000/60": 225.33333333333331,
+     "1000000000/1": 1352,
+     "1000000000/60": 22.53333333333333,
+     "10000000000/1": 135.20000000000002,
+     "10000000000/60": 2.2533333333333334,
+     "100000000000/1": 13.52,
+     "100000000000/60": 0.22533333333333333
+    }
+   },
+   {
+    "size": 65536,
+    "bundlesPerGB": 15258.7890625,
+    "perBundleFirst": 2563476.5625,
+    "perBundleNext": 2380371.09375,
+    "batch": {
+     "100000000/1": 13520,
+     "100000000/60": 225.33333333333331,
+     "1000000000/1": 1352,
+     "1000000000/60": 22.53333333333333,
+     "10000000000/1": 135.20000000000002,
+     "10000000000/60": 2.2533333333333334,
+     "100000000000/1": 13.52,
+     "100000000000/60": 0.22533333333333333
+    }
+   },
+   {
+    "size": 1048576,
+    "bundlesPerGB": 953.67431640625,
+    "perBundleFirst": 160217.28515625,
+    "perBundleNext": 148773.193359375,
+    "batch": {
+     "100000000/1": 13520,
+     "100000000/60": 225.33333333333331,
+     "1000000000/1": 1352,
+     "1000000000/60": 22.53333333333333,
+     "10000000000/1": 135.20000000000002,
+     "10000000000/60": 2.2533333333333334,
+     "100000000000/1": 13.52,
+     "100000000000/60": 0.22533333333333333
+    }
+   }
+  ],
+  "cpu": [
+   {
+    "rate": 100000000,
+    "size": 1024,
+    "bundlesPerSec": 12207.03125,
+    "perBundleStampPct": 92.73860795778259,
+    "perBundleCryptoPct": 44.303188512058895,
+    "perBundleVerifyPct": 139.17490710855563,
+    "batchContentPct": 7.574724804516808,
+    "batchIdentityPct": 4.734300284027746
+   },
+   {
+    "rate": 100000000,
+    "size": 65536,
+    "bundlesPerSec": 190.73486328125,
+    "perBundleStampPct": 14.145058525933157,
+    "perBundleCryptoPct": 1.2011168214818515,
+    "perBundleVerifyPct": 8.829390307910788,
+    "batchContentPct": 0.6306417734915418,
+    "batchIdentityPct": 0.07738063937796885
+   },
+   {
+    "rate": 100000000,
+    "size": 1048576,
+    "bundlesPerSec": 11.920928955078125,
+    "perBundleStampPct": 11.298400051188919,
+    "perBundleCryptoPct": 0.6349799768245532,
+    "perBundleVerifyPct": 5.102838206494975,
+    "batchContentPct": 0.6025702362680495,
+    "batchIdentityPct": 0.00808123990401382
+   },
+   {
+    "rate": 1000000000,
+    "size": 1024,
+    "bundlesPerSec": 122070.3125,
+    "perBundleStampPct": 927.386079577826,
+    "perBundleCryptoPct": 443.0318851205889,
+    "perBundleVerifyPct": 1391.7490710855561,
+    "batchContentPct": 75.71609652571634,
+    "batchIdentityPct": 47.31185132082571
+   },
+   {
+    "rate": 1000000000,
+    "size": 65536,
+    "bundlesPerSec": 1907.3486328125,
+    "perBundleStampPct": 141.45058525933158,
+    "perBundleCryptoPct": 12.011168214818516,
+    "perBundleVerifyPct": 88.29390307910788,
+    "batchContentPct": 6.275266215463667,
+    "batchIdentityPct": 0.7426548743279371
+   },
+   {
+    "rate": 1000000000,
+    "size": 1048576,
+    "bundlesPerSec": 119.20928955078125,
+    "perBundleStampPct": 112.98400051188918,
+    "perBundleCryptoPct": 6.349799768245531,
+    "perBundleVerifyPct": 51.02838206494975,
+    "batchContentPct": 5.994550843228743,
+    "batchIdentityPct": 0.04966087958838683
+   },
+   {
+    "rate": 10000000000,
+    "size": 1024,
+    "bundlesPerSec": 1220703.125,
+    "perBundleStampPct": 9273.860795778259,
+    "perBundleCryptoPct": 4430.31885120589,
+    "perBundleVerifyPct": 13917.490710855565,
+    "batchContentPct": 757.1298137377115,
+    "batchIdentityPct": 473.08736168880534
+   },
+   {
+    "rate": 10000000000,
+    "size": 65536,
+    "bundlesPerSec": 19073.486328125,
+    "perBundleStampPct": 1414.5058525933157,
+    "perBundleCryptoPct": 120.11168214818517,
+    "perBundleVerifyPct": 882.9390307910788,
+    "batchContentPct": 62.72151063518492,
+    "batchIdentityPct": 7.395397223827619
+   },
+   {
+    "rate": 10000000000,
+    "size": 1048576,
+    "bundlesPerSec": 1192.0928955078125,
+    "perBundleStampPct": 1129.840005118892,
+    "perBundleCryptoPct": 63.49799768245532,
+    "perBundleVerifyPct": 510.2838206494975,
+    "batchContentPct": 59.914356912835686,
+    "batchIdentityPct": 0.46545727643211693
+   },
+   {
+    "rate": 100000000000,
+    "size": 1024,
+    "bundlesPerSec": 12207031.25,
+    "perBundleStampPct": 92738.60795778259,
+    "perBundleCryptoPct": 44303.18851205889,
+    "perBundleVerifyPct": 139174.90710855564,
+    "batchContentPct": 7571.266985857664,
+    "batchIdentityPct": 4730.842465368602
+   },
+   {
+    "rate": 100000000000,
+    "size": 65536,
+    "bundlesPerSec": 190734.86328125,
+    "perBundleStampPct": 14145.058525933158,
+    "perBundleCryptoPct": 1201.1168214818517,
+    "perBundleVerifyPct": 8829.390307910788,
+    "batchContentPct": 627.1839548323975,
+    "batchIdentityPct": 73.92282071882444
+   },
+   {
+    "rate": 100000000000,
+    "size": 1048576,
+    "bundlesPerSec": 11920.928955078125,
+    "perBundleStampPct": 11298.400051188919,
+    "perBundleCryptoPct": 634.9799768245532,
+    "perBundleVerifyPct": 5102.838206494975,
+    "batchContentPct": 599.112417608905,
+    "batchIdentityPct": 4.623421244869418
+   }
+  ],
+  "latency": [
+   {
+    "rate": 100000000,
+    "size": 1024,
+    "window": 1,
+    "leaves": 12207.03125,
+    "perBundleOnPathUs": 89.4114676390155,
+    "batchCloseUs": 25780.159505208332,
+    "streamCloseUs": 57.16188843164152,
+    "closeExtrapolated": false,
+    "batchProofBytes": 448
+   },
+   {
+    "rate": 100000000,
+    "size": 1024,
+    "window": 60,
+    "leaves": 732421.875,
+    "perBundleOnPathUs": 89.4114676390155,
+    "batchCloseUs": 1626345.1171875,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": false,
+    "batchProofBytes": 640
+   },
+   {
+    "rate": 100000000,
+    "size": 65536,
+    "window": 1,
+    "leaves": 190.73486328125,
+    "perBundleOnPathUs": 755.0484444444444,
+    "batchCloseUs": 333.48290236679827,
+    "streamCloseUs": 47.213435936172225,
+    "closeExtrapolated": false,
+    "batchProofBytes": 256
+   },
+   {
+    "rate": 100000000,
+    "size": 65536,
+    "window": 60,
+    "leaves": 11444.091796875,
+    "perBundleOnPathUs": 755.0484444444444,
+    "batchCloseUs": 24168.899536132812,
+    "streamCloseUs": 57.16188843164152,
+    "closeExtrapolated": false,
+    "batchProofBytes": 448
+   },
+   {
+    "rate": 100000000,
+    "size": 1048576,
+    "window": 1,
+    "leaves": 11.920928955078125,
+    "perBundleOnPathUs": 9491.224905660378,
+    "batchCloseUs": 20.842681397924892,
+    "streamCloseUs": 47.213435936172225,
+    "closeExtrapolated": false,
+    "batchProofBytes": 128
+   },
+   {
+    "rate": 100000000,
+    "size": 1048576,
+    "window": 60,
+    "leaves": 715.2557373046875,
+    "perBundleOnPathUs": 9491.224905660378,
+    "batchCloseUs": 1250.5608838754936,
+    "streamCloseUs": 47.213435936172225,
+    "closeExtrapolated": false,
+    "batchProofBytes": 320
+   },
+   {
+    "rate": 1000000000,
+    "size": 1024,
+    "window": 1,
+    "leaves": 122070.3125,
+    "perBundleOnPathUs": 77.3154676390155,
+    "batchCloseUs": 271057.51953125,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": false,
+    "batchProofBytes": 544
+   },
+   {
+    "rate": 1000000000,
+    "size": 1024,
+    "window": 60,
+    "leaves": 7324218.75,
+    "perBundleOnPathUs": 77.3154676390155,
+    "batchCloseUs": 16263451.171875,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 736
+   },
+   {
+    "rate": 1000000000,
+    "size": 65536,
+    "window": 1,
+    "leaves": 1907.3486328125,
+    "perBundleOnPathUs": 742.9524444444444,
+    "batchCloseUs": 3611.371075665509,
+    "streamCloseUs": 49.68962536023055,
+    "closeExtrapolated": false,
+    "batchProofBytes": 352
+   },
+   {
+    "rate": 1000000000,
+    "size": 65536,
+    "window": 60,
+    "leaves": 114440.91796875,
+    "perBundleOnPathUs": 742.9524444444444,
+    "batchCloseUs": 254116.42456054688,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": false,
+    "batchProofBytes": 544
+   },
+   {
+    "rate": 1000000000,
+    "size": 1048576,
+    "window": 1,
+    "leaves": 119.20928955078125,
+    "perBundleOnPathUs": 9479.128905660376,
+    "batchCloseUs": 208.42681397924892,
+    "streamCloseUs": 47.213435936172225,
+    "closeExtrapolated": false,
+    "batchProofBytes": 224
+   },
+   {
+    "rate": 1000000000,
+    "size": 1048576,
+    "window": 60,
+    "leaves": 7152.557373046875,
+    "perBundleOnPathUs": 9479.128905660376,
+    "batchCloseUs": 13542.64153374566,
+    "streamCloseUs": 49.68962536023055,
+    "closeExtrapolated": false,
+    "batchProofBytes": 416
+   },
+   {
+    "rate": 10000000000,
+    "size": 1024,
+    "window": 1,
+    "leaves": 1220703.125,
+    "perBundleOnPathUs": 76.1058676390155,
+    "batchCloseUs": 2710575.1953125,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 672
+   },
+   {
+    "rate": 10000000000,
+    "size": 1024,
+    "window": 60,
+    "leaves": 73242187.5,
+    "perBundleOnPathUs": 76.1058676390155,
+    "batchCloseUs": 162634511.71875,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 864
+   },
+   {
+    "rate": 10000000000,
+    "size": 65536,
+    "window": 1,
+    "leaves": 19073.486328125,
+    "perBundleOnPathUs": 741.7428444444444,
+    "batchCloseUs": 40281.49922688802,
+    "streamCloseUs": 57.16188843164152,
+    "closeExtrapolated": false,
+    "batchProofBytes": 480
+   },
+   {
+    "rate": 10000000000,
+    "size": 65536,
+    "window": 60,
+    "leaves": 1144409.1796875,
+    "perBundleOnPathUs": 741.7428444444444,
+    "batchCloseUs": 2541164.2456054688,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 672
+   },
+   {
+    "rate": 10000000000,
+    "size": 1048576,
+    "window": 1,
+    "leaves": 1192.0928955078125,
+    "perBundleOnPathUs": 9477.919305660378,
+    "batchCloseUs": 2257.106922290943,
+    "streamCloseUs": 49.68962536023055,
+    "closeExtrapolated": false,
+    "batchProofBytes": 352
+   },
+   {
+    "rate": 10000000000,
+    "size": 1048576,
+    "window": 60,
+    "leaves": 71525.57373046875,
+    "perBundleOnPathUs": 9477.919305660378,
+    "batchCloseUs": 151055.62210083008,
+    "streamCloseUs": 57.16188843164152,
+    "closeExtrapolated": false,
+    "batchProofBytes": 544
+   },
+   {
+    "rate": 100000000000,
+    "size": 1024,
+    "window": 1,
+    "leaves": 12207031.25,
+    "perBundleOnPathUs": 75.9849076390155,
+    "batchCloseUs": 27105751.953125,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 768
+   },
+   {
+    "rate": 100000000000,
+    "size": 1024,
+    "window": 60,
+    "leaves": 732421875,
+    "perBundleOnPathUs": 75.9849076390155,
+    "batchCloseUs": 1626345117.1875,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 960
+   },
+   {
+    "rate": 100000000000,
+    "size": 65536,
+    "window": 1,
+    "leaves": 190734.86328125,
+    "perBundleOnPathUs": 741.6218844444443,
+    "batchCloseUs": 423527.3742675781,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": false,
+    "batchProofBytes": 576
+   },
+   {
+    "rate": 100000000000,
+    "size": 65536,
+    "window": 60,
+    "leaves": 11444091.796875,
+    "perBundleOnPathUs": 741.6218844444443,
+    "batchCloseUs": 25411642.456054688,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": true,
+    "batchProofBytes": 768
+   },
+   {
+    "rate": 100000000000,
+    "size": 1048576,
+    "window": 1,
+    "leaves": 11920.928955078125,
+    "perBundleOnPathUs": 9477.798345660378,
+    "batchCloseUs": 25175.93701680501,
+    "streamCloseUs": 57.16188843164152,
+    "closeExtrapolated": false,
+    "batchProofBytes": 448
+   },
+   {
+    "rate": 100000000000,
+    "size": 1048576,
+    "window": 60,
+    "leaves": 715255.7373046875,
+    "perBundleOnPathUs": 9477.798345660378,
+    "batchCloseUs": 1588227.653503418,
+    "streamCloseUs": 65.82563191153238,
+    "closeExtrapolated": false,
+    "batchProofBytes": 640
+   }
+  ]
+ }
+}

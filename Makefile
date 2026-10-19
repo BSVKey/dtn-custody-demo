@@ -13,6 +13,7 @@ help:
 	@echo "make bpv7-hardy-custodian - Hardy signs custody receipts natively (custody-receipt filter, local Hardy checkout; needs Docker)"
 	@echo "make bpv7-bpsec-ion / bpv7-bpsec-ion-source - JPL ION (real crypto) accepts our BIB / signs one we verify"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
+	@echo "make overhead   - Custody Receipt Block cost per GB, per link rate and per contact (docs/overhead-benchmark.md); overhead-c and overhead-arm64 add C and emulated ARM (Docker)"
 	@echo "make clean       - remove run artifacts"
 
 test:
@@ -156,3 +157,14 @@ mars:
 # Thousands of satellites: batch receipts, changing routes, outages, attacks.
 constellation:
 	node constellation/run.mjs
+
+# Custody Receipt Block overhead for a high-throughput operator: per-bundle against batched
+# receipts, bytes per GB, CPU per link rate, latency per contact. See docs/overhead-benchmark.md.
+overhead:
+	node bench/overhead.mjs
+overhead-c:
+	docker build -t dtn-custody-overhead -f bench/Dockerfile.overhead .
+	docker run --rm dtn-custody-overhead
+overhead-arm64:
+	docker build --platform linux/arm64 -t dtn-custody-overhead:arm64 -f bench/Dockerfile.overhead .
+	docker run --rm --platform linux/arm64 dtn-custody-overhead:arm64 --max-leaves 100000 --label "aarch64 under QEMU user-mode emulation (emulated, not flight hardware)"
