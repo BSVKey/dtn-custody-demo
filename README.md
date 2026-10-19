@@ -27,6 +27,9 @@ protocol, agent library, DTN adapters, and on-chain verifiers are here under Apa
 so anyone can build verifiable data-custody and relay settlement on BSV. See
 [Open core vs. hosted service](#open-core-vs-hosted-service).
 
+**New here? Start with [`docs/QUICKSTART.md`](docs/QUICKSTART.md)**: install, the four calls, and a
+runnable example (`npm run quickstart`) in five minutes.
+
 Full design, milestones, and acceptance criteria: [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md).
 
 ## One-line scope
@@ -36,6 +39,8 @@ across the blackout → delivery bound to a real BSV settlement → provenance a
 
 ## Layout
 ```
+index.mjs            public entry point: the whole agent API in one import
+examples/            quickstart.mjs, the smallest end-to-end integration
 agent/               the application agent
   lib/               canonical hashing, Merkle tree, keys, receipts, gap object
   source.mjs         chunk + Merkle + signed manifest
@@ -45,6 +50,7 @@ transport/
   sim.mjs            in-process DTN simulator (delay, reorder, occultation)
   bpv7-adapter.md    the real BPv7/uD3TN + netem seam (same shape as sim.mjs)
   bpv7/              Custody Receipt Block: the custody chain inside the BPv7 bundle (block 224)
+relief/              disaster relief: clinic reports by courier and satellite, with proof
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
@@ -82,6 +88,12 @@ infrastructure:
   committed in an OP_RETURN (tx [`733dcc21…b51207`](https://whatsonchain.com/tx/733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207)),
   and `make live` verifies it by default. `buildAnchorTx` builds (never broadcasts) the
   anchor for a new root; broadcasting is the operator's step. See `live/RESULTS.md`.
+
+- **Disaster relief (`relief/`)**: with the cell network down, two field clinics send encrypted
+  reports by motorbike courier and a solar-powered satellite terminal to a district hub. Every
+  chunk and handoff verifies, the 70-minute power cut is a gap record, relay operators are paid
+  only for custody they can prove, and an impostor relay is refused. `node relief/run.mjs`, see
+  `relief/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
@@ -140,6 +152,7 @@ Run it:
 ```bash
 npm test        # acceptance criteria, offline, deterministic
 npm run demo    # the end-to-end pipeline with readable output
+npm run quickstart  # the 40-line integration example (docs/QUICKSTART.md)
 ```
 
 ## Standards and heritage

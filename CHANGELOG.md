@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Disaster-relief walk-through** (`relief/`): clinic reports encrypted to a district hub
+  (X25519, HKDF, AES-256-GCM), carried by courier and a satellite terminal with a 70-minute
+  power cut; per-chunk and per-hop verification, a gap record, payouts for proven custody only,
+  and an impostor relay refused. Tested in the suite and run in CI.
+- **Quickstart for integrators** (`docs/QUICKSTART.md`, `examples/quickstart.mjs`, `index.mjs`): one
+  import for the whole agent API (`npm install @bsvkey/dtn-custody`), a 40-line
+  source to relays to destination example, the refusal rules, and where to plug in a real
+  network. Tested in the suite and run in CI.
 - **Signed TREB hop-records** (`transport/bpv7/treb-signed.mjs`): a proposed optional profile for
   the Traceroute Extension Block (draft-koo-dtn-traceroute-eb-02). The 7-field hop-record is
   unchanged; an optional eighth element is a COSE_Sign1 with a detached payload, bound to the
