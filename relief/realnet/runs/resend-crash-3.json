@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "transport": "uD3TN BPv7, TCPCLv3 CLA, links both ways",
+  "fileBytes": 2097152,
+  "chunks": 2049,
+  "courierTookBeforeCrash": 486,
+  "status": "verified",
+  "byteIdentical": true,
+  "resendRequests": 1,
+  "clinicResent": [
+    1563
+  ],
+  "refused": 0,
+  "duplicates": 0
+}

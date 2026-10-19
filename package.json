@@ -1,10 +1,11 @@
 {
   "name": "@bsvkey/dtn-custody",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "main": "index.mjs",
   "exports": {
-    ".": "./index.mjs"
+    ".": "./index.mjs",
+    "./relief-kit/*": "./relief/kit/*"
   },
   "description": "Verifiable data custody and relay payment for delay/disruption-tolerant networks (BPv7), settled on BSV.",
   "scripts": {
@@ -27,7 +28,9 @@
     "examples/quickstart.mjs",
     "docs/QUICKSTART.md",
     "spec/CUSTODY-RECORDS.md",
-    "NOTICE"
+    "NOTICE",
+    "relief/kit/",
+    "r2/aap.mjs"
   ],
   "publishConfig": {
     "access": "public"
@@ -45,5 +48,13 @@
   "devDependencies": {
     "@bsv/sdk": "^2.7.1",
     "satellite.js": "7.1.0"
+  },
+  "peerDependencies": {
+    "@bsv/sdk": "^2.7.1"
+  },
+  "peerDependenciesMeta": {
+    "@bsv/sdk": {
+      "optional": true
+    }
   }
 }

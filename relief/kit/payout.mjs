@@ -13,7 +13,8 @@
 // relay can check its payment against the hub's evidence. Paid ids are kept in
 // <data>/payouts.jsonl and never paid again. The funding key file is yours: this script reads it
 // and never writes or prints it.
-import { readFileSync, appendFileSync, existsSync } from "node:fs";
+import { readFileSync, appendFileSync, existsSync, realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 import { PrivateKey, Transaction, P2PKH, Script, SatoshisPerKilobyte } from "@bsv/sdk";
 import { importKeypair } from "../../agent/lib/keys.mjs";
@@ -63,7 +64,7 @@ export async function buildPayout(rows, { funder, fundTx, vout, feeRate = 100, n
   return { tx, payable, root };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const arg = (k) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); if (a) return a.slice(k.length + 3); const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   const has = (k) => process.argv.includes(`--${k}`);
   const config = JSON.parse(readFileSync(arg("config"), "utf8"));
