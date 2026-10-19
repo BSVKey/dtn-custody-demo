@@ -8,6 +8,11 @@
 [`demo/record.mjs`](demo/record.mjs) and rendered by [`demo/render.mjs`](demo/render.mjs). The
 closing card reads the anchor transaction live from the chain and recomputes the payload's root.*
 
+**At scale, on mainnet:** [watch the narrated walkthrough](https://dtn.bsvkey.com/#walkthrough) (under six
+minutes). 4,032 satellites on real Starlink orbits, 30,502 paid custody receipts on Bitcoin BSV
+mainnet, 0 rejected, all mined, and 100 of 100 sampled bundles proven from the chain alone. Every
+txid is in [`constellation/RUNS.md`](constellation/RUNS.md).
+
 A **reference implementation of a verifiable data-custody and relay-payment layer** for
 delay/disruption-tolerant networking (DTN), with settlement on **BSV**. A chunked
 payload crosses a multi-hop, occultation-interrupted link where every chunk is verified
