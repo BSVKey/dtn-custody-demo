@@ -17,4 +17,5 @@ jobs:
       - run: node --test
       - run: node run-demo.mjs
       - run: node examples/quickstart.mjs
+      - run: node relief/run.mjs
       - run: for p in contact-plans/*.json; do node run-demo.mjs --plan "$p" > /dev/null; done

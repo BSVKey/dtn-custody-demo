@@ -1,0 +1,28 @@
+{
+  "name": "relief-courier-satellite",
+  "description": "After an earthquake takes the cell network down, field clinics hand encrypted reports to a motorbike courier, who carries them to a village relay with a battery-powered satellite terminal; the terminal uplinks to the district coordination hub when it has power and sky.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "field clinic (tablet)" },
+    { "ipn": 2, "name": "motorbike courier (phone, data mule)" },
+    { "ipn": 3, "name": "village relay (satellite terminal)" },
+    { "ipn": 4, "name": "district coordination hub" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 2 },
+    { "id": "L2", "from": 2, "to": 3 },
+    { "id": "L3", "from": 3, "to": 4 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 2000, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 1000000, "note": "Wi-Fi Direct handoff at the clinic" },
+    "L2": { "one_way_ms": 2400000, "loss_pct": 0, "reorder_pct": 0, "rate_bps": 1000000, "note": "40 minute ride; the bundle is carried, not transmitted" },
+    "L3": { "one_way_ms": 600, "loss_pct": 0.5, "reorder_pct": 2, "rate_bps": 64000, "note": "GEO satellite uplink" }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 7200, "note": "courier waits at the clinic" },
+    { "link": "L2", "up_s": 0, "down_s": 10800 },
+    { "link": "L3", "up_s": 0, "down_s": 3000, "note": "terminal on battery" },
+    { "link": "L3", "up_s": 7200, "down_s": 10800, "note": "back up once the solar panel recharges it" }
+  ],
+  "occultation": { "link": "L3", "down_s": 3000, "up_s": 7200, "expect_gap_object": true, "cause": "satellite terminal out of power" }
+}
