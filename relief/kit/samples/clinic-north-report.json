@@ -1,0 +1,21 @@
+{
+  "clinic": "North field clinic",
+  "date": "2026-10-19",
+  "patientsSeen": 42,
+  "referrals": 3,
+  "conditions": {
+    "injuries": 17,
+    "respiratory": 9,
+    "diarrhoeal": 11,
+    "other": 5
+  },
+  "urgent": [
+    "2 patients need surgical transfer"
+  ],
+  "supplies": {
+    "ORS sachets": 200,
+    "tetanus vaccine": 60,
+    "wound dressings": 150
+  },
+  "note": "Synthetic sample report."
+}

@@ -1,0 +1,48 @@
+# Relief field pilot kit, one command:
+#   docker compose -f relief/kit/docker-compose.yml up --build
+# then open http://127.0.0.1:8080/ . Two clinics send their daily reports through a courier and
+# a village satellite relay whose uplink opens SAT_DELAY seconds late (the terminal is out of
+# power), so µD3TN holds the bundles at the village until it opens.
+# Send your own file:  docker compose -f relief/kit/docker-compose.yml cp myfile.json clinic-north:/data/outbox/
+# Start over (new keys): docker compose -f relief/kit/docker-compose.yml down -v
+x-node: &node
+  build: { context: ../.., dockerfile: relief/kit/docker/Dockerfile }
+  image: relief-kit:dev
+  volumes: ["deploy:/deploy:ro"]
+  depends_on: { provision: { condition: service_completed_successfully } }
+  restart: unless-stopped
+
+services:
+  provision:
+    build: { context: ../.., dockerfile: relief/kit/docker/Dockerfile }
+    image: relief-kit:dev
+    environment: { NODE_NAME: provision }
+    volumes: ["deploy:/deploy"]
+
+  district-hub:
+    <<: *node
+    environment: { NODE_NAME: district-hub }
+    ports: ["127.0.0.1:8080:8080"]   # decrypted health data: local machine only
+    volumes: ["deploy:/deploy:ro", "hub-data:/data"]
+
+  village-kalo:
+    <<: *node
+    environment: { NODE_NAME: village-kalo, CONTACTS: "dtn://district-hub.dtn/@district-hub:4224@${SAT_DELAY:-60}" }
+    volumes: ["deploy:/deploy:ro", "village-data:/data"]
+
+  courier-07:
+    <<: *node
+    environment: { NODE_NAME: courier-07, CONTACTS: "dtn://village-kalo.dtn/@village-kalo:4224@${RIDE:-20}" }
+    volumes: ["deploy:/deploy:ro", "courier-data:/data"]
+
+  clinic-north:
+    <<: *node
+    environment: { NODE_NAME: clinic-north, CONTACTS: "dtn://courier-07.dtn/@courier-07:4224@1", DEMO_FILE: /app/relief/kit/samples/clinic-north-report.json }
+    volumes: ["deploy:/deploy:ro", "clinic-north-data:/data"]
+
+  clinic-river:
+    <<: *node
+    environment: { NODE_NAME: clinic-river, CONTACTS: "dtn://courier-07.dtn/@courier-07:4224@1", DEMO_FILE: /app/relief/kit/samples/clinic-river-report.json }
+    volumes: ["deploy:/deploy:ro", "clinic-river-data:/data"]
+
+volumes: { deploy: {}, hub-data: {}, village-data: {}, courier-data: {}, clinic-north-data: {}, clinic-river-data: {} }

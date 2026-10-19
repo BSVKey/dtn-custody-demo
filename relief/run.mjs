@@ -15,40 +15,19 @@
 //   node relief/run.mjs            readable walk-through
 //   node relief/run.mjs --json     the hub's evidence as JSON
 import { readFileSync } from "node:fs";
-import { createCipheriv, createDecipheriv, createPublicKey, diffieHellman, generateKeyPairSync, hkdfSync, randomBytes } from "node:crypto";
 import { genKeypair, prepare, makeRelay, makeDest, gapObject, verifyCustodyChain } from "../index.mjs";
 import { simulate, defaultSimPlan } from "../transport/sim.mjs";
 import { toSimPlan } from "../contact-plans/compile.mjs";
+import { sealTo, openAt, genEncKeypair } from "./kit/lib/seal.mjs";
 
 const json = process.argv.includes("--json");
 const say = (s = "") => { if (!json) console.log(s); };
 const mins = (ms) => `${Math.round(ms / 60000)} min`;
 
-// ---- End-to-end encryption to the hub: X25519 + HKDF-SHA256 + AES-256-GCM ------------
-// The hub's encryption key is provisioned on each clinic tablet before deployment. The
-// custody layer signs and verifies the ciphertext; only the hub can read the report.
-function sealTo(hubPub, plaintext, aad) {
-  const eph = generateKeyPairSync("x25519");
-  const key = Buffer.from(hkdfSync("sha256", diffieHellman({ privateKey: eph.privateKey, publicKey: hubPub }), Buffer.alloc(0), "relief-report/1", 32));
-  const iv = randomBytes(12);
-  const c = createCipheriv("aes-256-gcm", key, iv).setAAD(aad);
-  const ct = Buffer.concat([c.update(plaintext), c.final()]);
-  const epk = eph.publicKey.export({ type: "spki", format: "der" });
-  return Buffer.concat([Buffer.from([epk.length]), epk, iv, c.getAuthTag(), ct]);
-}
-function openAt(hubPriv, sealed, aad) {
-  const n = sealed[0], epk = createPublicKey({ key: sealed.subarray(1, 1 + n), format: "der", type: "spki" });
-  const iv = sealed.subarray(1 + n, 13 + n), tag = sealed.subarray(13 + n, 29 + n), ct = sealed.subarray(29 + n);
-  const key = Buffer.from(hkdfSync("sha256", diffieHellman({ privateKey: hubPriv, publicKey: epk }), Buffer.alloc(0), "relief-report/1", 32));
-  const d = createDecipheriv("aes-256-gcm", key, iv).setAAD(aad);
-  d.setAuthTag(tag);
-  return Buffer.concat([d.update(ct), d.final()]);
-}
-
 // ---- Who is in the network -------------------------------------------------------------
 const EID = { courier: "dtn://courier-07/", village: "dtn://village-relay-kalo/", hub: "dtn://district-hub/" };
 const courierKp = genKeypair(), villageKp = genKeypair(), hubKp = genKeypair();
-const hubEnc = generateKeyPairSync("x25519");
+const hubEnc = genEncKeypair();
 const pinnedHops = [{ eid: EID.courier, pub: courierKp.pub }, { eid: EID.village, pub: villageKp.pub }];
 const relays = { [EID.courier]: makeRelay(courierKp, EID.courier), [EID.village]: makeRelay(villageKp, EID.village) };
 const RATE_SATS = 50; // what the hub pays a relay operator per bundle it can prove it carried
@@ -84,7 +63,7 @@ for (const c of clinics) {
   say(`\n== ${c.report.clinic}: encrypt, chunk, sign ==`);
   const plaintext = Buffer.from(JSON.stringify(c.report), "utf8");
   const payloadId = `${c.id}/2026-10-19`;
-  const sealed = sealTo(hubEnc.publicKey, plaintext, Buffer.from(payloadId));
+  const sealed = sealTo(hubEnc.pub, plaintext, payloadId);
   const { manifest, bundles } = prepare(c.kp, sealed, { payloadId, chunkSize: 64 });
   say(`  report ${plaintext.length} bytes -> ciphertext ${sealed.length} bytes in ${bundles.length} bundles | root ${manifest.root.slice(0, 18)}...`);
 
@@ -100,7 +79,7 @@ for (const c of clinics) {
   }
   const chains = bundles.map((b) => [b.bundleId, hub.verifyChain(b.bundleId)]);
   for (const [id, v] of chains) if (v.ok) for (const h of pinnedHops) custodied.get(h.eid).add(id);
-  const report = JSON.parse(openAt(hubEnc.privateKey, hub.reassemble(), Buffer.from(payloadId)).toString("utf8"));
+  const report = JSON.parse(openAt(hubEnc.priv, hub.reassemble(), payloadId).toString("utf8"));
   const order = sim.arrivalOrder.map((b) => b.index);
 
   say(`  hub: every chunk verified ${check(hub.isComplete())} | arrived out of order ${order.some((v, i) => v !== i) ? "yes" : "no"} | custody chains intact ${check(chains.every(([, v]) => v.ok))}`);

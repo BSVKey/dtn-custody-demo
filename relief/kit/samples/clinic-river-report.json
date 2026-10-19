@@ -1,0 +1,21 @@
+{
+  "clinic": "River crossing clinic",
+  "date": "2026-10-19",
+  "patientsSeen": 27,
+  "referrals": 1,
+  "conditions": {
+    "injuries": 8,
+    "respiratory": 4,
+    "diarrhoeal": 13,
+    "other": 2
+  },
+  "urgent": [
+    "suspected cholera cluster: 6 cases"
+  ],
+  "supplies": {
+    "ORS sachets": 400,
+    "water purification tablets": 5000,
+    "IV fluids": 40
+  },
+  "note": "Synthetic sample report."
+}

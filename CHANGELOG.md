@@ -4,6 +4,17 @@
 
 ### Added
 
+- **Relief field pilot kit** (`relief/kit/`): `provision.mjs` (keys and per-device configs,
+  refuses to overwrite a deployment), `node.mjs` (clinic outbox, relay custody, hub verify,
+  decrypt, frame log replayed on restart), a hub dashboard, `payout.mjs` (BSV relay payouts with
+  an OP_RETURN commitment to the paid handoffs, never paying a handoff twice, `--spend-real-bsv`
+  to broadcast), `run-local.sh` over five real µD3TN nodes, and a Docker Compose demo.
+- **Real-network relief runs** (`relief/realnet/`): five Linux network namespaces, real loss,
+  rate limits, delay and a 100%-loss satellite blackout; in five runs (TCPCLv3 and mtcp links,
+  blackouts of 50 s and 120 s) every file verified and byte-identical.
+- **Regional-scale relief run** (`relief/scale/`): 480 clinics, 48 couriers, 16 relays over three
+  days with changing routes and long outages; batch receipts, payouts for proven handoffs, every
+  undelivered bundle located at its last custodian, six attacks each contained.
 - **Disaster-relief walk-through** (`relief/`): clinic reports encrypted to a district hub
   (X25519, HKDF, AES-256-GCM), carried by courier and a satellite terminal with a 70-minute
   power cut; per-chunk and per-hop verification, a gap record, payouts for proven custody only,

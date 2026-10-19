@@ -1,0 +1,13 @@
+{
+  "name": "kalo-district-pilot",
+  "ratePerBundleSats": 50,
+  "chunkSize": 1024,
+  "holdThresholdMs": 600000,
+  "nodes": [
+    { "name": "clinic-north", "role": "clinic", "eid": "dtn://clinic-north.dtn/", "next": "dtn://courier-07.dtn/", "aap": { "host": "127.0.0.1", "port": 4242 } },
+    { "name": "clinic-river", "role": "clinic", "eid": "dtn://clinic-river.dtn/", "next": "dtn://courier-07.dtn/", "aap": { "host": "127.0.0.1", "port": 4242 } },
+    { "name": "courier-07", "role": "relay", "eid": "dtn://courier-07.dtn/", "next": "dtn://village-kalo.dtn/", "aap": { "host": "127.0.0.1", "port": 4242 } },
+    { "name": "village-kalo", "role": "relay", "eid": "dtn://village-kalo.dtn/", "next": "dtn://district-hub.dtn/", "aap": { "host": "127.0.0.1", "port": 4242 } },
+    { "name": "district-hub", "role": "hub", "eid": "dtn://district-hub.dtn/", "aap": { "host": "127.0.0.1", "port": 4242 }, "dashboard": { "host": "127.0.0.1", "port": 8080 } }
+  ]
+}
