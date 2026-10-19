@@ -10,6 +10,7 @@ help:
 	@echo "make bpv7-block - custody receipts inside the BPv7 bundle, carried intact by unaware uD3TN nodes (needs Docker)"
 	@echo "make bpv7-block-all - the same through NASA HDTN, JPL ION and Aalyria Hardy too, and uD3TN -> HDTN in one path (needs Docker)"
 	@echo "make bpv7-bpsec-all - a BPSec payload BIB beside block 224 through all four stacks (needs Docker)"
+	@echo "make bpv7-hardy-custodian - Hardy signs custody receipts natively (custody-receipt filter, local Hardy checkout; needs Docker)"
 	@echo "make bpv7-bpsec-ion / bpv7-bpsec-ion-source - JPL ION (real crypto) accepts our BIB / signs one we verify"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
 	@echo "make clean       - remove run artifacts"
@@ -79,6 +80,15 @@ bpv7-block-prevnode:
 	docker run --rm -e BPSEC=1 -e RECEIPT=2 -v "$(CURDIR):/app" dtn-custody-r2-prevnode bash /app/transport/bpv7/interop/ud3tn-run.sh
 
 bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-hardy bpv7-block-mix
+
+# A second implementation of the Custody Receipt Block inside a real BPA: Aalyria's Hardy
+# built from a local checkout (HARDY_SRC) with the custody-receipt Egress Rewriter, which
+# signs version 2 receipts. Checked both ways against receipt-v2.mjs. See RESULTS.md section 7.
+HARDY_SRC ?= ../hardy-custody-receipt
+bpv7-hardy-custodian:
+	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+	docker build -t dtn-custody-hardy-custodian --build-arg HARDY_REVISION=$$(git -C $(HARDY_SRC) rev-parse --short HEAD) -f transport/bpv7/interop/hardy-custodian/Dockerfile $(HARDY_SRC)
+	docker run --rm --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy-custodian /app/transport/bpv7/interop/hardy-custodian/run.sh
 
 # BPSec (RFC 9172/9173): a payload BIB beside block 224. bpv7-bpsec-all carries it through
 # the four unaware stacks (verified at our destination before and after hop 2 appends).
