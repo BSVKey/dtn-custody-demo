@@ -160,7 +160,7 @@ function readPayment(input) {
 }
 
 $("demo").onclick = async () => {
-  const to = $("myAddr").value.trim() || PrivateKey.fromRandom().toAddress();
+  const to = peerAddr || PrivateKey.fromRandom().toAddress();
   const { tx } = await demoPayment({ to, sats: 1000 });
   setPayment(tx, TYPE.PAY_EF);
   status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
@@ -175,6 +175,7 @@ function showCoinsText() { status($("coinsStatus"), coins.length ? "good" : "war
 function setWallet(w, { quiet = false } = {}) {
   wallet = w; coins = [];
   if (w) { session.unlock(w.key.toWif()); session.remember(w.address); }
+  setTimeout(() => { try { sendHello(); } catch {} }, 0);
   setTimeout(wRender, 0);
   $("walletIn").value = "";
   $("coinsBox").classList.toggle("hidden", !w);
@@ -659,7 +660,7 @@ let pc = null, chan = null;
 function rtcState(text, kind = "warn") { status($("rtcStatus"), kind, text); }
 function wireChannel(ch) {
   chan = ch;
-  ch.onopen = () => { releaseCamera(); rtcState("Connected. Payments you send now go straight to the other phone.", "good"); $("rtcSendBox").classList.remove("hidden"); $("rtcQrBox").classList.add("hidden"); stopRtcScan(); };
+  ch.onopen = () => { releaseCamera(); sendHello(); rtcState("Connected. Payments you send now go straight to the other phone.", "good"); $("rtcSendBox").classList.remove("hidden"); $("rtcQrBox").classList.add("hidden"); stopRtcScan(); };
   ch.onclose = () => { rtcState("Disconnected. Start again to reconnect.", "bad"); $("rtcSendBox").classList.add("hidden"); };
   ch.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
@@ -672,7 +673,7 @@ function wireChannel(ch) {
       chan.send(JSON.stringify({ t: "ack", txid: tx.id("hex") }));
     } catch (err) { nearbyLog("bad", `Received something that is not a payment: ${err.message}`); }
   };
-  ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "ack") nearbyLog("good", `The other phone received and checked ${short(m.txid)}.`); } catch {} });
+  ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "hello") gotHello(m.address); if (m.t === "ack") nearbyLog("good", `The other phone received and checked ${short(m.txid)}.`); } catch {} });
 }
 const RTC_TIPS = "Check that both devices are on the same Wi-Fi (not mobile data), or join one phone's hotspot with the other. Guest Wi-Fi and some routers keep devices apart. Then press Start again on the first device.";
 let rtcTimer = null;
@@ -789,6 +790,35 @@ async function rtcScan(onText) {
 $("rtcStart").onclick = async () => { try { await rtcStart(); } catch (e) { rtcState(`Could not start: ${e.message}`, "bad"); } };
 $("rtcJoin").onclick = async () => { try { rtcState("Point the camera at the first phone's code."); await rtcScan(rtcJoin); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
 $("rtcScanAnswer").onclick = async () => { try { rtcState("Point the camera at the other phone's answer."); await rtcScan(rtcFinish); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
+// ---- the two devices tell each other where to be paid ----
+let peerAddr = null;
+const myPayAddr = () => wallet?.address || $("myAddr").value.trim() || null;
+function sendHello() { if (chan?.readyState === "open") chan.send(JSON.stringify({ t: "hello", address: myPayAddr() })); }
+function gotHello(address) {
+  let ok = false;
+  try { if (typeof address === "string") { new P2PKH().lock(address); ok = true; } } catch {}
+  peerAddr = ok ? address : null;
+  $("rtcPayBox").classList.toggle("hidden", !peerAddr);
+  $("rtcNoPeerAddr").classList.toggle("hidden", !!peerAddr);
+  if (!peerAddr) return;
+  $("rtcPeerAddr").textContent = peerAddr;
+  if (!$("to").value.trim() || $("to").dataset.fromPeer === "1") { $("to").value = peerAddr; $("to").dataset.fromPeer = "1"; }
+  nearbyLog("good", `The other device will be paid at ${short(peerAddr)}.`);
+}
+$("myAddr").addEventListener("change", sendHello);
+$("rtcPay").onclick = async () => {
+  if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
+  if (!peerAddr) return nearbyLog("warn", "The other device has not shared an address yet.");
+  if (!wallet) return nearbyLog("warn", "Open your wallet first: Pay tab, Send real BSV (or the Open wallet button at the top).");
+  if (!coins.length) return nearbyLog("warn", "Get your coins first: Pay tab, Send real BSV, Get my coins (needs internet once).");
+  try {
+    $("to").value = peerAddr; $("sats").value = $("rtcSats").value;
+    await $("sign").onclick();
+    if (!current?.check?.ok || !current.tx.outputs.some((o) => o.lockingScript.toHex() === new P2PKH().lock(peerAddr).toHex())) return nearbyLog("bad", $("payStatus").textContent);
+    $("rtcSend").click();
+  } catch (e) { nearbyLog("bad", e.message); }
+};
+
 $("rtcDemo").onclick = async () => {
   if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
   const to = $("myAddr").value.trim() || PrivateKey.fromRandom().toAddress();

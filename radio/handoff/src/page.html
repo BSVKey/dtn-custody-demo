@@ -77,6 +77,7 @@ label.btn.file { display: inline-flex; align-items: center; margin: 0; font: inh
 #tipBox { position: absolute; z-index: 40; max-width: min(300px, calc(100vw - 32px)); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 400; line-height: 1.4; padding: 9px 11px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 .rtclog { list-style: none; padding: 0; margin: 10px 0 0; }
 .rtclog li { margin-bottom: 6px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
 .hidden { display: none !important; }
 .status { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
 .status.good { background: var(--good-bg); color: var(--good); }
@@ -178,7 +179,8 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
         <li>First phone: open <button class="link" data-goto="nearby">Nearby</button> and press <b>Start</b>. A code appears.</li>
         <li>Second phone: open Nearby and press <b>Join</b>, then scan that code (or point its camera app at it and open the link).</li>
         <li>The second phone now shows an answer code. First phone: press <b>Scan their answer</b> and scan it. Both say <b>Connected</b>.</li>
-        <li>Load or sign a payment on <b>Pay</b>, then press <b>Send this payment</b> on Nearby. It arrives on the other phone's Get paid tab, checked.</li>
+        <li>The phones tell each other where to be paid (the open wallet's address, or the one under Get paid), so there is no address to type. To pay: open your wallet and get your coins once (Pay tab, Send real BSV), then on Nearby enter an amount and press <b>Pay them</b>. It arrives on the other phone's Get paid tab, checked.</li>
+        <li>Just testing? Press <b>Send a demo payment</b> instead: no wallet needed.</li>
       </ol>
     </details>
 
@@ -316,7 +318,15 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <div class="qr hidden" id="rtcQrBox"><canvas id="rtcQr"></canvas><span class="muted" id="rtcQrNote"></span></div>
       <div id="rtcStatus"></div>
       <div id="rtcSendBox" class="hidden">
-        <p class="muted">Send the payment loaded on the Pay tab. The other phone checks it on its Get paid tab.</p>
+        <div id="rtcPayBox" class="hidden">
+          <p><b>Pay the other device:</b> <span id="rtcPeerAddr" class="mono"></span></p>
+          <label for="rtcSats">Amount (<span class="tip" data-term="sat" tabindex="0">satoshis</span>)</label>
+          <input id="rtcSats" type="number" min="1" inputmode="numeric">
+          <div class="row"><button class="btn primary" id="rtcPay">Pay them</button></div>
+          <p class="muted">Signs from your open wallet (Send real BSV on the Pay tab) and sends it straight over this link. Nothing goes to the network until someone broadcasts it.</p>
+        </div>
+        <p class="muted" id="rtcNoPeerAddr">The other device has not shared an address yet: it shares its open wallet's address, or the one under its Get paid tab.</p>
+        <p class="muted">Or send the payment loaded on the Pay tab. The other device checks it on its Get paid tab.</p>
         <div class="row"><button class="btn primary" id="rtcSend">Send this payment</button><button class="btn" id="rtcDemo">Send a demo payment</button></div>
       </div>
       <ul id="rtcLog" class="rtclog"></ul>
