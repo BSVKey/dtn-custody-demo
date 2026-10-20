@@ -139,7 +139,7 @@ const codec = () => (codecPromise ??= ggwaveFactory(QUIET).then((gg) => ggwaveCo
 // ---------- pay ----------
 let current = null; // { tx, type, msg, text }
 
-function setPayment(tx, type) {
+function setPayment(tx, type) { isDemo = false;
   const { msg } = type === TYPE.PAY_BEEF ? encodePayment(tx, { beef: true }) : encodePayment(tx);
   const check = checkOffline(tx);
   const text = paymentTexts(type, msg)[0];
@@ -174,9 +174,9 @@ function readPayment(input) {
 }
 
 $("demo").onclick = async () => {
-  const to = peerAddr || PrivateKey.fromRandom().toAddress();
+  const to = $("myAddr").value.trim() || PrivateKey.fromRandom().toAddress();
   const { tx } = await demoPayment({ to, sats: 1000 });
-  setPayment(tx, TYPE.PAY_EF);
+  setPayment(tx, TYPE.PAY_EF); isDemo = true;
   status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
   $("broadcastPay").disabled = true; $("broadcastPay").title = "A demo payment cannot be sent: its funding is made up.";
 };
@@ -735,7 +735,7 @@ async function holdCamera() {
 }
 function releaseCamera() { camHold?.getTracks().forEach((t) => t.stop()); camHold = null; }
 
-async function rtcStart() {
+async function rtcStart() { rtcRole = "start";
   await holdCamera();
   const p = await newPeer();
   wireChannel(p.createDataChannel("bsvkey-pay", { ordered: true }));
@@ -747,7 +747,7 @@ async function rtcStart() {
   rtcState("Waiting for the other phone to scan this code.");
   return text;
 }
-async function rtcJoin(offerText) {
+async function rtcJoin(offerText) { rtcRole = "join";
   const o = await unpackSdp(offerText);
   if (!o || o.kind !== "offer") throw new Error("that is not a Nearby connection code");
   await holdCamera();
@@ -841,9 +841,9 @@ $("rtcPay").onclick = async () => {
 
 $("rtcDemo").onclick = async () => {
   if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
-  const to = $("myAddr").value.trim() || PrivateKey.fromRandom().toAddress();
+  const to = peerAddr || PrivateKey.fromRandom().toAddress(); // pays the other device when it shared an address
   const { tx } = await demoPayment({ to, sats: 1000 });
-  setPayment(tx, TYPE.PAY_EF);
+  setPayment(tx, TYPE.PAY_EF); isDemo = true;
   status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
   $("broadcastPay").disabled = true;
   $("rtcSend").click();
@@ -880,6 +880,81 @@ $("rtcSend").onclick = () => {
     setTimeout(() => $("getStatus").scrollIntoView({ behavior: "smooth", block: "center" }), 300);
   }
 }
+
+// ---------- Next step: what to do now, as buttons, beside the page (computer) or at the bottom (phone) ----------
+// Worked out from what is on screen: the open tab, the wallet, the loaded payment, payments
+// waiting to be sent, and the Nearby link. Each button does the step, or takes you to it and
+// highlights it.
+let rtcRole = null; // "start" or "join", for the Nearby advice
+let isDemo = false;  // the loaded payment is a demo (made-up funding)
+const tabNow = () => document.querySelector('[data-tab][aria-selected="true"]')?.dataset.tab ?? "pay";
+const goTab = (t) => document.querySelector(`[data-tab="${t}"]`).click();
+function point(id, { focus = false } = {}) {
+  const el = $(id); if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("pulse"); void el.offsetWidth; el.classList.add("pulse");
+  if (focus) setTimeout(() => { try { el.focus({ preventScroll: true }); } catch {} }, 350);
+}
+const act = (label, run, primary = false) => ({ label, run, primary });
+const unsent = () => outbox.list().filter((x) => !x.sentAt);
+const sentHere = () => /^Sent: the network accepted it/.test($("handStatus").textContent);
+
+function nextStep() {
+  const tab = tabNow(), linked = chan?.readyState === "open";
+  if (tab === "nearby") {
+    if (linked && peerAddr) {
+      if (wallet) return { title: "Pay the other device", text: `You are linked, and the other device will be paid at ${peerAddr.slice(0, 8)}... Enter an amount and press Pay them. It is signed here and sent over the link.`, actions: [act("Enter the amount", () => point("rtcSats", { focus: true }), true), act("Send a demo payment", () => $("rtcDemo").click())] };
+      return { title: "Linked: open your wallet to pay", text: "You are linked and the other device has shared its address. To pay real BSV, open your wallet first. To test, send a demo payment.", actions: [act("Open my wallet", () => { goTab("pay"); $("real").open = true; point("walletIn", { focus: true }); }, true), act("Send a demo payment", () => $("rtcDemo").click())] };
+    }
+    if (linked) return { title: "Linked", text: "The other device has not shared an address yet (it shares its wallet's, or the one under its Get paid tab). You can still send the payment loaded on the Pay tab, or a demo.", actions: [act("Send a demo payment", () => $("rtcDemo").click(), true), act("Send the loaded payment", () => $("rtcSend").click())] };
+    if (rtcRole === "start" && !$("rtcScanAnswer").classList.contains("hidden")) return { title: "Now scan their answer", text: "Let the other device scan the code above (its camera app works). When it shows an answer code, scan that here.", actions: [act("Scan their answer", () => $("rtcScanAnswer").click(), true), act("Start over", () => $("rtcStart").click())] };
+    if (rtcRole === "join") return { title: "Let the first device scan this", text: "The first device scans this answer from its Nearby tab (Scan their answer). Both then say Connected.", actions: [act("Start over as the first device", () => $("rtcStart").click())] };
+    return { title: "Link two devices", text: "Both on the same Wi-Fi, or one phone's hotspot. One device starts and shows a code; the other joins by scanning it. No internet needed.", actions: [act("Start (this device first)", () => $("rtcStart").click(), true), act("Join (scan their code)", () => $("rtcJoin").click())] };
+  }
+  if (tab === "get") {
+    const waiting = unsent();
+    if (waiting.length) return { title: `${waiting.length} payment${waiting.length > 1 ? "s" : ""} waiting to be sent`, text: "A payment is only final once it reaches the network. If you are online, broadcast it now; otherwise keep it and send it when you can (or text it to a gateway).", actions: [act("Broadcast the newest", () => { point("outbox"); $("outbox").querySelector("li button")?.click(); }, true), act("Show the list", () => point("outbox"))] };
+    if (!$("myAddr").value.trim()) return { title: "Where should you be paid?", text: "Enter your address, so the page can check that a payment really pays you.", actions: [wallet ? act("Use my wallet's address", () => { $("myAddr").value = wallet.address; $("myAddr").dispatchEvent(new Event("change")); }, true) : act("Enter my address", () => point("myAddr", { focus: true }), true), act("Open my wallet", () => { goTab("pay"); $("real").open = true; point("walletIn", { focus: true }); })] };
+    return { title: "Ready to receive", text: "Scan the payer's QR code, or listen when they play it as sound. Or link to their device on Nearby.", actions: [act("Scan QR code", () => $("scan").click(), true), act("Listen", () => $("listen").click()), act("Link a nearby device", () => goTab("nearby"))] };
+  }
+  if (tab === "settings") return { title: "Settings", text: "Only needed for texting payments to a gateway: its phone number and public key come from whoever runs it.", actions: [act("Back to Pay", () => goTab("pay"), true)] };
+  // Pay tab
+  if (current?.check?.ok) {
+    if (sentHere()) return { title: "Sent", text: "The network has it. It can take a minute to show on WhatsOnChain.", actions: [act("See it on WhatsOnChain", () => window.open(`https://whatsonchain.com/tx/${current.tx.id("hex")}`, "_blank", "noopener"), true), act("Make another payment", () => { $("real").open = true; point(wallet ? "to" : "demo", { focus: !!wallet }); })] };
+    if (isDemo && !wallet) return { title: "Give the demo to the other person", text: "Show it as a QR code, play it as sound, or link to their device. A demo cannot be broadcast: its funding is made up.", actions: [act("Show QR code", () => $("showQr").click(), true), act("Play as sound", () => $("play").click()), act("Link a nearby device", () => goTab("nearby"))] };
+    if (!isDemo) return { title: "Give it to the other person", text: "Signed, nothing sent yet. Show it as a QR code, play it as sound, or link to their device. If you are online you can also send it to the network yourself.", actions: [act("Show QR code", () => $("showQr").click(), true), act("Play as sound", () => $("play").click()), act("Send it now (mainnet)", () => $("broadcastPay").click()), act("Link a nearby device", () => goTab("nearby"))] };
+  }
+  if (wallet && !coins.length) return { title: "Get your coins", text: "Your wallet is open. Read its coins once while you have internet; after that, signing works offline.", actions: [act("Get my coins", () => { $("real").open = true; $("coinsGet").click(); point("coinsStatus"); }, true), act("No internet: paste a funding transaction", () => { $("real").open = true; point("fund", { focus: true }); })] };
+  if (wallet) return { title: "Send real BSV", text: "Enter who to pay and how much, then sign. Linked to a nearby device? Its address can fill in by itself.", actions: [act("Fill in the payment", () => { $("real").open = true; point("to", { focus: true }); }, true), act("Link a nearby device", () => goTab("nearby"))] };
+  if (session.remembered()) return { title: "Your wallet is locked in this tab", text: "The page remembers your address, but the key stays in the tab where you opened it. Load it here once, or try a demo.", actions: [act("Unlock my wallet", () => { $("real").open = true; point("walletIn", { focus: true }); }, true), act("Try a demo payment", () => $("demo").click())] };
+  return { title: "Start here", text: "Try a demo payment to see how it works (no wallet needed), or open your wallet to send real BSV.", actions: [act("Try a demo payment", () => $("demo").click(), true), act("Open my wallet", () => { $("real").open = true; point("walletIn", { focus: true }); })] };
+}
+
+let lastStep = "";
+function renderStep() {
+  const box = $("nextStep");
+  if (box.dataset.off === "1") return;
+  let s;
+  try { s = nextStep(); } catch { return; }
+  const key = s.title + "|" + s.text + "|" + s.actions.map((a) => a.label).join(",");
+  if (key === lastStep) return;
+  lastStep = key;
+  $("nsTitle").textContent = s.title;
+  $("nsText").textContent = s.text;
+  const row = $("nsActions"); row.innerHTML = "";
+  for (const a of s.actions) {
+    const b = document.createElement("button"); b.className = a.primary ? "btn primary" : "btn"; b.textContent = a.label;
+    b.onclick = () => { try { a.run(); } catch {} setTimeout(() => { lastStep = ""; renderStep(); }, 300); };
+    row.append(b);
+  }
+}
+$("nsToggle").onclick = () => { const box = $("nextStep"); const open = box.classList.toggle("open"); $("nsToggle").textContent = open ? "Hide" : "Show"; store.set("nsOpen", open ? "1" : "0"); };
+$("nsOff").onclick = () => { $("nextStep").dataset.off = "1"; $("nextStep").classList.add("hidden"); store.set("nsOff", "1"); $("nsBack").classList.remove("hidden"); };
+$("nsBack").onclick = () => { $("nextStep").dataset.off = "0"; $("nextStep").classList.remove("hidden"); store.set("nsOff", "0"); $("nsBack").classList.add("hidden"); lastStep = ""; renderStep(); };
+if (store.get("nsOff") === "1") { $("nextStep").dataset.off = "1"; $("nextStep").classList.add("hidden"); $("nsBack").classList.remove("hidden"); }
+if (store.get("nsOpen") !== "0") { $("nextStep").classList.add("open"); $("nsToggle").textContent = "Hide"; }
+setInterval(renderStep, 700);
+renderStep();
 
 // for checks from the browser console (and the built-in browser test)
 window.handoff = { nearby: { trimSdp, rtcStart, rtcJoin, rtcFinish, state: () => ({ pc: pc?.connectionState, chan: chan?.readyState }) }, asLink, fromLink, listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
