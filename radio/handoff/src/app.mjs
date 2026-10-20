@@ -5,7 +5,7 @@
 import qrcode from "qrcode-generator";
 import jsQR from "jsqr";
 import ggwaveFactory from "ggwave";
-import { PrivateKey, Transaction, P2PKH } from "@bsv/sdk";
+import { PrivateKey, Transaction, P2PKH, Utils } from "@bsv/sdk";
 import { TYPE } from "../../lib/frame.mjs";
 import { encodePayment, decodePayment, checkOffline, paysAddress, buildRadioPayment, demoPayment } from "../../lib/payment.mjs";
 import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../sms/text.mjs";
@@ -23,6 +23,25 @@ const smsHref = (n, body) => `sms:${n.replace(/[^+0-9]/g, "")}?&body=${encodeURI
 const short = (h) => `${h.slice(0, 10)}...${h.slice(-6)}`;
 const ARC = "https://arc.gorillapool.io";
 const QR_SINGLE_MAX = 1200; // longer payments cycle through several codes
+
+// "1Abc...: 1000 sat" for each output, so a payment says plainly where it goes
+function paysList(tx) {
+  return tx.outputs.map((o) => {
+    const h = o.lockingScript.toHex(), m = h.match(/^76a914([0-9a-f]{40})88ac$/);
+    const who = m ? Utils.toBase58Check(Utils.toArray(m[1], "hex"), [0]) : /^(00)?6a/.test(h) ? "a data note" : "another kind of script";
+    return `${who}: ${o.satoshis} sat`;
+  });
+}
+async function broadcastEF(efHex) {
+  const r = await fetch(`${ARC}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: efHex }) });
+  const body = await r.text();
+  return { ok: r.ok || /already|known/i.test(body), status: r.status, body };
+}
+function txLink(el, kind, text, txid) {
+  status(el, kind, text);
+  const a = document.createElement("a"); a.href = `https://whatsonchain.com/tx/${txid}`; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = " See it on WhatsOnChain.";
+  el.firstChild.append(a);
+}
 
 function status(el, kind, text) { el.innerHTML = ""; const d = document.createElement("div"); d.className = `status ${kind}`; d.textContent = text; el.append(d); }
 function summary(el, rows) { el.innerHTML = ""; for (const [k, v] of rows) { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; el.append(dt, dd); } el.classList.remove("hidden"); }
@@ -54,9 +73,9 @@ function setPayment(tx, type) {
   current = { tx, type, msg, text, check };
   if (check.ok) status($("payStatus"), "good", "Signed correctly. Ready to hand over.");
   else status($("payStatus"), "bad", `This payment does not check out: ${check.reason}`);
-  const outs = tx.outputs.map((o) => `${o.satoshis} sat`).join(", ");
-  summary($("paySummary"), [["txid", short(tx.id("hex"))], ["outputs", outs], ["fee", check.ok ? `${check.fee} sat` : "?"], ["size", `${msg.length} bytes, ${type === TYPE.PAY_BEEF ? "BEEF" : "EF"}`]]);
-  for (const id of ["showQr", "play", "copy"]) $(id).disabled = !check.ok;
+  summary($("paySummary"), [["txid", short(tx.id("hex"))], ["pays", paysList(tx).join("\n")], ["fee", check.ok ? `${check.fee} sat` : "?"], ["size", `${msg.length} bytes, ${type === TYPE.PAY_BEEF ? "BEEF" : "EF"}`]]);
+  for (const id of ["showQr", "play", "copy", "broadcastPay"]) $(id).disabled = !check.ok;
+  $("handStatus").innerHTML = "";
   $("qrBox").classList.add("hidden");
   refreshSms();
 }
@@ -91,15 +110,19 @@ $("load").onclick = () => { try { const { tx, type } = readPayment($("paste").va
 // ---------- send real BSV: a wallet held in memory only ----------
 let wallet = null, coins = [];
 const sumSats = () => coins.reduce((n, c) => n + c.sats, 0);
-function showCoins() { status($("coinsStatus"), coins.length ? "good" : "warn", coins.length ? `${coins.length} coin${coins.length > 1 ? "s" : ""}, ${sumSats()} sat ready to spend.` : "No coins found for this address."); }
-function setWallet(w) {
+function showCoins() { setTimeout(wRender, 0); showCoinsText(); }
+function showCoinsText() { status($("coinsStatus"), coins.length ? "good" : "warn", coins.length ? `${coins.length} coin${coins.length > 1 ? "s" : ""}, ${sumSats()} sat ready to spend.` : "No coins found for this address."); }
+function setWallet(w, { quiet = false } = {}) {
   wallet = w; coins = [];
+  if (w) { session.unlock(w.key.toWif()); session.remember(w.address); }
+  setTimeout(wRender, 0);
   $("walletIn").value = "";
   $("coinsBox").classList.toggle("hidden", !w);
   $("walletForget").classList.toggle("hidden", !w);
   $("coinsStatus").innerHTML = "";
   if (!w) { $("walletStatus").innerHTML = ""; return; }
-  status($("walletStatus"), "good", `Wallet loaded from a ${w.kind}: ${w.address}`);
+  if (!quiet) status($("walletStatus"), "good", `Wallet loaded from a ${w.kind}: ${w.address}`);
+  else status($("walletStatus"), "good", `Wallet open in this tab: ${w.address}`);
   if (!$("myAddr").value.trim()) { $("myAddr").value = w.address; store.set("myAddr", w.address); }
 }
 $("walletLoad").onclick = () => { try { setWallet(importWallet($("walletIn").value)); } catch (e) { status($("walletStatus"), "bad", e.message); } };
@@ -109,7 +132,7 @@ $("walletFile").onchange = async (e) => {
   if (!f) return;
   try { setWallet(importWallet(await f.text())); } catch (err) { status($("walletStatus"), "bad", err.message); }
 };
-$("walletForget").onclick = () => { setWallet(null); status($("walletStatus"), "good", "Wallet forgotten."); };
+$("walletForget").onclick = () => { session.lock(); setWallet(null); status($("walletStatus"), "good", "Wallet closed in this tab. Its address is still shown at the top until you choose Close wallet there."); };
 $("coinsGet").onclick = async () => {
   const b = $("coinsGet"); b.disabled = true; status($("coinsStatus"), "warn", "Asking WhatsOnChain for your coins...");
   try { coins = await fetchCoins(wallet.address); showCoins(); }
@@ -138,6 +161,16 @@ $("sign").onclick = async () => {
     status($("payStatus"), "good", `Signed: ${sats} sat to ${to}. Hand it over below. Nothing is sent until someone forwards or broadcasts it.`);
     showCoins();
   } catch (e) { status($("payStatus"), "bad", e.message); }
+};
+$("broadcastPay").onclick = async () => {
+  const txid = current.tx.id("hex"), b = $("broadcastPay");
+  if (!confirm(`Send this payment to Bitcoin BSV mainnet now?\n\n${paysList(current.tx).join("\n")}\n\nOnce sent it cannot be undone.`)) return;
+  b.disabled = true; status($("handStatus"), "warn", "Sending...");
+  try {
+    const r = await broadcastEF(Buffer.from(current.tx.toEF()).toString("hex"));
+    if (r.ok) txLink($("handStatus"), "good", `Sent: the network accepted it (${r.status}).`, txid);
+    else { status($("handStatus"), "bad", `Refused (${r.status}): ${r.body.slice(0, 200)}`); b.disabled = false; }
+  } catch (e) { status($("handStatus"), "bad", `No connection: ${e.message}. Hand it over instead, or try again when online.`); b.disabled = false; }
 };
 $("copy").onclick = async () => { try { await navigator.clipboard.writeText(current.text); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy text"), 1500); } catch { prompt("Copy this:", current.text); } };
 
@@ -200,22 +233,39 @@ $("checkReceipt").onclick = () => {
 // ---------- get paid ----------
 const outbox = { list() { try { return JSON.parse(store.get("outbox", "[]")); } catch { return []; } }, save(l) { store.set("outbox", JSON.stringify(l)); } };
 
+let lastReceived = null;
 function received(tx, type, msg) {
   const check = checkOffline(tx), addr = $("myAddr").value.trim(), want = Number($("want").value || 0);
-  const rows = [["txid", short(tx.id("hex"))], ["fee", check.ok ? `${check.fee} sat` : "?"]];
+  const rows = [["pays", paysList(tx).join("\n")], ["txid", short(tx.id("hex"))], ["fee", check.ok ? `${check.fee} sat` : "?"]];
+  lastReceived = { tx, type, msg };
+  $("forwardRow").classList.add("hidden");
   if (!check.ok) { status($("getStatus"), "bad", `Do not accept: ${check.reason}`); summary($("getSummary"), rows); return; }
   if (addr) {
     let pay;
     try { pay = paysAddress(tx, addr, want); } catch { return status($("getStatus"), "bad", "Your address does not look right: check it."); }
     rows.unshift(["to you", `${pay.got} sat`]);
-    if (!pay.ok) { status($("getStatus"), "bad", `Signed correctly, but it pays you ${pay.got} sat, not ${want}.`); summary($("getSummary"), rows); return; }
+    if (!pay.ok) {
+      status($("getStatus"), "bad", pay.got ? `Signed correctly, but it pays you ${pay.got} sat, not ${want}.` : `Signed correctly, but it does not pay your address ${addr}. See "pays" below for where it goes.`);
+      summary($("getSummary"), rows);
+      $("forwardRow").classList.remove("hidden"); // a courier can still carry someone else's payment to the network
+      return;
+    }
     status($("getStatus"), "good", `Signed correctly and pays you ${pay.got} sat. Not yet broadcast: forward it below. For a large amount, wait for a gateway receipt.`);
   } else status($("getStatus"), "warn", "Signed correctly. Add your address above to check it pays you.");
   summary($("getSummary"), rows);
+  addToOutbox(tx, type, msg);
+}
+function addToOutbox(tx, type, msg) {
   const l = outbox.list().filter((x) => x.txid !== tx.id("hex"));
   l.unshift({ txid: tx.id("hex"), text: paymentTexts(type, msg)[0], hex: Buffer.from(tx.toEF()).toString("hex"), at: Date.now() });
   outbox.save(l.slice(0, 50)); renderOutbox();
 }
+$("forwardAnyway").onclick = () => {
+  if (!lastReceived) return;
+  addToOutbox(lastReceived.tx, lastReceived.type, lastReceived.msg);
+  $("forwardRow").classList.add("hidden");
+  status($("getStatus"), "good", "Kept in \"Waiting to be sent\". It pays someone else: you are only carrying it to the network.");
+};
 
 function renderOutbox() {
   const ul = $("outbox"); ul.innerHTML = "";
@@ -232,10 +282,9 @@ function renderOutbox() {
     b.onclick = async () => {
       if (!confirm("Send this payment to Bitcoin BSV mainnet now, through GorillaPool ARC?")) return;
       try {
-        const r = await fetch(`${ARC}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: item.hex }) });
-        const body = await r.text();
-        if (r.ok || /already|known/i.test(body)) { status(s, "good", `Broadcaster accepted it (${r.status}).`); outbox.save(outbox.list().filter((x) => x.txid !== item.txid)); setTimeout(renderOutbox, 1500); }
-        else status(s, "bad", `Refused (${r.status}): ${body.slice(0, 160)}`);
+        const r = await broadcastEF(item.hex);
+        if (r.ok) { txLink(s, "good", `Sent: the network accepted it (${r.status}).`, item.txid); outbox.save(outbox.list().filter((x) => x.txid !== item.txid)); setTimeout(renderOutbox, 4000); }
+        else status(s, "bad", `Refused (${r.status}): ${r.body.slice(0, 160)}`);
       } catch (e) { status(s, "bad", `No connection: ${e.message}. Try again when online, or text it.`); }
     };
     const x = document.createElement("button"); x.className = "btn"; x.textContent = "Remove";
@@ -383,6 +432,101 @@ $("listen").onclick = async () => {
     stopper = () => { proc.disconnect(); src.disconnect(); stream.getTracks().forEach((t) => t.stop()); };
   } catch (e) { status($("getStatus"), "bad", mediaError("microphone", e)); stopAll(); }
 };
+
+// ---------- Open wallet: the top bar, as on bsvkey.com ----------
+// Same rules as bsvkey.com's wallet-session.js, on this site (dtn.bsvkey.com is a different site,
+// so a wallet opened on bsvkey.com cannot be seen here, and the other way round):
+//   remembered (localStorage): the address only, to show who you are; it cannot spend.
+//   unlocked (sessionStorage, this tab only): the key, so a reload does not ask again. It is
+//   removed on Lock or Close wallet, when the tab closes, and after 15 minutes without a click or
+//   key press. A recovery phrase is never stored: only the key derived from it.
+const session = (() => {
+  const ADDR = "bsvkey_session_addr", TAB = "bsvkey_session_tab", SEEN = "bsvkey_session_seen", IDLE_MS = 15 * 60 * 1000;
+  const ls = { get: (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
+  const ss = { get: (k) => { try { return JSON.parse(sessionStorage.getItem(k) || "null"); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} }, del: (k) => { try { sessionStorage.removeItem(k); } catch {} } };
+  const fns = new Set();
+  let chan = null; try { chan = new BroadcastChannel("bsvkey-session"); } catch {}
+  const runLock = (why) => { ss.del(TAB); ss.del(SEEN); for (const f of fns) { try { f(why); } catch {} } };
+  const idle = () => { const t = ss.get(SEEN); return !t || Date.now() - t > IDLE_MS; };
+  let last = 0;
+  const touch = () => { const now = Date.now(); if (now - last < 5000 || !ss.get(TAB)) return; last = now; ss.set(SEEN, now); };
+  for (const ev of ["pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(ev, touch, { passive: true, capture: true });
+  setInterval(() => { if (ss.get(TAB) && idle()) runLock("idle"); }, 20000);
+  if (chan) chan.onmessage = (e) => { const m = e.data || {}; if (m.t === "lock") runLock("elsewhere"); if (m.t === "forget") runLock("forget"); };
+  return {
+    IDLE_MINUTES: IDLE_MS / 60000,
+    remember(address) { ls.set(ADDR, { address, network: "main", at: Date.now() }); },
+    remembered() { const r = ls.get(ADDR); return r && typeof r.address === "string" ? r : null; },
+    unlock(wif) { ss.set(TAB, { wif, network: "main" }); ss.set(SEEN, Date.now()); last = Date.now(); },
+    unlocked() { const t = ss.get(TAB); if (!t || typeof t.wif !== "string") return null; if (idle()) { runLock("idle"); return null; } return t; },
+    lock() { runLock("lock"); try { chan?.postMessage({ t: "lock" }); } catch {} },
+    forget() { ls.del(ADDR); runLock("forget"); try { chan?.postMessage({ t: "forget" }); } catch {} },
+    onLock(f) { fns.add(f); },
+  };
+})();
+
+function wRender() {
+  const btn = $("wBtn"), t = $("hdrWallet"), r = session.remembered();
+  const cut = (a) => `${a.slice(0, 6)}...${a.slice(-4)}`;
+  if (wallet) { t.textContent = cut(wallet.address) + (coins.length ? ` · ${sumSats().toLocaleString()} sat` : ""); btn.classList.add("on"); btn.title = `Wallet ${wallet.address}, open in this tab only`; }
+  else if (r) { t.textContent = `\u{1F512} ${cut(r.address)}`; btn.classList.remove("on"); btn.title = "Locked: load your key again to sign. The address is only shown, it cannot spend."; }
+  else { t.textContent = "Open wallet"; btn.classList.remove("on"); btn.title = "Open a wallet: your key never leaves this tab"; }
+}
+function wItem(label, sub, fn) {
+  const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem");
+  b.textContent = label;
+  if (sub) { const sm = document.createElement("small"); sm.textContent = sub; b.append(sm); }
+  b.onclick = (e) => { e.stopPropagation(); wMenu(false); fn(); };
+  return b;
+}
+function wReveal(focusId) {
+  document.querySelector('[data-tab="pay"]').click();
+  $("real").open = true;
+  $("real").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (focusId) setTimeout(() => { try { $(focusId).focus({ preventScroll: true }); } catch {} }, 400);
+}
+function wMenu(open) {
+  const m = $("wMenu"), btn = $("wBtn");
+  if (open == null) open = m.hidden;
+  m.hidden = !open; btn.setAttribute("aria-expanded", String(open));
+  if (!open) return;
+  m.replaceChildren();
+  const r = session.remembered();
+  if (wallet) m.append(
+    wItem("Copy address", wallet.address, () => { navigator.clipboard?.writeText(wallet.address); }),
+    wItem(coins.length ? `Coins: ${sumSats().toLocaleString()} sat` : "Get my coins", "Reads your balance from WhatsOnChain (needs internet)", () => { wReveal(); $("coinsGet").click(); }),
+    wItem("Send real BSV", "Pay an address from this wallet", () => wReveal("to")),
+    wItem("Lock", "Removes the key from this tab (and other open tabs of this page). The address stays shown.", () => { session.lock(); }),
+    wItem("Close wallet", "Removes the key and forgets the address on this device. Keep your own copy of the key.", () => {
+      if (!confirm("Close this wallet?\n\nThis clears the key from this tab and forgets the address on this device. Make sure you have your key or recovery phrase saved somewhere else.")) return;
+      session.forget();
+    }));
+  else {
+    if (r) m.append(
+      wItem(`Unlock ${r.address.slice(0, 6)}...${r.address.slice(-4)}`, "Load the key file again, or type the key or recovery phrase", () => wReveal("walletIn")),
+      wItem("Forget this address", "Stop showing it on this device", () => { session.forget(); }));
+    m.append(
+      wItem("Load key file", "A wallet or key file you saved from BSVKey", () => { wReveal(); $("walletFile").click(); }),
+      wItem("Recovery phrase or private key", "Type or paste it under Send real BSV", () => wReveal("walletIn")));
+  }
+  const n = document.createElement("div"); n.className = "wnote";
+  n.textContent = `Opening a wallet is not a login: there is no account. A key you load stays unlocked in this browser tab, also after a reload, and locks itself after ${session.IDLE_MINUTES} minutes without use. A recovery phrase is never stored. A wallet opened on bsvkey.com is not shared with this site.`;
+  m.append(n);
+}
+$("wBtn").onclick = (e) => { e.stopPropagation(); wMenu(); };
+document.addEventListener("click", (e) => { const m = $("wMenu"); if (!m.hidden && !m.contains(e.target)) wMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("wMenu").hidden) { wMenu(false); $("wBtn").focus(); } });
+session.onLock((why) => {
+  if (wallet) { wallet = null; coins = []; $("coinsBox").classList.add("hidden"); $("walletForget").classList.add("hidden"); $("coinsStatus").innerHTML = ""; }
+  status($("walletStatus"), why === "forget" ? "good" : "warn", why === "forget" ? "Wallet closed and its address forgotten on this device." : why === "idle" ? `Wallet locked after ${session.IDLE_MINUTES} minutes without use. Load it again to sign.` : "Wallet locked.");
+  wRender();
+});
+// a key unlocked earlier in this tab comes back after a reload
+{
+  const t = session.unlocked();
+  if (t) { try { setWallet(importWallet(t.wif), { quiet: true }); } catch { session.lock(); } }
+  wRender();
+}
 
 // for checks from the browser console (and the built-in browser test)
 window.handoff = { listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };

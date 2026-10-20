@@ -27,7 +27,17 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 main { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; }
-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 12px; }
+header.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -16px 12px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+header.top .title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.wchip { position: relative; flex: none; }
+.wbtn { font: inherit; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.wbtn .wdot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.wbtn.on .wdot { background: var(--good); }
+.wmenu { position: absolute; right: 0; top: calc(100% + 6px); width: min(320px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 6px; z-index: 30; }
+.wmenu button { display: block; width: 100%; text-align: left; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); background: none; border: 0; border-radius: 8px; padding: 9px 10px; cursor: pointer; }
+.wmenu button:hover, .wmenu button:focus { background: var(--bg); }
+.wmenu small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.wmenu .wnote { font-size: 12px; color: var(--muted); padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; }
 h1 { font-size: 20px; margin: 0; }
 .brand { color: var(--muted); font-size: 13px; }
 .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--line); padding: 4px; border-radius: var(--radius); margin-bottom: 16px; }
@@ -68,7 +78,7 @@ label.btn.file { display: inline-flex; align-items: center; margin: 0; font: inh
 .status.warn { background: var(--warn-bg); color: var(--warn); }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 8px 0 0; font-size: 14px; }
 dt { color: var(--muted); }
-dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .qr { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
 .qr canvas { width: min(100%, 360px); height: auto; image-rendering: pixelated; background: #fff; border-radius: 8px; padding: 12px; }
 video { width: 100%; border-radius: 10px; background: #000; margin-top: 10px; }
@@ -82,7 +92,10 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
 </head>
 <body>
 <main>
-  <header><h1>Offline payment handoff</h1><span class="brand">BSVKey</span></header>
+  <header class="top">
+    <div class="title"><h1>Offline payment handoff</h1><span class="brand">BSVKey</span></div>
+    <span class="wchip"><button class="wbtn" id="wBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="wMenu" title="Open a wallet: your key never leaves this tab"><span class="wdot"></span><span id="hdrWallet">Open wallet</span> &#9662;</button><div class="wmenu" id="wMenu" role="menu" hidden></div></span>
+  </header>
   <details class="card guide" id="guide" open>
     <summary><h2>How to use this page</h2></summary>
     <p class="muted">Send a Bitcoin BSV payment to someone nearby with no internet: as a QR code, as sound, or as a text message. Everything happens on your phone. Nothing is sent anywhere unless you press "Broadcast now" ("Get my coins" only reads your balance).</p>
@@ -172,7 +185,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
         <div class="row">
           <button class="btn primary" id="walletLoad">Load wallet</button>
           <label class="btn file">Load wallet file<input id="walletFile" type="file" accept=".json,.txt,application/json,text/plain" hidden></label>
-          <button class="btn hidden" id="walletForget">Forget wallet</button>
+          <button class="btn hidden" id="walletForget">Lock wallet</button>
         </div>
         <div id="walletStatus"></div>
         <div id="coinsBox" class="hidden">
@@ -190,7 +203,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
           <label for="sats">Amount (satoshis)</label>
           <input id="sats" type="number" min="1" inputmode="numeric">
           <div class="row"><button class="btn primary" id="sign">Sign payment</button></div>
-          <p class="muted">Signing needs no internet. The payment then appears below to hand over by QR code, sound or text.</p>
+          <p class="muted">Signing needs no internet, and nothing is sent yet. Then hand it over below by QR code, sound or text, or, if you are online, press <b>Broadcast now</b> to send it yourself.</p>
         </div>
       </details>
       <div id="payStatus"></div>
@@ -205,7 +218,9 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
         <button class="btn" id="play" disabled>Play as sound</button>
         <a class="btn hidden" id="smsLink" href="#">Text to gateway</a>
         <button class="btn" id="copy" disabled>Copy text</button>
+        <button class="btn" id="broadcastPay" disabled>Broadcast now (mainnet)</button>
       </div>
+      <div id="handStatus"></div>
       <div class="qr hidden" id="qrBox"><canvas id="qr"></canvas><span class="muted" id="qrNote"></span></div>
       <div class="meter hidden" id="playMeter"><div></div></div>
       <p class="muted hidden" id="playNote"></p>
@@ -240,6 +255,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <div class="row"><button class="btn" id="getLoad">Check it</button></div>
       <div id="getStatus"></div>
       <dl id="getSummary" class="hidden"></dl>
+      <div class="row hidden" id="forwardRow"><button class="btn" id="forwardAnyway">Keep it to forward anyway</button></div>
     </section>
     <section class="card">
       <h2>Faucets heard</h2>
