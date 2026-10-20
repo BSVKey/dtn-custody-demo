@@ -35,7 +35,7 @@ async function main() {
   if (!file || file.startsWith("--")) { console.error("usage: node radio/audio/decode-wav.mjs <recording.wav> [--address <yours> --sats <n>] [--simulate speaker|fm|am|walkie|phone]"); process.exit(2); }
   let { samples, sampleRate } = readWav(readFileSync(file));
   if (arg("simulate")) samples = simulateChannel(samples, arg("simulate"), { sampleRate });
-  const codec = ggwaveCodec(await createRequire(import.meta.url)("ggwave")(QUIET), { sampleRate });
+  const codec = ggwaveCodec(await createRequire(import.meta.url)("ggwave")(QUIET), { inputRate: sampleRate });
   const { payments, messages, corrupt } = decodeSamples(codec, samples);
   console.log(`${file}: ${(samples.length / sampleRate).toFixed(1)} s at ${sampleRate} Hz${arg("simulate") ? `, through a simulated ${arg("simulate")} channel` : ""}`);
   for (const m of messages) console.log(`message: ${m}`);

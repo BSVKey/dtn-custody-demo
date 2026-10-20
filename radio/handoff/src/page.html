@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob: mediastream:; connect-src data: https://arc.gorillapool.io">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob: mediastream:; connect-src data: https://arc.gorillapool.io https://api.whatsonchain.com">
 <title>Offline Payment Handoff</title>
 <meta name="description" content="Hand a signed Bitcoin BSV payment to someone with no internet: QR code, sound or a text message to a gateway.">
 <style>
@@ -58,6 +58,9 @@ details.step li { margin-bottom: 6px; }
 details.guide > p:last-child { margin: 14px 0 0; }
 button.link { font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 a { color: var(--accent); }
+details.real { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
+details.real > summary { font-weight: 700; cursor: pointer; }
+label.btn.file { display: inline-flex; align-items: center; margin: 0; font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px; padding: 11px 14px; min-height: 44px; cursor: pointer; }
 .hidden { display: none !important; }
 .status { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
 .status.good { background: var(--good-bg); color: var(--good); }
@@ -82,7 +85,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
   <header><h1>Offline payment handoff</h1><span class="brand">BSVKey</span></header>
   <details class="card guide" id="guide" open>
     <summary><h2>How to use this page</h2></summary>
-    <p class="muted">Send a Bitcoin BSV payment to someone nearby with no internet: as a QR code, as sound, or as a text message. Everything happens on your phone. Nothing is sent anywhere unless you press "Broadcast now".</p>
+    <p class="muted">Send a Bitcoin BSV payment to someone nearby with no internet: as a QR code, as sound, or as a text message. Everything happens on your phone. Nothing is sent anywhere unless you press "Broadcast now" ("Get my coins" only reads your balance).</p>
 
     <details class="step" open>
       <summary>Try it first, on one phone (1 minute)</summary>
@@ -97,7 +100,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     <details class="step">
       <summary>Pay someone face to face (QR code)</summary>
       <ol>
-        <li><b>You:</b> on <b>Pay</b>, load your signed payment (paste it, or open "Or sign one here").</li>
+        <li><b>You:</b> on <b>Pay</b>, open <b>Send real BSV</b>: load your wallet, press <b>Get my coins</b> while you still have internet, enter the address and amount, and press <b>Sign payment</b>. (Or paste a payment you already signed.)</li>
         <li><b>You:</b> press <b>Show QR code</b> and hold the screen up.</li>
         <li><b>Them:</b> on <button class="link" data-goto="get">Get paid</button>, enter their address and the amount, then press <b>Scan QR code</b>.</li>
         <li><b>Them:</b> the page shows "pays you N sat" if it checks out. The payment waits under "Waiting to be sent".</li>
@@ -161,18 +164,34 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <label for="paste">Or paste a signed payment (EF or BEEF hex, or a BSV1 text)</label>
       <textarea id="paste" spellcheck="false" placeholder="0100000000000000..."></textarea>
       <div class="row"><button class="btn" id="load">Load it</button></div>
-      <details>
-        <summary>Or sign one here</summary>
-        <p class="muted">Your key stays in this page's memory only. It is never saved or sent.</p>
-        <label for="wif">Your private key (WIF)</label>
-        <input id="wif" type="password" autocomplete="off" spellcheck="false">
-        <label for="fund">Funding transaction (raw hex, saved while you were online)</label>
-        <textarea id="fund" spellcheck="false"></textarea>
-        <label for="to">Pay to address</label>
-        <input id="to" autocomplete="off" spellcheck="false">
-        <label for="sats">Amount (satoshis)</label>
-        <input id="sats" type="number" min="1" inputmode="numeric">
-        <div class="row"><button class="btn" id="sign">Sign offline</button></div>
+      <details class="real" id="real">
+        <summary>Send real BSV</summary>
+        <p class="muted">Use your own wallet. Your key or recovery phrase stays in this page's memory only: it is never saved or sent, and closing the tab forgets it.</p>
+        <label for="walletIn">1. Your private key (WIF) or recovery phrase (12 to 24 words)</label>
+        <input id="walletIn" type="password" autocomplete="off" spellcheck="false" placeholder="L1... or twelve words">
+        <div class="row">
+          <button class="btn primary" id="walletLoad">Load wallet</button>
+          <label class="btn file">Load wallet file<input id="walletFile" type="file" accept=".json,.txt,application/json,text/plain" hidden></label>
+          <button class="btn hidden" id="walletForget">Forget wallet</button>
+        </div>
+        <div id="walletStatus"></div>
+        <div id="coinsBox" class="hidden">
+          <label>2. Your coins</label>
+          <div class="row"><button class="btn" id="coinsGet">Get my coins (needs internet)</button></div>
+          <details class="step">
+            <summary>No internet? Paste a funding transaction</summary>
+            <p class="muted">Raw hex of a transaction that paid your address, saved while you were online.</p>
+            <textarea id="fund" spellcheck="false"></textarea>
+            <div class="row"><button class="btn" id="fundAdd">Use it</button></div>
+          </details>
+          <div id="coinsStatus"></div>
+          <label for="to">3. Pay to address</label>
+          <input id="to" autocomplete="off" spellcheck="false">
+          <label for="sats">Amount (satoshis)</label>
+          <input id="sats" type="number" min="1" inputmode="numeric">
+          <div class="row"><button class="btn primary" id="sign">Sign payment</button></div>
+          <p class="muted">Signing needs no internet. The payment then appears below to hand over by QR code, sound or text.</p>
+        </div>
       </details>
       <div id="payStatus"></div>
       <dl id="paySummary" class="hidden"></dl>
@@ -215,6 +234,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       </div>
       <video id="video" class="hidden" playsinline muted></video>
       <p class="muted hidden" id="listenNote"></p>
+      <div class="meter hidden" id="micMeter" title="Microphone level"><div></div></div>
       <label for="getPaste">Or paste what you were sent (a payment, a faucet announcement or a coin)</label>
       <textarea id="getPaste" spellcheck="false"></textarea>
       <div class="row"><button class="btn" id="getLoad">Check it</button></div>
@@ -253,7 +273,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     <section class="card">
       <h2>What this page can and cannot check</h2>
       <p class="muted">With no internet it checks every signature and that the payment pays the amount it says. It cannot know whether the payer already spent the same coins somewhere else. Only a broadcast settles that, so for larger amounts wait for the gateway's ACCEPTED receipt.</p>
-      <p class="muted">The page makes no network requests except when you press "Broadcast now".</p>
+      <p class="muted">The page makes no network requests except when you press "Broadcast now" (to GorillaPool ARC) or "Get my coins" (it reads your address's coins from WhatsOnChain).</p>
     </section>
   </div>
 </main>

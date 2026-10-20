@@ -5,12 +5,13 @@
 import qrcode from "qrcode-generator";
 import jsQR from "jsqr";
 import ggwaveFactory from "ggwave";
-import { PrivateKey, Transaction } from "@bsv/sdk";
+import { PrivateKey, Transaction, P2PKH } from "@bsv/sdk";
 import { TYPE } from "../../lib/frame.mjs";
 import { encodePayment, decodePayment, checkOffline, paysAddress, buildRadioPayment, demoPayment } from "../../lib/payment.mjs";
 import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../sms/text.mjs";
 import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../../lib/sound.mjs";
 import { parseAnnouncement, parseCoinLine, sweepCoinLine, claimText } from "../../faucet/faucet.mjs";
+import { importWallet, fetchCoins, buildFromCoins } from "../../lib/wallet.mjs";
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -41,7 +42,7 @@ for (const id of ["gwNumber", "gwPub", "speed", "myAddr", "want"]) { const el = 
 // ---------- ggwave, loaded once ----------
 let codecPromise = null, audio = null;
 function audioCtx() { audio ??= new (window.AudioContext || window.webkitAudioContext)(); return audio; }
-const codec = () => (codecPromise ??= ggwaveFactory(QUIET).then((gg) => ggwaveCodec(gg, { sampleRate: audioCtx().sampleRate })));
+const codec = () => (codecPromise ??= ggwaveFactory(QUIET).then((gg) => ggwaveCodec(gg, { inputRate: audioCtx().sampleRate })));
 
 // ---------- pay ----------
 let current = null; // { tx, type, msg, text }
@@ -87,13 +88,55 @@ $("demo").onclick = async () => {
   status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
 };
 $("load").onclick = () => { try { const { tx, type } = readPayment($("paste").value); setPayment(tx, type); } catch (e) { status($("payStatus"), "bad", e.message); } };
+// ---------- send real BSV: a wallet held in memory only ----------
+let wallet = null, coins = [];
+const sumSats = () => coins.reduce((n, c) => n + c.sats, 0);
+function showCoins() { status($("coinsStatus"), coins.length ? "good" : "warn", coins.length ? `${coins.length} coin${coins.length > 1 ? "s" : ""}, ${sumSats()} sat ready to spend.` : "No coins found for this address."); }
+function setWallet(w) {
+  wallet = w; coins = [];
+  $("walletIn").value = "";
+  $("coinsBox").classList.toggle("hidden", !w);
+  $("walletForget").classList.toggle("hidden", !w);
+  $("coinsStatus").innerHTML = "";
+  if (!w) { $("walletStatus").innerHTML = ""; return; }
+  status($("walletStatus"), "good", `Wallet loaded from a ${w.kind}: ${w.address}`);
+  if (!$("myAddr").value.trim()) { $("myAddr").value = w.address; store.set("myAddr", w.address); }
+}
+$("walletLoad").onclick = () => { try { setWallet(importWallet($("walletIn").value)); } catch (e) { status($("walletStatus"), "bad", e.message); } };
+$("walletIn").onkeydown = (e) => { if (e.key === "Enter") $("walletLoad").click(); };
+$("walletFile").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try { setWallet(importWallet(await f.text())); } catch (err) { status($("walletStatus"), "bad", err.message); }
+};
+$("walletForget").onclick = () => { setWallet(null); status($("walletStatus"), "good", "Wallet forgotten."); };
+$("coinsGet").onclick = async () => {
+  const b = $("coinsGet"); b.disabled = true; status($("coinsStatus"), "warn", "Asking WhatsOnChain for your coins...");
+  try { coins = await fetchCoins(wallet.address); showCoins(); }
+  catch (e) { status($("coinsStatus"), "bad", `${e.message}. With no internet, paste a funding transaction instead.`); }
+  b.disabled = false;
+};
+$("fundAdd").onclick = () => {
+  try {
+    const tx = Transaction.fromHex($("fund").value.trim()), mine = new P2PKH().lock(wallet.address).toHex();
+    const found = tx.outputs.map((o, vout) => ({ tx, vout, sats: o.satoshis, mine: o.lockingScript.toHex() === mine })).filter((c) => c.mine);
+    if (!found.length) throw new Error(`that transaction does not pay ${wallet.address}`);
+    for (const c of found) if (!coins.some((x) => x.tx.id("hex") === tx.id("hex") && x.vout === c.vout)) coins.push({ tx, vout: c.vout, sats: c.sats });
+    $("fund").value = ""; showCoins();
+  } catch (e) { status($("coinsStatus"), "bad", e.message); }
+};
 $("sign").onclick = async () => {
   try {
-    const payer = PrivateKey.fromWif($("wif").value.trim());
-    const fundTx = Transaction.fromHex($("fund").value.trim());
-    const tx = await buildRadioPayment({ payer, fundTx, to: $("to").value.trim(), sats: Number($("sats").value) });
-    $("wif").value = "";
+    if (!coins.length) throw new Error("get your coins first (or paste a funding transaction)");
+    const to = $("to").value.trim(), sats = Number($("sats").value);
+    const tx = await buildFromCoins({ key: wallet.key, coins, to, sats });
+    // the coins it spends are gone; its change is a new coin for the next payment
+    const spent = new Set(tx.inputs.map((i) => `${i.sourceTransaction.id("hex")}:${i.sourceOutputIndex}`));
+    coins = coins.filter((c) => !spent.has(`${c.tx.id("hex")}:${c.vout}`));
+    tx.outputs.forEach((o, vout) => { if (vout > 0) coins.push({ tx, vout, sats: o.satoshis }); });
     setPayment(tx, TYPE.PAY_EF);
+    status($("payStatus"), "good", `Signed: ${sats} sat to ${to}. Hand it over below. Nothing is sent until someone forwards or broadcasts it.`);
+    showCoins();
   } catch (e) { status($("payStatus"), "bad", e.message); }
 };
 $("copy").onclick = async () => { try { await navigator.clipboard.writeText(current.text); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy text"), 1500); } catch { prompt("Copy this:", current.text); } };
@@ -249,13 +292,24 @@ $("getLoad").onclick = () => {
   for (const line of $("getPaste").value.split(/\n+/)) if (faucetText(line)) { status($("getStatus"), "good", "Faucet text added below."); return; }
  try { const { tx, type } = readPayment($("getPaste").value); received(tx, type, encodePayment(tx, { beef: type === TYPE.PAY_BEEF }).msg); } catch (e) { status($("getStatus"), "bad", e.message); } };
 
+// what to do when the browser will not hand over the camera or microphone
+function mediaError(what, e) {
+  if (e.name === "NotAllowedError") return `The ${what} was not allowed. Press the button again and choose Allow, or allow it from the icon at the left of the address bar.`;
+  if (e.name === "NotFoundError" || e.name === "OverconstrainedError") return `No ${what} was found on this device.`;
+  if (e.name === "NotReadableError") return `The ${what} is in use by another app or tab. Close that, then try again.`;
+  if (!window.isSecureContext) return `The ${what} only works when this page is opened over https.`;
+  return `The ${what} is unavailable: ${e.message}`;
+}
+
+const listenStats = {}; // for diagnosing: audio received vs time, and time spent decoding
 let stopper = null;
-function stopAll() { stopper?.(); stopper = null; $("stop").classList.add("hidden"); $("video").classList.add("hidden"); $("listenNote").classList.add("hidden"); }
+function stopAll() { stopper?.(); stopper = null; $("stop").classList.add("hidden"); $("video").classList.add("hidden"); $("listenNote").classList.add("hidden"); $("micMeter").classList.add("hidden"); }
 $("stop").onclick = stopAll;
 
 $("scan").onclick = async () => {
   stopAll();
   try {
+    $("getStatus").innerHTML = "";
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     const video = $("video"); video.srcObject = stream; video.classList.remove("hidden"); $("stop").classList.remove("hidden");
     await video.play();
@@ -283,7 +337,7 @@ $("scan").onclick = async () => {
       requestAnimationFrame(tick);
     };
     tick();
-  } catch (e) { status($("getStatus"), "bad", `Camera unavailable: ${e.message}`); stopAll(); }
+  } catch (e) { status($("getStatus"), "bad", mediaError("camera", e)); stopAll(); }
 };
 
 $("listen").onclick = async () => {
@@ -294,10 +348,30 @@ $("listen").onclick = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     const src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1), sink = ctx.createGain();
     sink.gain.value = 0; // keep the node running without playing the microphone back
-    const asm = soundAssembler(), note = $("listenNote");
-    note.textContent = "Listening. Hold this phone close to the payer's speaker."; note.classList.remove("hidden"); $("stop").classList.remove("hidden");
+    const asm = soundAssembler(), note = $("listenNote"), meter = $("micMeter"), bar = meter.firstElementChild;
+    const track = stream.getAudioTracks()[0];
+    note.textContent = `Listening on "${track?.label || "microphone"}". Hold this device close to the payer's speaker.`;
+    note.classList.remove("hidden"); meter.classList.remove("hidden"); $("stop").classList.remove("hidden");
+    $("getStatus").innerHTML = "";
+    // a level bar and plain hints: is the microphone hearing anything, and is it hearing a payment?
+    const started = Date.now();
+    let loudSince = 0, quietFor = 0, heardAny = false, hinted = "";
+    const hint = (k, t) => { if (hinted !== k) { hinted = k; status($("getStatus"), "warn", t); } };
+    listenStats.started = performance.now(); listenStats.samples = 0; listenStats.decodeMs = 0; listenStats.rate = ctx.sampleRate;
     proc.onaudioprocess = (ev) => {
-      for (const text of c.decode(new Float32Array(ev.inputBuffer.getChannelData(0)))) {
+      const block = ev.inputBuffer.getChannelData(0);
+      listenStats.samples += block.length;
+      let sum = 0;
+      for (let i = 0; i < block.length; i++) sum += block[i] * block[i];
+      const rms = Math.sqrt(sum / block.length), level = Math.min(100, Math.round(Math.sqrt(rms) * 220));
+      bar.style.width = `${level}%`;
+      if (rms < 0.0005) quietFor += block.length / ctx.sampleRate; else { quietFor = 0; if (!loudSince && rms > 0.01) loudSince = Date.now(); }
+      if (!heardAny && quietFor > 4) hint("silent", "The microphone is hearing nothing. Check it is not muted, and that the right microphone is chosen (the microphone icon in the address bar, or your system sound settings).");
+      else if (!heardAny && loudSince && Date.now() - loudSince > 35000) hint("noise", "Hearing sound, but no payment yet. Turn the payer's volume up, hold the devices closer, or on a walkie-talkie use the walkie-talkie setting on both sides. Two windows on one computer often do not work, because the computer filters out its own speaker: use two devices.");
+      else if (!heardAny && Date.now() - started > 6000 && quietFor === 0 && hinted === "silent") { hinted = ""; $("getStatus").innerHTML = ""; }
+      const t0 = performance.now(), texts = c.decode(new Float32Array(block)); listenStats.decodeMs += performance.now() - t0;
+      for (const text of texts) {
+        heardAny = true; if (hinted) { hinted = ""; $("getStatus").innerHTML = ""; }
         if (faucetText(text)) { note.textContent = "Heard a faucet message: see Faucets heard."; continue; }
         const p = parseChunk(text); if (!p) continue;
         const r = asm.add(p);
@@ -307,8 +381,8 @@ $("listen").onclick = async () => {
     };
     src.connect(proc); proc.connect(sink); sink.connect(ctx.destination);
     stopper = () => { proc.disconnect(); src.disconnect(); stream.getTracks().forEach((t) => t.stop()); };
-  } catch (e) { status($("getStatus"), "bad", `Microphone unavailable: ${e.message}`); stopAll(); }
+  } catch (e) { status($("getStatus"), "bad", mediaError("microphone", e)); stopAll(); }
 };
 
 // for checks from the browser console (and the built-in browser test)
-window.handoff = { faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
+window.handoff = { listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
