@@ -239,11 +239,18 @@ function drawQr(text) {
   g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#000";
   for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) g.fillRect(col * scale, r * scale, scale, scale);
 }
+// QR codes are links to this page with the payment after "#pay=", so a phone's own camera app
+// opens the page with the payment loaded. The part after "#" never leaves the phone: browsers do
+// not send it to the server. The page's own scanner reads both links and bare text.
+const LINK_BASE = /^https?:$/.test(location.protocol) ? location.origin + location.pathname : "https://dtn.bsvkey.com/radio/";
+const asLink = (t) => `${LINK_BASE}#pay=${encodeURIComponent(t)}`;
+const fromLink = (t) => { const m = String(t ?? "").match(/#pay=([^#]+)$/); if (!m) return t; try { return decodeURIComponent(m[1]); } catch { return t; } };
+
 $("showQr").onclick = () => {
   clearInterval(qrTimer);
   const parts = current.text.length <= QR_SINGLE_MAX ? [current.text] : paymentTexts(current.type, current.msg, { maxChars: 600 });
   let i = 0;
-  const show = () => { drawQr(parts[i]); $("qrNote").textContent = parts.length > 1 ? `Code ${i + 1} of ${parts.length}: keep scanning until all are in` : "Let the other phone scan this"; i = (i + 1) % parts.length; };
+  const show = () => { drawQr(asLink(parts[i])); $("qrNote").textContent = parts.length > 1 ? `Code ${i + 1} of ${parts.length}: keep scanning until all are in` : "Let the other phone scan this"; i = (i + 1) % parts.length; };
   show();
   if (parts.length > 1) qrTimer = setInterval(show, 900);
   $("qrBox").classList.remove("hidden");
@@ -431,6 +438,7 @@ $("scan").onclick = async () => {
         if (detector) { const codes = await detector.detect(video).catch(() => []); text = codes[0]?.rawValue ?? null; }
         else { canvas.width = video.videoWidth; canvas.height = video.videoHeight; g.drawImage(video, 0, 0); const img = g.getImageData(0, 0, canvas.width, canvas.height); text = jsQR(img.data, img.width, img.height)?.data ?? null; }
       }
+      if (text) text = fromLink(text);
       if (text && !seen.has(text) && faucetText(text)) { seen.add(text); status($("getStatus"), "good", "Faucet code scanned: see below."); }
       const p = text && parseText(text);
       if (p && !seen.has(text)) {
@@ -585,5 +593,24 @@ session.onLock((why) => {
   wRender();
 }
 
+// ---------- opened from a QR code link (#pay=...) ----------
+{
+  const raw = location.hash.startsWith("#pay=") ? fromLink(location.hash) : null;
+  if (raw) {
+    history.replaceState(null, "", location.pathname + location.search); // keep it out of the address bar and history
+    document.querySelector('[data-tab="get"]').click();
+    $("guide").open = false;
+    const part = parseText(raw);
+    if (faucetText(raw)) status($("getStatus"), "good", "Opened from a QR code: the faucet message is under Faucets heard.");
+    else if (part && part.of) status($("getStatus"), "warn", `This QR code is part ${part.part} of ${part.of} of a longer payment. Press Scan QR code here to read all the parts.`);
+    else {
+      $("getPaste").value = raw;
+      $("getLoad").click();
+      if (!$("myAddr").value.trim()) status($("getStatus"), "warn", "Opened from a QR code and checked: it is under Waiting to be sent below. Press Broadcast now there to send it to the network. To see what it pays you, add your address above and press Check it.");
+    }
+    setTimeout(() => $("getStatus").scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+  }
+}
+
 // for checks from the browser console (and the built-in browser test)
-window.handoff = { listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
+window.handoff = { asLink, fromLink, listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
