@@ -1,5 +1,37 @@
 # Pay over radio: results
 
+## 2026-10-20: a real faucet, announced by sound, claimed from a phone
+
+A bearer faucet on Bitcoin BSV mainnet (`radio/faucet/`), run end to end with real money.
+
+1. A faucet key was funded with 6,000 sat ([`e7fdaba0...747ceb`](https://whatsonchain.com/tx/e7fdaba070a15ab2f52dd77c06dc07bf88c8b75071f9be7203efe2c539747ceb)).
+2. `faucet/cli.mjs build --mode bearer` made the fan-out: 5 coins of 1,000 sat, a faucet tag and
+   958 sat change, 411 bytes, 42 sat fee ([`2acbf8c0...d8bd40`](https://whatsonchain.com/tx/2acbf8c082e8247e75d18513b5e656bb51064280c263ec91577b434817d8bd40)).
+   It was not broadcast from the computer: its QR code was scanned with an iPhone's camera app,
+   which opened the live page with it loaded, and it was kept to forward and broadcast from the
+   phone (Broadcast now). Mined in block 971845.
+3. `faucet/cli.mjs announce --wav` made the announcement as sound (the faucet line and the 5 coin
+   lines, 53 seconds) and it was played from the computer's speaker. The iPhone page, on Listen,
+   heard the coins under Faucets heard.
+4. Two coins were swept on the phone (Sweep to my address) and broadcast from it: coin 3
+   ([`437bb04b...598f36`](https://whatsonchain.com/tx/437bb04bf37fb40611b87ab4b34c65696c82b6c8a18c17eafcfea9d894598f36)) and coin 4
+   ([`f8a0541d...2f76e1`](https://whatsonchain.com/tx/f8a0541d6fe71fd7f4a476209ad0045fca772b5dbe8e64bb8dee5f50d92f76e1)), each 980 sat to
+   1ErDfgzGWe6kDSHWWZPUSpVRRvfQo7rDdZ. Both were accepted by the network; at the time of writing
+   they were waiting for their block. Coins 0, 1 and 2 were left unclaimed.
+
+What this proves: a faucet's coins can be created, announced over sound, picked up by a phone's
+microphone, claimed and sent to the network from the phone, with real money; and a signed
+transaction can be carried to a phone by QR code and broadcast from there (the courier path).
+
+Found and fixed during the test: a swept coin went through the payment check, so a leftover
+"amount you expect" of 1,000 sat kept the 980 sat coin out of the outbox (fixed: sweeps go
+straight to it); the phone's camera app treated the page's QR codes as text to search (fixed:
+QR codes are now links that open the page with the payment); and a sent payment vanished from the
+list (fixed: it stays with its WhatsOnChain link).
+
+What it does not prove: claims mode (texted claims and the faucet's limits) with real money, or
+the announcement over a walkie-talkie, AM or FM radio, or a phone call.
+
 ## 2026-10-20: a real Bitcoin BSV payment carried by sound, then mined on mainnet
 
 A manual test on the live page (dtn.bsvkey.com/radio/), with two wallets each open in its own

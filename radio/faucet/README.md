@@ -66,4 +66,10 @@ profile refusing faucet traffic, and announcements plus coin lines surviving a s
 walkie-talkie. In the browser: the page turns a heard announcement into a "Claim by text" link and
 sweeps a bearer coin into its outbox.
 
-**Not yet done:** a faucet funded and run on mainnet, and announcements over real radios.
+**Run on mainnet (2026-10-20), bearer mode:** 5 coins of 1,000 sat made by a fan-out broadcast
+from an iPhone (block 971845), announced as sound from a computer speaker, heard by the phone
+page, and two coins swept and broadcast from the phone (980 sat each). Details and transaction
+links in `radio/RESULTS.md`.
+
+**Not yet done:** claims mode with real money (texted claims and limits), and announcements over
+real radios.

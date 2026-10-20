@@ -216,6 +216,10 @@ claims mode people (and robots) text a claim and get one coin each, within limit
 the coin keys are broadcast and the first sweep to reach the network wins each coin. See
 `radio/faucet/README.md`.
 
+A bearer faucet has run on mainnet: 5 coins of 1,000 sat, announced as sound from a computer
+speaker, heard by an iPhone on the live page, and two coins swept and broadcast from the phone
+(`RESULTS.md`).
+
 ## Amateur (ham) radio: coded, locked, not used
 
 `radio/lib/ham.mjs` is an amateur profile that this project does not use. `make-wav --ham

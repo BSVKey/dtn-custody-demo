@@ -123,7 +123,8 @@ infrastructure:
   SMS gateway takes it by text and replies with the signed receipt (`radio/sms/`). The phone page
   has carried a real payment by sound: 1,000 sat signed in one wallet's page, played to a
   second wallet's page, then broadcast and mined in block 971842 on Bitcoin BSV mainnet
-  (`radio/RESULTS.md`). See `radio/README.md`.
+  (`radio/RESULTS.md`). A bearer faucet has also run on mainnet: coins announced as sound,
+  heard by an iPhone, and claimed and broadcast from the phone. See `radio/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one
