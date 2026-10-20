@@ -185,7 +185,11 @@ function setWallet(w, { quiet = false } = {}) {
   else status($("walletStatus"), "good", `Wallet open in this tab: ${w.address}`);
   if (!$("myAddr").value.trim()) { $("myAddr").value = w.address; store.set("myAddr", w.address); }
 }
-$("walletLoad").onclick = () => { try { setWallet(importWallet($("walletIn").value)); } catch (e) { status($("walletStatus"), "bad", e.message); } };
+$("walletLoad").onclick = () => {
+  const r = session.remembered();
+  if (!$("walletIn").value.trim() && !wallet && r) return status($("walletStatus"), "warn", `This tab is locked: it remembers your address (${r.address.slice(0, 6)}...${r.address.slice(-4)}) but not your key. The key stays only in the browser tab where you opened it, and locks after ${session.IDLE_MINUTES} minutes without use. Use that tab, or load your key or recovery phrase here once. (For a test, Try a demo payment needs no wallet.)`);
+  try { setWallet(importWallet($("walletIn").value)); } catch (e) { status($("walletStatus"), "bad", e.message); }
+};
 $("walletIn").onkeydown = (e) => { if (e.key === "Enter") $("walletLoad").click(); };
 $("walletFile").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = "";
@@ -604,6 +608,8 @@ session.onLock((why) => {
 {
   const t = session.unlocked();
   if (t) { try { setWallet(importWallet(t.wif), { quiet: true }); } catch { session.lock(); } }
+  // a remembered address but no key in this tab: say so where the wallet is loaded
+  else { const r = session.remembered(); if (r) status($("walletStatus"), "warn", `This tab is locked: it remembers your address (${r.address.slice(0, 6)}...${r.address.slice(-4)}) but not your key. The key stays only in the browser tab where you opened it, and locks after ${session.IDLE_MINUTES} minutes without use. Use that tab, or load your key or recovery phrase here once. (For a test, Try a demo payment needs no wallet.)`); }
   wRender();
 }
 
@@ -783,6 +789,15 @@ async function rtcScan(onText) {
 $("rtcStart").onclick = async () => { try { await rtcStart(); } catch (e) { rtcState(`Could not start: ${e.message}`, "bad"); } };
 $("rtcJoin").onclick = async () => { try { rtcState("Point the camera at the first phone's code."); await rtcScan(rtcJoin); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
 $("rtcScanAnswer").onclick = async () => { try { rtcState("Point the camera at the other phone's answer."); await rtcScan(rtcFinish); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
+$("rtcDemo").onclick = async () => {
+  if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
+  const to = $("myAddr").value.trim() || PrivateKey.fromRandom().toAddress();
+  const { tx } = await demoPayment({ to, sats: 1000 });
+  setPayment(tx, TYPE.PAY_EF);
+  status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
+  $("broadcastPay").disabled = true;
+  $("rtcSend").click();
+};
 $("rtcSend").onclick = () => {
   if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
   if (!current?.check?.ok) return nearbyLog("warn", "Load or sign a payment on the Pay tab first.");
