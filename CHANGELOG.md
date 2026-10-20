@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Pay over radio** (`radio/`): offline-signed BSV payments (EF, or BEEF) in frames that fit a
+  Meshtastic LoRa packet, NACK-driven resend of missing frames, offline signature and amount
+  checks, and a receipt signed by the gateway and verified against a pinned key. Simulated lossy
+  link with LoRa time on air (`node radio/run-demo.mjs`, `make radio`), and a Meshtastic USB
+  bridge plus `radio/cli.mjs` for real radios (not yet run on hardware). The gateway broadcasts
+  only with `--spend-real-bsv`.
+
 ## 0.4.0
 
 ### Added

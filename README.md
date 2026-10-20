@@ -61,6 +61,7 @@ relief/              disaster relief: clinic reports by courier and satellite, w
   kit/               field pilot kit: provisioning, node daemon, hub dashboard, payouts, Docker
   realnet/           the scenario over real network namespaces with a real blackout
   scale/             480 clinics, 48 couriers, 16 relays, six attacks
+radio/               pay over LoRa radio: offline-signed payment, gateway receipt back
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
@@ -111,6 +112,12 @@ infrastructure:
   regional scale, 480 clinics, 48 couriers and 16 relays over three days, every delivered bundle
   verified, payouts follow proven handoffs only, and six attacks are each contained to exactly
   the bundles they touch (`relief/scale/`).
+
+- **Pay over radio (`radio/`)**: a BSV payment signed with no internet crosses a LoRa
+  (Meshtastic) link in frames of 200 bytes or less, missing frames are asked for again, and the
+  gateway checks it offline, broadcasts only when told to, and radios back a signed receipt. A
+  payment is 2 frames, about 3 s on air on LongFast. `node radio/run-demo.mjs` over a simulated
+  lossy link; `radio/cli.mjs` for real radios (not yet run on hardware). See `radio/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one

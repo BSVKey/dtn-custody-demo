@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo test spike spike-local clean
+.PHONY: help demo radio test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -12,6 +12,7 @@ help:
 	@echo "make bpv7-bpsec-all - a BPSec payload BIB beside block 224 through all four stacks (needs Docker)"
 	@echo "make bpv7-hardy-custodian - Hardy signs custody receipts natively (custody-receipt filter, local Hardy checkout; needs Docker)"
 	@echo "make bpv7-bpsec-ion / bpv7-bpsec-ion-source - JPL ION (real crypto) accepts our BIB / signs one we verify"
+	@echo "make radio       - pay over radio: BSV payment + signed receipt over a simulated lossy LoRa link (offline)"
 	@echo "make live        - bind delivery to a REAL on-chain BSV settlement (WhatsOnChain; needs network)"
 	@echo "make overhead   - Custody Receipt Block cost per GB, per link rate and per contact (docs/overhead-benchmark.md); overhead-c and overhead-arm64 add C and emulated ARM (Docker)"
 	@echo "make clean       - remove run artifacts"
@@ -21,6 +22,10 @@ test:
 
 demo:
 	node run-demo.mjs
+
+# Pay over radio: offline-signed BSV payment over a simulated Meshtastic LoRa link, gateway receipt back.
+radio:
+	node radio/run-demo.mjs
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:
