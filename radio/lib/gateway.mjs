@@ -6,6 +6,7 @@
 // VALID_NOT_SENT); arcBroadcaster() sends to BSV mainnet and is used only when the operator asks.
 import { split, parse, reassembler, TYPE } from "./frame.mjs";
 import { decodePayment, checkOffline, signReceipt, STATUS } from "./payment.mjs";
+import { arcVerdict } from "./arc.mjs";
 
 export const dryRun = async () => ({ ok: true, sent: false, detail: "dry run: checked, not broadcast" });
 
@@ -13,8 +14,8 @@ export function arcBroadcaster(url = "https://arc.gorillapool.io") {
   return async (tx) => {
     const r = await fetch(`${url}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: tx.toHexEF() }) });
     const text = await r.text();
-    const ok = (r.status >= 200 && r.status < 300) || /already|known/i.test(text);
-    return { ok, sent: true, detail: `${url} ${r.status} ${text.slice(0, 200)}` };
+    const v = arcVerdict(r.status, text); // the txStatus decides: ARC can answer 200 for an orphan
+    return { ok: v.ok, sent: true, detail: v.ok ? `${url}: ${v.txStatus}` : `${url}: ${v.why}` };
   };
 }
 

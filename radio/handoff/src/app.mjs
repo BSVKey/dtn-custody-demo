@@ -12,6 +12,7 @@ import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../s
 import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../../lib/sound.mjs";
 import { parseAnnouncement, parseCoinLine, sweepCoinLine, claimText } from "../../faucet/faucet.mjs";
 import { importWallet, fetchCoins, buildFromCoins } from "../../lib/wallet.mjs";
+import { arcVerdict } from "../../lib/arc.mjs";
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -35,7 +36,8 @@ function paysList(tx) {
 async function broadcastEF(efHex) {
   const r = await fetch(`${ARC}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: efHex }) });
   const body = await r.text();
-  return { ok: r.ok || /already|known/i.test(body), status: r.status, body };
+  const v = arcVerdict(r.status, body); // ARC can answer 200 for a payment that will never be mined
+  return { ok: v.ok, status: v.txStatus ?? r.status, why: v.why, body };
 }
 function txLink(el, kind, text, txid) {
   status(el, kind, text);
@@ -161,6 +163,7 @@ $("demo").onclick = async () => {
   const { tx } = await demoPayment({ to, sats: 1000 });
   setPayment(tx, TYPE.PAY_EF);
   status($("payStatus"), "warn", "Demo payment: signed correctly, but its funding is made up, so a gateway can check it and the network would refuse it.");
+  $("broadcastPay").disabled = true; $("broadcastPay").title = "A demo payment cannot be sent: its funding is made up.";
 };
 $("load").onclick = () => { try { const { tx, type } = readPayment($("paste").value); setPayment(tx, type); } catch (e) { status($("payStatus"), "bad", e.message); } };
 // ---------- send real BSV: a wallet held in memory only ----------
@@ -225,7 +228,7 @@ $("broadcastPay").onclick = async () => {
   try {
     const r = await broadcastEF(Buffer.from(current.tx.toEF()).toString("hex"));
     if (r.ok) txLink($("handStatus"), "good", `Sent: the network accepted it (${r.status}).`, txid);
-    else { status($("handStatus"), "bad", `Refused (${r.status}): ${r.body.slice(0, 200)}`); b.disabled = false; }
+    else { status($("handStatus"), "bad", `Not sent: ${r.why}.`); b.disabled = false; }
   } catch (e) { status($("handStatus"), "bad", `No connection: ${e.message}. Give it to the other person instead, or try again when online.`); b.disabled = false; }
 };
 $("copy").onclick = async () => { try { await navigator.clipboard.writeText(current.text); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy text"), 1500); } catch { prompt("Copy this:", current.text); } };
@@ -358,7 +361,7 @@ function renderOutbox() {
       try {
         const r = await broadcastEF(item.hex);
         if (r.ok) { outbox.save(outbox.list().map((x) => (x.txid === item.txid ? { ...x, sentAt: Date.now() } : x))); renderOutbox(); }
-        else { status(s, "bad", `Refused (${r.status}): ${r.body.slice(0, 160)}`); b.disabled = false; }
+        else { status(s, "bad", `Not sent: ${r.why}.`); b.disabled = false; }
       } catch (e) { status(s, "bad", `No connection: ${e.message}. Try again when online, or text it.`); b.disabled = false; }
     };
     row.append(b, x); li.append(row, s); ul.append(li);

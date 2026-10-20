@@ -27,6 +27,7 @@ import { PrivateKey, Transaction } from "@bsv/sdk";
 import { planFaucet, buildFanout, faucetId, coinKey, coinLine, announcement, sweepCoinLine } from "./faucet.mjs";
 import { faucetClaims, combineHandlers } from "./claims.mjs";
 import { arcBroadcaster, dryRun } from "../lib/gateway.mjs";
+import { arcVerdict } from "../lib/arc.mjs";
 import { encodePayment, checkOffline } from "../lib/payment.mjs";
 import { paymentTexts } from "../sms/text.mjs";
 import { smsGateway } from "../sms/gateway.mjs";
@@ -99,9 +100,10 @@ async function main() {
     if (!has("spend-real-bsv")) fail(`not sent. This spends real BSV: add --spend-real-bsv to send fan-out ${tx.id("hex")} to mainnet via ${ARC}.`);
     const r = await fetch(`${ARC}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: ef }) });
     const text = await r.text();
-    if (!(r.ok || /already|known/i.test(text))) fail(`refused (${r.status}): ${text.slice(0, 300)}`);
+    const v = arcVerdict(r.status, text);
+    if (!v.ok) fail(`not accepted: ${v.why}`);
     writeFileSync(join(dir, "faucet.json"), JSON.stringify({ ...config, broadcast: new Date().toISOString() }, null, 2) + "\n");
-    console.log(`fan-out ${tx.id("hex")} sent via ${ARC} (${r.status}). The faucet's coins exist once it is accepted.`);
+    console.log(`fan-out ${tx.id("hex")} accepted via ${ARC} (${v.txStatus}). The faucet's coins exist now.`);
     return;
   }
 
