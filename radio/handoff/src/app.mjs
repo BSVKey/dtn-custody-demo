@@ -319,8 +319,9 @@ function received(tx, type, msg) {
   addToOutbox(tx, type, msg);
 }
 function addToOutbox(tx, type, msg) {
+  const old = outbox.list().find((x) => x.txid === tx.id("hex"));
   const l = outbox.list().filter((x) => x.txid !== tx.id("hex"));
-  l.unshift({ txid: tx.id("hex"), text: paymentTexts(type, msg)[0], hex: Buffer.from(tx.toEF()).toString("hex"), at: Date.now() });
+  l.unshift({ txid: tx.id("hex"), text: paymentTexts(type, msg)[0], hex: Buffer.from(tx.toEF()).toString("hex"), at: old?.at ?? Date.now(), ...(old?.sentAt ? { sentAt: old.sentAt } : {}) });
   outbox.save(l.slice(0, 50)); renderOutbox();
 }
 $("forwardAnyway").onclick = () => {
@@ -339,20 +340,27 @@ function renderOutbox() {
     const li = document.createElement("li");
     const t = document.createElement("div"); t.textContent = `${short(item.txid)}, ${new Date(item.at).toLocaleString()}`; li.append(t);
     const row = document.createElement("div"); row.className = "row";
+    const s = document.createElement("div");
+    const x = document.createElement("button"); x.className = "btn"; x.textContent = item.sentAt ? "Remove from list" : "Remove";
+    x.onclick = () => { outbox.save(outbox.list().filter((y) => y.txid !== item.txid)); renderOutbox(); };
+    if (item.sentAt) {
+      // sent: keep it here with its link until the person removes it
+      txLink(s, "good", `Sent to the network ${new Date(item.sentAt).toLocaleString()}.`, item.txid);
+      row.append(x); li.append(s, row); ul.append(li);
+      continue;
+    }
     const n = $("gwNumber").value.trim();
     if (n) { const a = document.createElement("a"); a.className = "btn"; a.textContent = "Text to gateway"; a.href = smsHref(n, item.text); row.append(a); }
     const b = document.createElement("button"); b.className = "btn"; b.textContent = "Broadcast now (mainnet)";
-    const s = document.createElement("div");
     b.onclick = async () => {
       if (!confirm("Send this payment to Bitcoin BSV mainnet now, through GorillaPool ARC?")) return;
+      b.disabled = true; status(s, "warn", "Sending...");
       try {
         const r = await broadcastEF(item.hex);
-        if (r.ok) { txLink(s, "good", `Sent: the network accepted it (${r.status}).`, item.txid); outbox.save(outbox.list().filter((x) => x.txid !== item.txid)); setTimeout(renderOutbox, 4000); }
-        else status(s, "bad", `Refused (${r.status}): ${r.body.slice(0, 160)}`);
-      } catch (e) { status(s, "bad", `No connection: ${e.message}. Try again when online, or text it.`); }
+        if (r.ok) { outbox.save(outbox.list().map((x) => (x.txid === item.txid ? { ...x, sentAt: Date.now() } : x))); renderOutbox(); }
+        else { status(s, "bad", `Refused (${r.status}): ${r.body.slice(0, 160)}`); b.disabled = false; }
+      } catch (e) { status(s, "bad", `No connection: ${e.message}. Try again when online, or text it.`); b.disabled = false; }
     };
-    const x = document.createElement("button"); x.className = "btn"; x.textContent = "Remove";
-    x.onclick = () => { outbox.save(outbox.list().filter((y) => y.txid !== item.txid)); renderOutbox(); };
     row.append(b, x); li.append(row, s); ul.append(li);
   }
 }
