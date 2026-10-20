@@ -668,15 +668,34 @@ function wireChannel(ch) {
   };
   ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "ack") nearbyLog("good", `The other phone received and checked ${short(m.txid)}.`); } catch {} });
 }
+const RTC_TIPS = "Check that both devices are on the same Wi-Fi (not mobile data), or join one phone's hotspot with the other. Guest Wi-Fi and some routers keep devices apart. Then press Start again on the first device.";
+let rtcTimer = null;
 async function newPeer() {
   if (pc) try { pc.close(); } catch {}
-  pc = new RTCPeerConnection({ iceServers: [] }); // local network only
-  pc.onconnectionstatechange = () => { if (pc.connectionState === "failed") rtcState("Could not connect. Are both phones on the same Wi-Fi or hotspot? Some guest networks block phones from seeing each other.", "bad"); };
-  return pc;
+  clearTimeout(rtcTimer);
+  const p = new RTCPeerConnection({ iceServers: [] }); // local network only
+  pc = p;
+  // each stage in plain words, so a stall shows where it is
+  p.oniceconnectionstatechange = () => {
+    if (pc !== p) return;
+    const st = p.iceConnectionState;
+    if (st === "checking") nearbyLog("warn", "Looking for the other device on this network...");
+    if (st === "connected" || st === "completed") { clearTimeout(rtcTimer); nearbyLog("good", "Found the other device."); }
+    if (st === "failed") { clearTimeout(rtcTimer); rtcState(`Could not reach the other device. ${RTC_TIPS}`, "bad"); nearbyLog("bad", "The devices could not reach each other on this network."); }
+    if (st === "disconnected") nearbyLog("warn", "Lost the other device. It may come back; if not, press Start again.");
+  };
+  return p;
+}
+// if nothing connects within 25 seconds of both codes being in, say what to try
+function rtcWatch() {
+  clearTimeout(rtcTimer);
+  rtcTimer = setTimeout(() => { if (!chan || chan.readyState !== "open") rtcState(`Still not connected. ${RTC_TIPS}`, "bad"); }, 25000);
 }
 const gathered = (p) => new Promise((r) => { if (p.iceGatheringState === "complete") return r(); p.onicegatheringstatechange = () => { if (p.iceGatheringState === "complete") r(); }; setTimeout(r, 4000); });
 async function showRtcQr(kind) {
   const text = await packSdp(kind, pc.localDescription.sdp);
+  const found = trimSdp(pc.localDescription.sdp).split("\n").filter((l) => l.startsWith("a=candidate:")).length;
+  nearbyLog(found ? "good" : "bad", found ? `This device is reachable at ${found} local network address${found > 1 ? "es" : ""}.` : "This device found no local network address. Is it on Wi-Fi or a hotspot, not mobile data?");
   drawQrOn($("rtcQr"), kind === "O" ? rtcLink(text) : text);
   $("rtcQrBox").classList.remove("hidden");
   return text;
@@ -703,14 +722,22 @@ async function rtcJoin(offerText) {
   const text = await showRtcQr("A");
   $("rtcQrNote").textContent = "Now let the first phone scan this answer, from its Nearby tab (Scan their answer).";
   rtcState("Waiting for the first phone to scan this answer.");
+  setTimeout(rtcWatch, 20000); // allow time for the scan, then the usual wait
   return text;
 }
 async function rtcFinish(answerText) {
   const a = await unpackSdp(answerText);
   if (!a || a.kind !== "answer") throw new Error("that is not a Nearby answer code");
   if (!pc) throw new Error("press Start first");
+  if (pc.signalingState !== "have-local-offer") {
+    // the answer was already taken (scanned twice): nothing to do but wait, or start over
+    if (chan?.readyState === "open") return rtcState("Already connected.", "good");
+    if (pc.remoteDescription) return rtcState("That answer is already in. Still connecting: give it a few seconds. If nothing happens, press Start again.");
+    throw new Error("press Start again: this connection code is no longer active");
+  }
   await pc.setRemoteDescription({ type: "answer", sdp: a.sdp });
-  rtcState("Connecting...");
+  rtcState("Both codes are in. Connecting...");
+  rtcWatch();
 }
 
 // a small camera reader for the Nearby codes
