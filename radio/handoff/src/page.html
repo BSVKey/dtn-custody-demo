@@ -306,7 +306,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
   <div data-panel="nearby" class="hidden">
     <section class="card">
       <h2>Link two phones directly</h2>
-      <p class="muted">Both phones on the same Wi-Fi, or one phone's hotspot. No internet is needed and nothing goes through a server: the phones swap two QR codes, then talk to each other directly (<span class="tip" data-term="webrtc" tabindex="0">WebRTC</span>). Payments then arrive in under a second.</p>
+      <p class="muted">Both phones on the same Wi-Fi, or one phone's hotspot. No internet is needed and nothing goes through a server: the phones swap two QR codes, then talk to each other directly (<span class="tip" data-term="webrtc" tabindex="0">WebRTC</span>). Payments then arrive in under a second. The camera turns on while connecting: browsers only share a device's local network address while the camera is in use, and the two devices need it to find each other.</p>
       <div class="row">
         <button class="btn primary" id="rtcStart">Start (first phone)</button>
         <button class="btn" id="rtcJoin">Join (second phone): scan their code</button>

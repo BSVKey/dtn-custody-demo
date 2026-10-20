@@ -653,7 +653,7 @@ let pc = null, chan = null;
 function rtcState(text, kind = "warn") { status($("rtcStatus"), kind, text); }
 function wireChannel(ch) {
   chan = ch;
-  ch.onopen = () => { rtcState("Connected. Payments you send now go straight to the other phone.", "good"); $("rtcSendBox").classList.remove("hidden"); $("rtcQrBox").classList.add("hidden"); stopRtcScan(); };
+  ch.onopen = () => { releaseCamera(); rtcState("Connected. Payments you send now go straight to the other phone.", "good"); $("rtcSendBox").classList.remove("hidden"); $("rtcQrBox").classList.add("hidden"); stopRtcScan(); };
   ch.onclose = () => { rtcState("Disconnected. Start again to reconnect.", "bad"); $("rtcSendBox").classList.add("hidden"); };
   ch.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
@@ -681,7 +681,7 @@ async function newPeer() {
     const st = p.iceConnectionState;
     if (st === "checking") nearbyLog("warn", "Looking for the other device on this network...");
     if (st === "connected" || st === "completed") { clearTimeout(rtcTimer); nearbyLog("good", "Found the other device."); }
-    if (st === "failed") { clearTimeout(rtcTimer); rtcState(`Could not reach the other device. ${RTC_TIPS}`, "bad"); nearbyLog("bad", "The devices could not reach each other on this network."); }
+    if (st === "failed") { clearTimeout(rtcTimer); releaseCamera(); rtcState(`Could not reach the other device. ${RTC_TIPS}`, "bad"); nearbyLog("bad", "The devices could not reach each other on this network."); }
     if (st === "disconnected") nearbyLog("warn", "Lost the other device. It may come back; if not, press Start again.");
   };
   return p;
@@ -694,13 +694,28 @@ function rtcWatch() {
 const gathered = (p) => new Promise((r) => { if (p.iceGatheringState === "complete") return r(); p.onicegatheringstatechange = () => { if (p.iceGatheringState === "complete") r(); }; setTimeout(r, 4000); });
 async function showRtcQr(kind) {
   const text = await packSdp(kind, pc.localDescription.sdp);
-  const found = trimSdp(pc.localDescription.sdp).split("\n").filter((l) => l.startsWith("a=candidate:")).length;
+  const cands = trimSdp(pc.localDescription.sdp).split("\n").filter((l) => l.startsWith("a=candidate:"));
+  const found = cands.length, hidden = cands.filter((l) => /\.local /i.test(l)).length;
+  if (found && hidden === found) nearbyLog("warn", "This device's address is hidden (.local name) in the code. If connecting fails, allow the camera and press Start or Join again.");
   nearbyLog(found ? "good" : "bad", found ? `This device is reachable at ${found} local network address${found > 1 ? "es" : ""}.` : "This device found no local network address. Is it on Wi-Fi or a hotspot, not mobile data?");
   drawQrOn($("rtcQr"), kind === "O" ? rtcLink(text) : text);
   $("rtcQrBox").classList.remove("hidden");
   return text;
 }
+// Browsers hide a device's local address behind a random ".local" name unless the page is using
+// the camera or microphone, and an iPhone and a PC often cannot look up each other's names. So the
+// camera is held while connecting (it is needed for the codes anyway): the real local address,
+// which only works on this network, then goes in the code. Released once connected.
+let camHold = null;
+async function holdCamera() {
+  if (camHold) return true;
+  try { camHold = await navigator.mediaDevices.getUserMedia({ video: true }); return true; }
+  catch { nearbyLog("warn", "Camera not allowed, so this device's address stays hidden. Connecting may fail between an iPhone and a PC."); return false; }
+}
+function releaseCamera() { camHold?.getTracks().forEach((t) => t.stop()); camHold = null; }
+
 async function rtcStart() {
+  await holdCamera();
   const p = await newPeer();
   wireChannel(p.createDataChannel("bsvkey-pay", { ordered: true }));
   await p.setLocalDescription(await p.createOffer());
@@ -714,6 +729,7 @@ async function rtcStart() {
 async function rtcJoin(offerText) {
   const o = await unpackSdp(offerText);
   if (!o || o.kind !== "offer") throw new Error("that is not a Nearby connection code");
+  await holdCamera();
   const p = await newPeer();
   p.ondatachannel = (e) => wireChannel(e.channel);
   await p.setRemoteDescription({ type: "offer", sdp: o.sdp });
