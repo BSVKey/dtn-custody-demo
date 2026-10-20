@@ -45,10 +45,24 @@ function txLink(el, kind, text, txid) {
   el.firstChild.append(a, note);
 }
 
+// full transaction IDs and addresses, linked to WhatsOnChain (a just-sent one can take a minute to appear)
+function wocLink(id) {
+  const a = document.createElement("a");
+  a.className = "mono"; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = id;
+  a.href = /^[0-9a-f]{64}$/i.test(id) ? `https://whatsonchain.com/tx/${id}` : `https://whatsonchain.com/address/${id}`;
+  return a;
+}
+// "text {id} more text": each {id} becomes a full, linked ID
+function withLinks(el, text, ids = []) {
+  const parts = text.split("{id}");
+  parts.forEach((part, i) => { el.append(part); if (i < parts.length - 1 && ids[i]) el.append(wocLink(ids[i])); });
+  return el;
+}
+
 function status(el, kind, text) { el.innerHTML = ""; const d = document.createElement("div"); d.className = `status ${kind}`; d.textContent = text; el.append(d); }
 const DT_TERMS = { txid: "txid", pays: "pays", fee: "fee", size: "size", "to you": "toyou" };
 function summary(el, rows) { el.innerHTML = ""; for (const [k, v] of rows) { const dt = document.createElement("dt");
-  if (DT_TERMS[k]) { const t = document.createElement("span"); t.className = "tip"; t.tabIndex = 0; t.dataset.term = DT_TERMS[k]; t.textContent = k; dt.append(t); } else dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; el.append(dt, dd); } el.classList.remove("hidden"); }
+  if (DT_TERMS[k]) { const t = document.createElement("span"); t.className = "tip"; t.tabIndex = 0; t.dataset.term = DT_TERMS[k]; t.textContent = k; dt.append(t); } else dt.textContent = k; const dd = document.createElement("dd"); if (v instanceof Node) dd.append(v); else dd.textContent = v; el.append(dt, dd); } el.classList.remove("hidden"); }
 
 // ---------- plain-words tips: point at a dotted word, or tap it on a phone ----------
 const GLOSS = {
@@ -132,7 +146,7 @@ function setPayment(tx, type) {
   current = { tx, type, msg, text, check };
   if (check.ok) status($("payStatus"), "good", "Signed correctly. Ready to give to the other person.");
   else status($("payStatus"), "bad", `This payment does not check out: ${check.reason}`);
-  summary($("paySummary"), [["txid", short(tx.id("hex"))], ["pays", paysList(tx).join("\n")], ["fee", check.ok ? `${check.fee} sat` : "?"], ["size", `${msg.length} bytes, ${type === TYPE.PAY_BEEF ? "BEEF" : "EF"}`]]);
+  summary($("paySummary"), [["txid", wocLink(tx.id("hex"))], ["pays", paysList(tx).join("\n")], ["fee", check.ok ? `${check.fee} sat` : "?"], ["size", `${msg.length} bytes, ${type === TYPE.PAY_BEEF ? "BEEF" : "EF"}`]]);
   for (const id of ["showQr", "play", "copy", "broadcastPay"]) $(id).disabled = !check.ok;
   $("handStatus").innerHTML = "";
   $("qrBox").classList.add("hidden");
@@ -308,7 +322,7 @@ const outbox = { list() { try { return JSON.parse(store.get("outbox", "[]")); } 
 let lastReceived = null;
 function received(tx, type, msg) {
   const check = checkOffline(tx), addr = $("myAddr").value.trim(), want = Number($("want").value || 0);
-  const rows = [["pays", paysList(tx).join("\n")], ["txid", short(tx.id("hex"))], ["fee", check.ok ? `${check.fee} sat` : "?"]];
+  const rows = [["pays", paysList(tx).join("\n")], ["txid", wocLink(tx.id("hex"))], ["fee", check.ok ? `${check.fee} sat` : "?"]];
   lastReceived = { tx, type, msg };
   $("forwardRow").classList.add("hidden");
   if (!check.ok) { status($("getStatus"), "bad", `Do not accept: ${check.reason}`); summary($("getSummary"), rows); return; }
@@ -347,7 +361,7 @@ function renderOutbox() {
   if (!l.length) { const li = document.createElement("li"); li.className = "muted"; li.textContent = "Nothing waiting."; ul.append(li); return; }
   for (const item of l) {
     const li = document.createElement("li");
-    const t = document.createElement("div"); t.textContent = `${short(item.txid)}, ${new Date(item.at).toLocaleString()}`; li.append(t);
+    const t = document.createElement("div"); withLinks(t, `{id}, ${new Date(item.at).toLocaleString()}`, [item.txid]); li.append(t);
     const row = document.createElement("div"); row.className = "row";
     const s = document.createElement("div");
     const x = document.createElement("button"); x.className = "btn"; x.textContent = item.sentAt ? "Remove from list" : "Remove";
@@ -654,7 +668,7 @@ function drawQrOn(canvas, text) {
   g.fillStyle = "#fff"; g.fillRect(0, 0, canvas.width, canvas.height); g.fillStyle = "#000";
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(quiet + c * scale, quiet + r * scale, scale, scale);
 }
-function nearbyLog(kind, text) { const li = document.createElement("li"); li.className = `status ${kind}`; li.textContent = `${new Date().toLocaleTimeString()}: ${text}`; $("rtcLog").prepend(li); }
+function nearbyLog(kind, text, ids) { const li = document.createElement("li"); li.className = `status ${kind}`; withLinks(li, `${new Date().toLocaleTimeString()}: ${text}`, ids); $("rtcLog").prepend(li); }
 
 let pc = null, chan = null;
 function rtcState(text, kind = "warn") { status($("rtcStatus"), kind, text); }
@@ -669,11 +683,11 @@ function wireChannel(ch) {
     try {
       const { tx, type } = readPayment(m.text);
       received(tx, type, encodePayment(tx, { beef: type === TYPE.PAY_BEEF }).msg);
-      nearbyLog("good", `Received payment ${short(tx.id("hex"))}. Checked on Get paid: ${$("getStatus").textContent}`);
+      nearbyLog("good", `Received payment {id}. Checked on Get paid: ${$("getStatus").textContent}`, [tx.id("hex")]);
       chan.send(JSON.stringify({ t: "ack", txid: tx.id("hex") }));
     } catch (err) { nearbyLog("bad", `Received something that is not a payment: ${err.message}`); }
   };
-  ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "hello") gotHello(m.address); if (m.t === "ack") nearbyLog("good", `The other phone received and checked ${short(m.txid)}.`); } catch {} });
+  ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "hello") gotHello(m.address); if (m.t === "ack") nearbyLog("good", "The other device received and checked {id}.", [m.txid]); } catch {} });
 }
 const RTC_TIPS = "Check that both devices are on the same Wi-Fi (not mobile data), or join one phone's hotspot with the other. Guest Wi-Fi and some routers keep devices apart. Then press Start again on the first device.";
 let rtcTimer = null;
@@ -803,7 +817,7 @@ function gotHello(address) {
   if (!peerAddr) return;
   $("rtcPeerAddr").textContent = peerAddr;
   if (!$("to").value.trim() || $("to").dataset.fromPeer === "1") { $("to").value = peerAddr; $("to").dataset.fromPeer = "1"; }
-  nearbyLog("good", `The other device will be paid at ${short(peerAddr)}.`);
+  nearbyLog("good", "The other device will be paid at {id}.", [peerAddr]);
 }
 $("myAddr").addEventListener("change", sendHello);
 $("rtcPay").onclick = async () => {
@@ -815,7 +829,7 @@ $("rtcPay").onclick = async () => {
     nearbyLog("warn", "Getting your coins from WhatsOnChain...");
     try { coins = await fetchCoins(wallet.address); showCoins(); }
     catch (e) { return nearbyLog("bad", `Could not get your coins (${e.message}). With no internet, paste a funding transaction under Send real BSV on the Pay tab.`); }
-    if (!coins.length) return nearbyLog("bad", `Your wallet ${short(wallet.address)} has no coins to spend.`);
+    if (!coins.length) return nearbyLog("bad", "Your wallet {id} has no coins to spend.", [wallet.address]);
   }
   try {
     $("to").value = peerAddr; $("sats").value = $("rtcSats").value;
@@ -838,7 +852,7 @@ $("rtcSend").onclick = () => {
   if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
   if (!current?.check?.ok) return nearbyLog("warn", "Load or sign a payment on the Pay tab first.");
   chan.send(JSON.stringify({ t: "pay", text: current.text }));
-  nearbyLog("good", `Sent payment ${short(current.tx.id("hex"))} to the other phone.`);
+  nearbyLog("good", "Sent payment {id} to the other device. It is not on the network until someone broadcasts it.", [current.tx.id("hex")]);
 };
 
 // ---------- opened from a QR code link (#pay=... or #rtc=...) ----------
