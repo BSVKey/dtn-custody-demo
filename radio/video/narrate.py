@@ -11,9 +11,10 @@ LINES = [
     "Press Try a demo payment. It makes a practice payment, signed but not spendable, and the page checks the signatures right on your phone.",
     "To pay face to face, press Show QR code. The other person opens Get paid, enters their address and the amount, and scans.",
     "Their phone checks it with no internet and shows that it pays them a thousand sats. It waits in their outbox until they have a signal.",
-    "No camera? Press Play as sound, and the other phone listens. The tones are made to cross a walkie-talkie, an A M or F M radio, or a phone call too. Those links are tested in simulation so far.",
+    "No camera? Press Play as sound, and the other phone listens. This has already carried a real payment between two wallets, mined on Bitcoin B S V. The same tones are made for walkie-talkies, A M and F M radio, and phone calls, tested in simulation so far.",
     "Or text the payment to a gateway. Your messaging app opens with it filled in, and only a phone signal is needed. The gateway texts back a signed receipt, and the page checks it.",
-    "Faucets work too. When one is announced, the page shows it, and one tap texts your claim.",
+    "Faucets work too, and one has run for real. Its coins were announced as sound, heard by an iPhone, and claimed and sent from the phone.",
+    "Both are on the chain. The payment carried by sound was mined in block nine seven one, eight four two. The faucet was set up in block nine seven one, eight four five, and its coins were claimed from the phone.",
     "A payment checked offline is like a cheque: correct, but final only once it reaches the network, so wait for the receipt on large amounts. It's free and open source. Try it at d t n dot B S V key dot com slash radio.",
 ]
 

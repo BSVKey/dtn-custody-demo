@@ -93,7 +93,8 @@ await scene(7, 0, async () => {
 await scene(8, 0, async () => {
   await js(B, `$("stop").click(); show($("getPaste")); await wait(300); await type($("getPaste"), ${JSON.stringify(FAUCET)}); $("getLoad").click(); await wait(300); show($("faucets"));`);
 });
-await scene(9, vo[8].seconds + 1.6, async () => {});
+await scene(9, 0, async () => {}); // results card (compose.mjs)
+await scene(10, vo[9].seconds + 1.6, async () => {}); // closing card
 
 recording = false;
 await Promise.all(loops);

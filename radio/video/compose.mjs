@@ -20,9 +20,10 @@ const CAPTIONS = [
   ["Try a demo payment", "Signed but not spendable, and checked on your phone"],
   ["Pay face to face: QR code", "The other phone opens Get paid, enters its address, and scans"],
   ["Checked with no internet", "It pays them 1,000 sat, and waits in their outbox until they have a signal"],
-  ["No camera? Pay by sound", "Made for walkie-talkies, AM and FM radio, and phone calls too. Those links are tested in simulation so far."],
+  ["No camera? Pay by sound", "Carried a real payment, mined on mainnet. Made for walkie-talkies, AM and FM radio and phone calls too (tested in simulation so far)."],
   ["Or text it to a gateway", "Only a phone signal is needed. The gateway texts back a signed receipt, and the page checks it."],
-  ["Faucets work too", "When one is announced, one tap texts your claim"],
+  ["Faucets work too", "A real faucet run: announced by sound, claimed from an iPhone"],
+  ["Proven on the chain", ""],
   ["Try it", ""],
 ];
 
@@ -52,6 +53,18 @@ const cardHtml = `<style>${css}
 <p>QR code · sound · text message · faucets</p><p style="margin-top:18px">Free and open source: github.com/BSVKey/dtn-custody-demo</p>
 <p style="margin-top:40px;font-size:26px;color:#9aa3b2">A payment checked offline is final only once it reaches the network. Wait for the receipt on large amounts.</p></div>`;
 
+const resultsHtml = `<style>${css}
+.card{position:absolute;inset:0;background:rgba(14,17,22,.95);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.card h1{font-size:76px;margin-bottom:56px}
+.row{width:1400px;display:flex;gap:40px;align-items:flex-start;background:#161b22;border:2px solid #2a313c;border-radius:24px;padding:36px 44px;margin-bottom:28px}
+.tag{flex:none;width:300px;font-size:30px;font-weight:800;color:#E7A33E;line-height:1.25}
+.what{font-size:34px;line-height:1.4}.what small{display:block;font-size:26px;color:#9aa3b2;margin-top:8px;font-family:Consolas,monospace}
+.foot{font-size:26px;color:#9aa3b2;margin-top:24px}</style>
+<div class="card"><h1>Proven on Bitcoin BSV mainnet</h1>
+<div class="row"><div class="tag">Payment carried by sound</div><div class="what">1,000 sat from one wallet's page to another's, then broadcast. Mined in block 971,842.<small>tx 5a15bdc5...9b25ac</small></div></div>
+<div class="row"><div class="tag">Faucet announced by sound</div><div class="what">5 coins made (block 971,845), heard by an iPhone, 2 coins claimed and sent from the phone.<small>tx 2acbf8c0...d8bd40 · claims 437bb04b... f8a0541d...</small></div></div>
+<div class="foot">Look them up on whatsonchain.com</div></div>`;
+
 // ---- 1. scene backgrounds and the closing card, rendered by Chrome ----
 const c = await launch({ port: 9410, width: 1920, height: 1080, dpr: 1, mobile: false });
 for (let i = 0; i < CAPTIONS.length; i++) {
@@ -61,12 +74,14 @@ for (let i = 0; i < CAPTIONS.length; i++) {
 await c.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
 await c.goto("data:text/html;charset=utf-8," + encodeURIComponent(cardHtml.replace("html,body{width:1920px;height:1080px;overflow:hidden;background:#0e1116", "html,body{width:1920px;height:1080px;overflow:hidden;background:transparent")));
 writeFileSync(join(OUT, "card.png"), await c.png());
+await c.goto("data:text/html;charset=utf-8," + encodeURIComponent(resultsHtml.replace("html,body{width:1920px;height:1080px;overflow:hidden;background:#0e1116", "html,body{width:1920px;height:1080px;overflow:hidden;background:transparent")));
+writeFileSync(join(OUT, "results.png"), await c.png());
 c.close();
 
 // ---- 2. concat lists: backgrounds per scene, and each phone's frames at their real times ----
 const L = tl.length;
 const bg = tl.scenes.map((s, i) => `file '${join(OUT, `bg${i + 1}.png`).replace(/\\/g, "/")}'\nduration ${(s.end - s.start).toFixed(3)}`);
-writeFileSync(join(OUT, "bg.txt"), bg.join("\n") + `\nfile '${join(OUT, "bg9.png").replace(/\\/g, "/")}'\n`);
+writeFileSync(join(OUT, "bg.txt"), bg.join("\n") + `\nfile '${join(OUT, `bg${CAPTIONS.length}.png`).replace(/\\/g, "/")}'\n`);
 for (const k of ["a", "b"]) {
   const f = tl.frames[k], lines = [];
   for (let i = 0; i < f.length; i++) lines.push(`file '${f[i].f.replace(/\\/g, "/")}'\nduration ${(((f[i + 1]?.t ?? L) - f[i].t) || 0.04).toFixed(3)}`);
@@ -75,18 +90,20 @@ for (const k of ["a", "b"]) {
 }
 
 // ---- 3. picture, then narration at each scene's start ----
-const T9 = tl.scenes[8].start;
+const T9 = tl.scenes[8].start, T10 = tl.scenes[9].start; // results card, then the closing card
 const delays = tl.scenes.map((s) => Math.round((s.start + 0.35) * 1000));
 const audioIn = vo.flatMap((v) => ["-i", join(OUT, v.file)]);
-const mix = vo.map((_, i) => `[${4 + i}:a]adelay=${delays[i]}|${delays[i]}[v${i}]`).join(";") + ";" + vo.map((_, i) => `[v${i}]`).join("") + `amix=inputs=${vo.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[aud]`;
+const mix = vo.map((_, i) => `[${5 + i}:a]adelay=${delays[i]}|${delays[i]}[v${i}]`).join(";") + ";" + vo.map((_, i) => `[v${i}]`).join("") + `amix=inputs=${vo.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[aud]`;
 const graph = [
   "[0:v]fps=30,format=yuv420p[bg]",
   "[1:v]fps=30,scale=416:900:flags=lanczos[a]",
   "[2:v]fps=30,scale=416:900:flags=lanczos[b]",
   "[bg][a]overlay=980:108[t1]",
   "[t1][b]overlay=1436:108[t2]",
-  `[3:v]format=rgba,fade=in:st=${T9.toFixed(2)}:d=0.7:alpha=1[card]`,
-  `[t2][card]overlay=0:0:enable='gte(t,${T9.toFixed(2)})',format=yuv420p[vid]`,
+  `[4:v]format=rgba,fade=in:st=${T9.toFixed(2)}:d=0.7:alpha=1[res]`,
+  `[t2][res]overlay=0:0:enable='between(t,${T9.toFixed(2)},${T10.toFixed(2)})'[t3]`,
+  `[3:v]format=rgba,fade=in:st=${T10.toFixed(2)}:d=0.7:alpha=1[card]`,
+  `[t3][card]overlay=0:0:enable='gte(t,${T10.toFixed(2)})',format=yuv420p[vid]`,
   mix,
 ].join(";");
 writeFileSync(join(OUT, "graph.txt"), graph);
@@ -95,6 +112,7 @@ execFileSync("ffmpeg", ["-y", "-v", "error",
   "-f", "concat", "-safe", "0", "-i", join(OUT, "a.txt"),
   "-f", "concat", "-safe", "0", "-i", join(OUT, "b.txt"),
   "-loop", "1", "-t", L.toFixed(2), "-i", join(OUT, "card.png"),
+  "-loop", "1", "-t", L.toFixed(2), "-i", join(OUT, "results.png"),
   ...audioIn,
   "-/filter_complex", join(OUT, "graph.txt"),
   "-map", "[vid]", "-map", "[aud]", "-t", L.toFixed(2),
