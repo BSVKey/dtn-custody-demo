@@ -45,3 +45,6 @@ constellation/.ttn-sweep.json
 # Local only: outreach drafts and funding addresses for live runs
 outreach-drafts/
 constellation/*.address.txt
+
+# radio walkthrough render outputs (frames, audio, intermediate files)
+radio/video/out/

@@ -127,6 +127,12 @@ captured in microphone-sized blocks is rebuilt exactly (`test/radio-sound.test.m
 checked:** a real camera scan and real speaker-to-microphone sound between two phones, and the
 `sms:` link on real phones.
 
+Walkthrough video: `radio/handoff/walkthrough.mp4` (1 minute 35, narrated), also on the page. It
+is two phones on the live page, with the payee's camera and microphone fed the payer's real QR
+code and sound, so the scan and the listen in it are real decodes. To remake it:
+`python radio/video/narrate.py` (edge-tts, run in `radio/video/out/`), then
+`node radio/video/record.mjs` and `node radio/video/compose.mjs`.
+
 ## SMS gateway
 
 A payment by text, for phones with no data, including satellite texting where it works.
