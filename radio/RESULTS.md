@@ -16,8 +16,8 @@ A bearer faucet on Bitcoin BSV mainnet (`radio/faucet/`), run end to end with re
 4. Two coins were swept on the phone (Sweep to my address) and broadcast from it: coin 3
    ([`437bb04b...598f36`](https://whatsonchain.com/tx/437bb04bf37fb40611b87ab4b34c65696c82b6c8a18c17eafcfea9d894598f36)) and coin 4
    ([`f8a0541d...2f76e1`](https://whatsonchain.com/tx/f8a0541d6fe71fd7f4a476209ad0045fca772b5dbe8e64bb8dee5f50d92f76e1)), each 980 sat to
-   1ErDfgzGWe6kDSHWWZPUSpVRRvfQo7rDdZ. Both were accepted by the network; at the time of writing
-   they were waiting for their block. Coins 0, 1 and 2 were left unclaimed.
+   1ErDfgzGWe6kDSHWWZPUSpVRRvfQo7rDdZ, both mined in block 971846. Coins 1 and 2 were later swept
+   from the phone as well; coin 0 was left unclaimed.
 
 What this proves: a faucet's coins can be created, announced over sound, picked up by a phone's
 microphone, claimed and sent to the network from the phone, with real money; and a signed
