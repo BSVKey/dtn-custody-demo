@@ -389,8 +389,10 @@ function faucetText(text) {
       if (!a) return status(s, "warn", "Add your address at the top first.");
       try {
         const tx = await sweepCoinLine(t, a);
-        received(tx, TYPE.PAY_EF, encodePayment(tx).msg);
-        status(s, "good", `Signed over to you: ${tx.outputs[0].satoshis} sat. It is in "Waiting to be sent": forward it soon, since anyone else who heard this coin can try too.`);
+        // straight to the outbox: the expected-amount box is for payments from people, not coins
+        addToOutbox(tx, TYPE.PAY_EF, encodePayment(tx).msg);
+        status(s, "good", `Signed over to you: ${tx.outputs[0].satoshis} sat. Now press Broadcast now under "Waiting to be sent" below, soon: anyone else who heard this coin can try too.`);
+        $("outbox").scrollIntoView({ behavior: "smooth", block: "center" });
         b.disabled = true;
       } catch (e) { status(s, "bad", e.message); }
     };
