@@ -45,6 +45,19 @@ button.btn { font: inherit; font-weight: 600; border: 1px solid var(--line); bac
 button.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 button.btn:disabled { opacity: .5; cursor: default; }
 a.btn { display: inline-flex; align-items: center; text-decoration: none; font-weight: 600; border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 11px 14px; min-height: 44px; }
+details.guide > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+details.guide > summary::-webkit-details-marker { display: none; }
+details.guide > summary::after { content: "Hide"; color: var(--accent); font-size: 14px; font-weight: 600; }
+details.guide:not([open]) > summary::after { content: "Show"; }
+details.guide > summary h2 { margin: 0; }
+details.guide[open] > summary { margin-bottom: 8px; }
+details.step { border-top: 1px solid var(--line); padding: 10px 0 2px; }
+details.step > summary { font-weight: 600; cursor: pointer; margin: 0; }
+details.step ol { margin: 8px 0 6px; padding-left: 22px; font-size: 15px; }
+details.step li { margin-bottom: 6px; }
+details.guide > p:last-child { margin: 14px 0 0; }
+button.link { font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+a { color: var(--accent); }
 .hidden { display: none !important; }
 .status { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
 .status.good { background: var(--good-bg); color: var(--good); }
@@ -67,6 +80,71 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
 <body>
 <main>
   <header><h1>Offline payment handoff</h1><span class="brand">BSVKey</span></header>
+  <details class="card guide" id="guide" open>
+    <summary><h2>How to use this page</h2></summary>
+    <p class="muted">Send a Bitcoin BSV payment to someone nearby with no internet: as a QR code, as sound, or as a text message. Everything happens on your phone. Nothing is sent anywhere unless you press "Broadcast now".</p>
+
+    <details class="step" open>
+      <summary>Try it first, on one phone (1 minute)</summary>
+      <ol>
+        <li>On <b>Pay</b>, press <b>Try a demo payment</b>. It makes a practice payment that is signed but not spendable.</li>
+        <li>Press <b>Copy text</b>.</li>
+        <li>Open <button class="link" data-goto="get">Get paid</button>, paste it into the box at the bottom and press <b>Check it</b>.</li>
+        <li>You will see "Signed correctly": that is the check the other person's phone does with no internet.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Pay someone face to face (QR code)</summary>
+      <ol>
+        <li><b>You:</b> on <b>Pay</b>, load your signed payment (paste it, or open "Or sign one here").</li>
+        <li><b>You:</b> press <b>Show QR code</b> and hold the screen up.</li>
+        <li><b>Them:</b> on <button class="link" data-goto="get">Get paid</button>, enter their address and the amount, then press <b>Scan QR code</b>.</li>
+        <li><b>Them:</b> the page shows "pays you N sat" if it checks out. The payment waits under "Waiting to be sent".</li>
+        <li><b>Them, later:</b> when they have signal, press <b>Text to gateway</b> or <b>Broadcast now</b>. Only then is it final.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Pay by sound (phone to phone, walkie-talkie, radio, phone call)</summary>
+      <ol>
+        <li><b>Them:</b> on <button class="link" data-goto="get">Get paid</button>, press <b>Listen</b> and allow the microphone.</li>
+        <li><b>You:</b> on <b>Pay</b>, press <b>Play as sound</b>, with the phones close together. It plays twice, about 26 seconds each time.</li>
+        <li>Over a walkie-talkie, an AM radio or a phone call, first pick the walkie-talkie option in <button class="link" data-goto="settings">Settings</button>. Hold the talk button while it plays (about 40 seconds).</li>
+        <li><b>Them:</b> the page shows "Heard part 1 of 3...", then checks the payment, just like a scan.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Pay by text message, and get a receipt</summary>
+      <ol>
+        <li>In <button class="link" data-goto="settings">Settings</button>, enter the gateway's phone number and its public key (the gateway operator gives you both).</li>
+        <li>On <b>Pay</b>, load the payment and press <b>Text to gateway</b>. Your messaging app opens with the payment filled in. Send it. This works with no mobile data, only texting.</li>
+        <li>The gateway texts back a receipt. Paste it into <b>Check the gateway's receipt</b>. "ACCEPTED" means the network took the payment.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Get coins from a faucet</summary>
+      <ol>
+        <li>On <button class="link" data-goto="get">Get paid</button>, enter your address, then <b>Listen</b> or <b>Scan</b> when a faucet is being announced (or paste its message).</li>
+        <li>It appears under <b>Faucets heard</b>.</li>
+        <li>For a normal faucet, press <b>Claim by text</b> and send the message. The faucet texts back what it paid you.</li>
+        <li>For a "bearer" coin, press <b>Sweep to my address</b>, then forward it from "Waiting to be sent" as soon as you can. The first person to get a coin to the network keeps it.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Use it with no internet at all</summary>
+      <ol>
+        <li>Open this page while you still have a connection, and keep the tab open, or <a href="./index.html" download="bsvkey-offline-pay.html">download it</a> to your phone and open the saved file.</li>
+        <li>Everything above works offline. Only "Broadcast now" needs a connection, and texting needs a phone signal.</li>
+      </ol>
+    </details>
+
+    <p class="muted">Good to know: a payment checked offline is signed correctly and pays the right amount, but it cannot be known final until it reaches the network. Treat it like a cheque: fine for small amounts, wait for a receipt for large ones.</p>
+  </details>
+
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="pay" aria-selected="true">Pay</button>
     <button role="tab" data-tab="get" aria-selected="false">Get paid</button>

@@ -31,6 +31,11 @@ for (const b of document.querySelectorAll("[data-tab]")) b.onclick = () => {
   for (const x of document.querySelectorAll("[data-tab]")) x.setAttribute("aria-selected", String(x === b));
   for (const p of document.querySelectorAll("[data-panel]")) p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab);
 };
+// links inside the guide switch tabs; the guide remembers being closed
+for (const b of document.querySelectorAll("[data-goto]")) b.onclick = () => { document.querySelector(`[data-tab="${b.dataset.goto}"]`).click(); document.querySelector(".tabs").scrollIntoView({ behavior: "smooth" }); };
+const guide = $("guide");
+if (store.get("guideClosed") === "1") guide.open = false;
+guide.ontoggle = () => store.set("guideClosed", guide.open ? "0" : "1");
 for (const id of ["gwNumber", "gwPub", "speed", "myAddr", "want"]) { const el = $(id); el.value = store.get(id, el.value); el.onchange = () => { store.set(id, el.value.trim()); refreshSms(); }; }
 
 // ---------- ggwave, loaded once ----------
