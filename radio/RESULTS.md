@@ -1,5 +1,23 @@
 # Pay over radio: results
 
+## 2026-10-20: a real Bitcoin BSV payment from the phone page, mined on mainnet
+
+A wallet was loaded into the live page (dtn.bsvkey.com/radio/, Send real BSV), its coins read
+from WhatsOnChain, and a payment signed in the page and sent with Broadcast now (GorillaPool ARC).
+
+- Transaction [`5a15bdc5...9b25ac`](https://whatsonchain.com/tx/5a15bdc5da061016d21d1eabf9e983fc7b7a7a4e0fc9892c35c8e628139b25ac)
+  (225 bytes), mined in block 971842 on 2026-10-20.
+- Pays 1,000 sat to 1ErDfgzGWe6kDSHWWZPUSpVRRvfQo7rDdZ, with 109,902,789 sat change back to the
+  payer's own address, and a 23 sat fee, all as the page showed before sending.
+- ARC answered `SEEN_ON_NETWORK` on broadcast; WhatsOnChain then showed it in the block.
+
+What this proves: the page's wallet import, its coin lookup, its signing (one coin in, change
+and fee worked out in the page) and its broadcast produce a valid mainnet payment.
+
+What it does not prove: the offline handoffs. This payment went straight from the payer's page
+to the network. A real payment carried by QR code, sound, text message or radio, then forwarded
+by the payee, is still to be done.
+
 ## 2026-10-19: real Meshtastic firmware, simulated radio (meshtasticd)
 
 Two Meshtastic nodes in Docker (`meshtastic/meshtasticd`, firmware 2.7.26.54e0d8d, `--sim`),

@@ -119,6 +119,12 @@ characters) and a loop of codes for a long one.
 node radio/handoff/build.mjs     # rebuild index.html after changing radio/handoff/src or radio/lib
 ```
 
+**Real mainnet payment (2026-10-20):** a wallet loaded into the live page signed 1,000 sat and
+sent it with Broadcast now. It was mined in block 971842
+([`5a15bdc5...9b25ac`](https://whatsonchain.com/tx/5a15bdc5da061016d21d1eabf9e983fc7b7a7a4e0fc9892c35c8e628139b25ac)). That payment went
+straight to the network; a real payment carried by QR code, sound or text is still to be done.
+See `RESULTS.md`.
+
 Checked here: in the browser, a demo payment is signed and checked, its QR code decodes back to
 the same text, the sound chunks encode and decode back to the same bytes in the page, a gateway
 receipt verifies against the pinned key (and is refused for any other key), and the layout holds
