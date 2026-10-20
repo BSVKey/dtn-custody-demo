@@ -8,7 +8,9 @@
   Meshtastic LoRa packet, NACK-driven resend of missing frames, offline signature and amount
   checks, and a receipt signed by the gateway and verified against a pinned key. Simulated lossy
   link with LoRa time on air (`node radio/run-demo.mjs`, `make radio`), and a Meshtastic USB
-  bridge plus `radio/cli.mjs` for real radios (not yet run on hardware). The gateway broadcasts
+  bridge plus `radio/cli.mjs` for real radios, over USB (`--port`) or TCP (`--host`). Passed
+  through real Meshtastic firmware (meshtasticd 2.7.26, `radio/meshtasticd/run-sim.sh`); not yet
+  run on two physical radios. The gateway broadcasts
   only with `--spend-real-bsv`.
 
 ## 0.4.0

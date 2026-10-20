@@ -14,6 +14,9 @@
 //   node radio/cli.mjs send --port COM5 --wif-file payer.wif --fund-file fund.hex \
 //       --to <address> --sats 1000 --gateway-pub <hex from the gateway's start line>
 //
+// Any --port <serial> can be --host <ip[:port]> instead: a Meshtastic node on the network
+// (meshtasticd, or a radio on Wi-Fi).
+//
 // Key files are yours: read, never written or printed. Not yet run against real hardware.
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -58,7 +61,7 @@ async function main() {
     const keyFile = arg("key-file");
     if (!keyFile) { console.error("usage: node radio/cli.mjs gateway --port <serial> --key-file <gateway.wif> [--spend-real-bsv] [--arc <url>]"); process.exit(2); }
     const key = PrivateKey.fromWif(readFileSync(keyFile, "utf8").trim());
-    const radio = meshtasticRadio({ port: arg("port"), gapMs: Number(arg("gap-ms") ?? 3000) });
+    const radio = meshtasticRadio({ port: arg("port"), host: arg("host"), gapMs: Number(arg("gap-ms") ?? 3000) });
     const node = await radio.ready;
     const real = has("spend-real-bsv");
     console.log(`${ts()} gateway up on radio ${node}; receipt key ${key.toPublicKey().toString()}`);
@@ -79,7 +82,7 @@ async function main() {
     const tx = await buildRadioPayment({ payer, fundTx, to: arg("to"), sats: Number(arg("sats")), feeRate: Number(arg("fee-rate") ?? 100) });
     const c = checkOffline(tx);
     console.log(`${ts()} signed ${tx.id("hex")} offline: ${arg("sats")} sat to ${arg("to")}, fee ${c.fee} sat`);
-    const radio = meshtasticRadio({ port: arg("port"), gapMs: Number(arg("gap-ms") ?? 3000) });
+    const radio = meshtasticRadio({ port: arg("port"), host: arg("host"), gapMs: Number(arg("gap-ms") ?? 3000) });
     await radio.ready;
     const res = await sendPayment({ radio, tx, gatewayPub: arg("gateway-pub"), beef: has("beef"), waitMs: Number(arg("wait-ms") ?? 60000), tries: 5, log: (e) => {
       if (e.ev === "send") console.log(`${ts()} sending ${e.format} payment, ${e.bytes} B in ${e.frames} frames`);

@@ -1,4 +1,5 @@
-// A real radio endpoint: a Meshtastic device on USB, through radio/meshtastic/bridge.py.
+// A real radio endpoint: a Meshtastic device on USB (port) or on the network (host: meshtasticd,
+// or a radio on Wi-Fi, TCP 4403), through radio/meshtastic/bridge.py.
 // Same shape as the simulated link's ends: { send(frame), onFrame(cb), close(), ready }.
 // Not yet run against real hardware.
 import { spawn } from "node:child_process";
@@ -7,9 +8,10 @@ import { fileURLToPath } from "node:url";
 
 const BRIDGE = fileURLToPath(new URL("./meshtastic/bridge.py", import.meta.url));
 
-export function meshtasticRadio({ port, dest, channel, python = process.platform === "win32" ? "python" : "python3", gapMs = 0, log = () => {} } = {}) {
+export function meshtasticRadio({ port, host, dest, channel, python = process.platform === "win32" ? "python" : "python3", gapMs = 0, log = () => {} } = {}) {
   const args = [BRIDGE];
-  if (port) args.push("--port", port);
+  if (host) args.push("--host", host);
+  else if (port) args.push("--port", port);
   if (dest) args.push("--dest", dest);
   if (channel != null) args.push("--channel", String(channel));
   const child = spawn(python, args, { stdio: ["pipe", "pipe", "inherit"] });

@@ -117,7 +117,8 @@ infrastructure:
   (Meshtastic) link in frames of 200 bytes or less, missing frames are asked for again, and the
   gateway checks it offline, broadcasts only when told to, and radios back a signed receipt. A
   payment is 2 frames, about 3 s on air on LongFast. `node radio/run-demo.mjs` over a simulated
-  lossy link; `radio/cli.mjs` for real radios (not yet run on hardware). See `radio/README.md`.
+  lossy link; `radio/cli.mjs` for real radios; passed through real Meshtastic firmware in Docker
+  (`radio/meshtasticd/run-sim.sh`), not yet on two physical radios. See `radio/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one

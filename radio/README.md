@@ -80,9 +80,22 @@ node radio/cli.mjs send --port COM5 --wif-file payer.wif --fund-file fund.hex --
 Key files are read, never written or printed. The offline fee rate defaults to 100 sat/kB
 (`--fee-rate`), above current miner policy, because the payer cannot fetch the live policy.
 
-**Not yet run on real hardware.** The bridge (`meshtastic/bridge.py`) uses the official
-Meshtastic Python library's `sendData` and receive events. The protocol, the offline checks, the
-receipts and the resend logic are what the tests and the simulated link exercise.
+Any `--port <serial>` can be `--host <ip[:port]>` instead: a Meshtastic node on the network
+(a radio on Wi-Fi, or `meshtasticd`, Meshtastic's Linux build), over TCP port 4403.
+
+### Without radios: real firmware in Docker
+
+```bash
+python -m pip install meshtastic
+bash radio/meshtasticd/run-sim.sh
+```
+
+This starts two `meshtasticd` nodes with simulated radios, linked by Meshtastic's UDP LAN mesh,
+and runs a payer and a gateway against them (dry run). It passed on 2026-10-19 with firmware
+2.7.26: payment out, signed receipt back in about 1 second (`RESULTS.md`). That exercises the
+bridge, the Meshtastic library and the firmware's PRIVATE_APP port. It does **not** exercise
+LoRa airtime, range or loss, because the packets cross by UDP. **Not yet run on two physical
+radios.**
 
 ## Radio rules
 
@@ -102,6 +115,8 @@ lib/gateway.mjs    rebuild, check, broadcast (dry run unless told), receipt, NAC
 lib/sender.mjs     send, resend on NACK or silence, verify the receipt
 lib/link.mjs       simulated LoRa link: seeded loss, shared channel, time on air
 meshtastic.mjs     real radio endpoint (spawns meshtastic/bridge.py)
-cli.mjs            gateway / send / fetch-fund on real radios
+cli.mjs            gateway / send / fetch-fund on real radios (--port or --host)
+meshtasticd/       run-sim.sh: two real-firmware nodes in Docker, no radios needed
+RESULTS.md         what has been run, and what it does and does not show
 run-demo.mjs       the simulated end-to-end demo
 ```
