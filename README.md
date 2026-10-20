@@ -121,8 +121,9 @@ infrastructure:
   (`radio/meshtasticd/run-sim.sh`), not yet on two physical radios. With no radio at all, a
   phone page hands the payment over by QR code or sound (`radio/handoff/index.html`), and an
   SMS gateway takes it by text and replies with the signed receipt (`radio/sms/`). The phone page
-  has sent a real payment: 1,000 sat signed in the page and broadcast, mined in block 971842
-  on Bitcoin BSV mainnet (`radio/RESULTS.md`). See `radio/README.md`.
+  has carried a real payment by sound: 1,000 sat signed in one wallet's page, played to a
+  second wallet's page, then broadcast and mined in block 971842 on Bitcoin BSV mainnet
+  (`radio/RESULTS.md`). See `radio/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one

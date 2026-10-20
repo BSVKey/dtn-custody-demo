@@ -1,9 +1,12 @@
 # Pay over radio: results
 
-## 2026-10-20: a real Bitcoin BSV payment from the phone page, mined on mainnet
+## 2026-10-20: a real Bitcoin BSV payment carried by sound, then mined on mainnet
 
-A wallet was loaded into the live page (dtn.bsvkey.com/radio/, Send real BSV), its coins read
-from WhatsOnChain, and a payment signed in the page and sent with Broadcast now (GorillaPool ARC).
+A manual test on the live page (dtn.bsvkey.com/radio/), with two wallets each open in its own
+copy of the page. The payer's wallet was loaded (Send real BSV), its coins read from
+WhatsOnChain, and the payment signed in the page. It was then played as sound (Play as sound)
+and heard by the other wallet's page (Listen), which rebuilt and checked it. Afterwards it was
+broadcast to the network with Broadcast now (GorillaPool ARC).
 
 - Transaction [`5a15bdc5...9b25ac`](https://whatsonchain.com/tx/5a15bdc5da061016d21d1eabf9e983fc7b7a7a4e0fc9892c35c8e628139b25ac)
   (225 bytes), mined in block 971842 on 2026-10-20.
@@ -11,12 +14,13 @@ from WhatsOnChain, and a payment signed in the page and sent with Broadcast now 
   payer's own address, and a 23 sat fee, all as the page showed before sending.
 - ARC answered `SEEN_ON_NETWORK` on broadcast; WhatsOnChain then showed it in the block.
 
-What this proves: the page's wallet import, its coin lookup, its signing (one coin in, change
-and fee worked out in the page) and its broadcast produce a valid mainnet payment.
+What this proves: a real, spendable payment can go from one wallet's page to another's as sound,
+arrive intact and checkable, and then be broadcast and mined. It also exercises the page's wallet
+import, coin lookup, signing (one coin in, change and fee worked out in the page) and broadcast.
 
-What it does not prove: the offline handoffs. This payment went straight from the payer's page
-to the network. A real payment carried by QR code, sound, text message or radio, then forwarded
-by the payee, is still to be done.
+What it does not prove: the other handoffs with real money (QR code scan, text message to a
+gateway, LoRa radio), or sound over a walkie-talkie, AM or FM radio, or a phone call. The chain
+records the broadcast and the block; the sound handoff before it is from the test's own report.
 
 ## 2026-10-19: real Meshtastic firmware, simulated radio (meshtasticd)
 

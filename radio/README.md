@@ -119,19 +119,19 @@ characters) and a loop of codes for a long one.
 node radio/handoff/build.mjs     # rebuild index.html after changing radio/handoff/src or radio/lib
 ```
 
-**Real mainnet payment (2026-10-20):** a wallet loaded into the live page signed 1,000 sat and
-sent it with Broadcast now. It was mined in block 971842
-([`5a15bdc5...9b25ac`](https://whatsonchain.com/tx/5a15bdc5da061016d21d1eabf9e983fc7b7a7a4e0fc9892c35c8e628139b25ac)). That payment went
-straight to the network; a real payment carried by QR code, sound or text is still to be done.
-See `RESULTS.md`.
+**Real mainnet payment (2026-10-20):** a wallet loaded into the live page signed 1,000 sat, the
+payment was carried by sound to a second wallet's page, which heard and checked it, and it was
+then broadcast and mined in block 971842
+([`5a15bdc5...9b25ac`](https://whatsonchain.com/tx/5a15bdc5da061016d21d1eabf9e983fc7b7a7a4e0fc9892c35c8e628139b25ac)). The QR code and text
+message handoffs have not yet carried real money. See `RESULTS.md`.
 
 Checked here: in the browser, a demo payment is signed and checked, its QR code decodes back to
 the same text, the sound chunks encode and decode back to the same bytes in the page, a gateway
 receipt verifies against the pinned key (and is refused for any other key), and the layout holds
 at phone width in light and dark. In Node, a payment played into a simulated noisy room and
-captured in microphone-sized blocks is rebuilt exactly (`test/radio-sound.test.mjs`). **Not
-checked:** a real camera scan and real speaker-to-microphone sound between two phones, and the
-`sms:` link on real phones.
+captured in microphone-sized blocks is rebuilt exactly (`test/radio-sound.test.mjs`). Real
+speaker-to-microphone sound has since carried a real payment between two copies of the page
+(above). **Not checked yet:** a real camera scan, and the `sms:` link on real phones.
 
 Walkthrough video: `radio/handoff/walkthrough.mp4` (1 minute 35, narrated), also on the page. It
 is two phones on the live page, with the payee's camera and microphone fed the payer's real QR
