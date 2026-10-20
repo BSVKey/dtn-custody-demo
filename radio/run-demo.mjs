@@ -11,26 +11,14 @@
 // transaction is synthetic, so nothing here is spendable or sent anywhere.
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { PrivateKey, Transaction, P2PKH, SatoshisPerKilobyte } from "@bsv/sdk";
+import { PrivateKey } from "@bsv/sdk";
 import { loraLink } from "./lib/link.mjs";
 import { startGateway } from "./lib/gateway.mjs";
 import { sendPayment } from "./lib/sender.mjs";
-import { checkOffline, paysAddress } from "./lib/payment.mjs";
+import { checkOffline, paysAddress, demoPayment } from "./lib/payment.mjs";
 import { DEFAULT_MTU } from "./lib/frame.mjs";
 
-// A payment from a synthetic funding output. Offline: nothing is fetched or sent.
-export async function demoPayment({ payer = PrivateKey.fromRandom(), to = PrivateKey.fromRandom().toAddress(), sats = 1000, fund = 10_000, feeRate = 100 } = {}) {
-  const src = new Transaction();
-  src.addInput({ sourceTXID: "11".repeat(32), sourceOutputIndex: 0, unlockingScript: new P2PKH().lock(payer.toAddress()), sequence: 0xffffffff });
-  src.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), satoshis: fund });
-  const tx = new Transaction();
-  tx.addInput({ sourceTransaction: src, sourceOutputIndex: 0, unlockingScriptTemplate: new P2PKH().unlock(payer) });
-  tx.addOutput({ lockingScript: new P2PKH().lock(to), satoshis: sats });
-  tx.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), change: true });
-  await tx.fee(new SatoshisPerKilobyte(feeRate));
-  await tx.sign();
-  return { tx, to, sats };
-}
+export { demoPayment } from "./lib/payment.mjs";
 
 const STATUS_TEXT = { 1: "accepted by broadcaster", 2: "valid, not broadcast", 3: "rejected", 4: "broadcast failed" };
 

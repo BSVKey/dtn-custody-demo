@@ -10,7 +10,7 @@
 // only settled once the gateway broadcasts, so treat an unbroadcast radio payment like a cheque:
 // fine for small amounts, wait for the receipt for large ones.
 import { createHash } from "node:crypto";
-import { Transaction, P2PKH, Spend, PublicKey, Signature } from "@bsv/sdk";
+import { Transaction, P2PKH, Spend, PublicKey, PrivateKey, Signature, SatoshisPerKilobyte } from "@bsv/sdk";
 import { TYPE } from "./frame.mjs";
 
 export function encodePayment(tx, { beef = false } = {}) {
@@ -92,4 +92,33 @@ export function readReceipt(buf, pinnedPub) {
     if (!ok) return null;
   } catch { return null; }
   return { txid: body.subarray(0, 32).toString("hex"), status: STATUS_NAME[body[32]] ?? `UNKNOWN(${body[32]})`, time: body.readUInt32BE(33), id: body.subarray(37, 45).toString("hex"), gateway: pub.toString("hex") };
+}
+
+// Build and sign offline: spend the output of fundTx that pays the payer key.
+export async function buildRadioPayment({ payer, fundTx, to, sats, feeRate = 100 }) {
+  const ours = new P2PKH().lock(payer.toAddress()).toHex();
+  const vout = fundTx.outputs.findIndex((o) => o.lockingScript.toHex() === ours);
+  if (vout < 0) throw new Error(`funding transaction does not pay ${payer.toAddress()}`);
+  if (fundTx.outputs[vout].satoshis < sats) throw new Error(`funding output has ${fundTx.outputs[vout].satoshis} sat; payment is ${sats} plus fee`);
+  const tx = new Transaction();
+  tx.addInput({ sourceTransaction: fundTx, sourceOutputIndex: vout, unlockingScriptTemplate: new P2PKH().unlock(payer) });
+  tx.addOutput({ lockingScript: new P2PKH().lock(to), satoshis: sats });
+  tx.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), change: true });
+  await tx.fee(new SatoshisPerKilobyte(feeRate));
+  await tx.sign();
+  return tx;
+}
+
+// A payment from a synthetic funding output. Offline: nothing is fetched or sent.
+export async function demoPayment({ payer = PrivateKey.fromRandom(), to = PrivateKey.fromRandom().toAddress(), sats = 1000, fund = 10_000, feeRate = 100 } = {}) {
+  const src = new Transaction();
+  src.addInput({ sourceTXID: "11".repeat(32), sourceOutputIndex: 0, unlockingScript: new P2PKH().lock(payer.toAddress()), sequence: 0xffffffff });
+  src.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), satoshis: fund });
+  const tx = new Transaction();
+  tx.addInput({ sourceTransaction: src, sourceOutputIndex: 0, unlockingScriptTemplate: new P2PKH().unlock(payer) });
+  tx.addOutput({ lockingScript: new P2PKH().lock(to), satoshis: sats });
+  tx.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), change: true });
+  await tx.fee(new SatoshisPerKilobyte(feeRate));
+  await tx.sign();
+  return { tx, to, sats };
 }

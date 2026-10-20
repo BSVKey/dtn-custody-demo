@@ -18,6 +18,20 @@ export function arcBroadcaster(url = "https://arc.gorillapool.io") {
   };
 }
 
+// Decode, check offline, broadcast if valid, sign the receipt. Shared by every transport (radio,
+// SMS). Never throws for a bad payment: it gets a REJECTED receipt.
+export async function settlePayment({ type, id, msg, key, broadcast = dryRun }) {
+  let tx, check;
+  try { tx = decodePayment(type, msg); check = checkOffline(tx); } catch (e) { check = { ok: false, reason: e.message, txid: "00".repeat(32) }; }
+  let status = STATUS.REJECTED, detail = check.reason;
+  if (check.ok) {
+    const b = await broadcast(tx).catch((e) => ({ ok: false, sent: true, detail: e.message }));
+    status = !b.ok ? STATUS.BROADCAST_FAILED : b.sent ? STATUS.ACCEPTED : STATUS.VALID_NOT_SENT;
+    detail = b.detail;
+  }
+  return { tx, check, status, detail, receipt: signReceipt({ txid: check.txid, status, id }, key) };
+}
+
 export function startGateway({ radio, key, broadcast = dryRun, mtu, nackAfterMs = 1500, maxNacks = 5, log = () => {} }) {
   const parts = reassembler();
   const done = new Map(); // message id -> receipt frames, so a lost receipt can be sent again
@@ -42,15 +56,7 @@ export function startGateway({ radio, key, broadcast = dryRun, mtu, nackAfterMs 
   });
 
   async function settle({ type, id, msg }) {
-    let tx, check;
-    try { tx = decodePayment(type, msg); check = checkOffline(tx); } catch (e) { check = { ok: false, reason: e.message, txid: "00".repeat(32) }; }
-    let status = STATUS.REJECTED, detail = check.reason;
-    if (check.ok) {
-      const b = await broadcast(tx).catch((e) => ({ ok: false, sent: true, detail: e.message }));
-      status = !b.ok ? STATUS.BROADCAST_FAILED : b.sent ? STATUS.ACCEPTED : STATUS.VALID_NOT_SENT;
-      detail = b.detail;
-    }
-    const receipt = signReceipt({ txid: check.txid, status, id }, key);
+    const { check, status, detail, receipt } = await settlePayment({ type, id, msg, key, broadcast });
     const frames = split(TYPE.RECEIPT, receipt, { mtu, id: Buffer.from(id, "hex") });
     done.set(id, { frames, at: Date.now() });
     emit({ ev: "payment", id, txid: check.txid, ok: check.ok, status, detail, bytes: msg.length, fee: check.fee });

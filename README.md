@@ -118,7 +118,10 @@ infrastructure:
   gateway checks it offline, broadcasts only when told to, and radios back a signed receipt. A
   payment is 2 frames, about 3 s on air on LongFast. `node radio/run-demo.mjs` over a simulated
   lossy link; `radio/cli.mjs` for real radios; passed through real Meshtastic firmware in Docker
-  (`radio/meshtasticd/run-sim.sh`), not yet on two physical radios. See `radio/README.md`.
+  (`radio/meshtasticd/run-sim.sh`), not yet on two physical radios. With no radio at all, a
+  phone page hands the payment over by QR code or sound (`radio/handoff/index.html`), and an
+  SMS gateway takes it by text and replies with the signed receipt (`radio/sms/`). See
+  `radio/README.md`.
 
 - **Ground-side pilot kit (`ground/`)** signs what a ground station received, reports
   every scheduled pass (a silent pass becomes a gap record), seals the ledger under one

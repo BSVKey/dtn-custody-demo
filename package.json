@@ -11,7 +11,8 @@
   "scripts": {
     "demo": "node run-demo.mjs",
     "test": "node --test",
-    "quickstart": "node examples/quickstart.mjs"
+    "quickstart": "node examples/quickstart.mjs",
+    "build:handoff": "node radio/handoff/build.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -47,6 +48,11 @@
   "homepage": "https://github.com/BSVKey/dtn-custody-demo#readme",
   "devDependencies": {
     "@bsv/sdk": "^2.7.1",
+    "buffer": "6.0.3",
+    "esbuild": "0.28.2",
+    "ggwave": "0.4.0",
+    "jsqr": "1.4.0",
+    "qrcode-generator": "2.0.4",
     "satellite.js": "7.1.0"
   },
   "peerDependencies": {

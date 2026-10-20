@@ -12,6 +12,15 @@
   through real Meshtastic firmware (meshtasticd 2.7.26, `radio/meshtasticd/run-sim.sh`); not yet
   run on two physical radios. The gateway broadcasts
   only with `--spend-real-bsv`.
+- **Phone handoff page** (`radio/handoff/index.html`): one self-contained offline page to hand a
+  signed payment over by QR code, by sound (ggwave, about 14 to 26 s) or by a text to a gateway,
+  check it offline on the receiving phone, keep it in an outbox, and check the gateway's signed
+  receipt. Built by `node radio/handoff/build.mjs` from the same `radio/lib` code the gateway
+  runs; third-party licences ship with it.
+- **SMS gateway** (`radio/sms/`): payments as GSM-7-safe texts (one text, or parts for short
+  satellite texts), checked offline and answered with the signed receipt; Twilio and SMS Gateway
+  for Android webhooks with signature checks. Tested with simulated requests; not yet run on a
+  live number.
 
 ## 0.4.0
 

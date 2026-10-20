@@ -20,29 +20,16 @@
 // Key files are yours: read, never written or printed. Not yet run against real hardware.
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { PrivateKey, Transaction, P2PKH, SatoshisPerKilobyte } from "@bsv/sdk";
+import { PrivateKey, Transaction } from "@bsv/sdk";
 import { meshtasticRadio } from "./meshtastic.mjs";
 import { startGateway, arcBroadcaster, dryRun } from "./lib/gateway.mjs";
 import { sendPayment } from "./lib/sender.mjs";
-import { checkOffline } from "./lib/payment.mjs";
+import { checkOffline, buildRadioPayment } from "./lib/payment.mjs";
 
 const WOC = "https://api.whatsonchain.com/v1/bsv/main";
 const STATUS_TEXT = { 1: "accepted by broadcaster", 2: "valid, not broadcast", 3: "rejected", 4: "broadcast failed" };
 
-// Build and sign offline: spend the output of fundTx that pays the payer key.
-export async function buildRadioPayment({ payer, fundTx, to, sats, feeRate = 100 }) {
-  const ours = new P2PKH().lock(payer.toAddress()).toHex();
-  const vout = fundTx.outputs.findIndex((o) => o.lockingScript.toHex() === ours);
-  if (vout < 0) throw new Error(`funding transaction does not pay ${payer.toAddress()}`);
-  if (fundTx.outputs[vout].satoshis < sats) throw new Error(`funding output has ${fundTx.outputs[vout].satoshis} sat; payment is ${sats} plus fee`);
-  const tx = new Transaction();
-  tx.addInput({ sourceTransaction: fundTx, sourceOutputIndex: vout, unlockingScriptTemplate: new P2PKH().unlock(payer) });
-  tx.addOutput({ lockingScript: new P2PKH().lock(to), satoshis: sats });
-  tx.addOutput({ lockingScript: new P2PKH().lock(payer.toAddress()), change: true });
-  await tx.fee(new SatoshisPerKilobyte(feeRate));
-  await tx.sign();
-  return tx;
-}
+export { buildRadioPayment } from "./lib/payment.mjs";
 
 async function main() {
   const [mode, pos] = process.argv.slice(2);

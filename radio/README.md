@@ -97,6 +97,70 @@ bridge, the Meshtastic library and the firmware's PRIVATE_APP port. It does **no
 LoRa airtime, range or loss, because the packets cross by UDP. **Not yet run on two physical
 radios.**
 
+## Phone to phone: QR code, sound, or a text
+
+`radio/handoff/index.html` is one self-contained page (about 650 KB, everything inline, no
+network requests except the "Broadcast now" button). Open it once, save it, and it works on a
+phone with no internet.
+
+- **Pay:** load a signed payment (paste EF or BEEF hex, sign one offline from a key and a saved
+  funding transaction, or try a demo payment), then hand it over as a **QR code**, as **sound**,
+  or as a **text to a gateway** (an `sms:` link with the payment as the message). Paste the
+  gateway's reply to check its signed receipt against the pinned gateway key.
+- **Get paid:** **scan** the QR code or **listen** for the sound, and the page checks the
+  signatures and that it pays your address the amount you expect. Accepted payments wait in an
+  outbox until you text them to a gateway or broadcast them.
+
+Sound uses ggwave (data over sound with error correction): a payment is 3 chunks, about 26 s on
+Fast or 14 s on Fastest, and plays twice. QR uses one code for a normal payment (about 360
+characters) and a loop of codes for a long one.
+
+```bash
+node radio/handoff/build.mjs     # rebuild index.html after changing radio/handoff/src or radio/lib
+```
+
+Checked here: in the browser, a demo payment is signed and checked, its QR code decodes back to
+the same text, the sound chunks encode and decode back to the same bytes in the page, a gateway
+receipt verifies against the pinned key (and is refused for any other key), and the layout holds
+at phone width in light and dark. In Node, a payment played into a simulated noisy room and
+captured in microphone-sized blocks is rebuilt exactly (`test/radio-sound.test.mjs`). **Not
+checked:** a real camera scan and real speaker-to-microphone sound between two phones, and the
+`sms:` link on real phones.
+
+## SMS gateway
+
+A payment by text, for phones with no data, including satellite texting where it works.
+
+```
+BSV1 E <base64 EF payment>                  one text (about 360 characters: the phone sends 3 joined segments)
+BSV1 E 1/4 <id> <part>                      the same payment in parts, for links with short texts
+BSV RECEIPT <status> <txid>                 the gateway's reply...
+R1 <base64 signed receipt>                  ...with its signed receipt
+```
+
+Base64 uses only GSM-7 characters, so a text never drops to 70-character segments. The gateway
+checks the payment offline, broadcasts it only with `--spend-real-bsv`, and replies with the
+signed receipt. A repeat of the same payment gets the same reply and is not broadcast again.
+Texts that are not payments get no reply, so two automated numbers can never loop.
+
+```bash
+node radio/sms/server.mjs --key-file gateway.wif --twilio-token-file twilio.token --public-url https://<your host>/twilio
+node radio/sms/server.mjs --key-file gateway.wif --android-key-file signing.key --android-device http://<phone ip>:8080 --android-user <user> --android-pass-file android.pass
+```
+
+- **Twilio:** point the number's incoming-message webhook at `/twilio`. The `X-Twilio-Signature`
+  header is checked (HMAC-SHA1, verified against Twilio's documented example) and the receipt
+  goes back as the TwiML reply.
+- **Any Android phone with a SIM:** install SMS Gateway for Android
+  (github.com/capcom6/android-sms-gateway, open source), point its `sms:received` webhook at
+  `/android`, and the receipt goes back through the phone's local API. `X-Signature`
+  (HMAC-SHA256 of body + timestamp) is checked, and timestamps more than 5 minutes off are
+  refused.
+
+Both webhooks are tested with simulated requests over a real local HTTP server
+(`test/radio-sms.test.mjs`). **Not yet run against a live Twilio number or a phone running the
+app.**
+
 ## Radio rules
 
 - Use licence-free LoRa bands (US 902-928 MHz under FCC Part 15; EU 868 MHz, which has duty-cycle
@@ -119,4 +183,9 @@ cli.mjs            gateway / send / fetch-fund on real radios (--port or --host)
 meshtasticd/       run-sim.sh: two real-firmware nodes in Docker, no radios needed
 RESULTS.md         what has been run, and what it does and does not show
 run-demo.mjs       the simulated end-to-end demo
+lib/sound.mjs      payment as ggwave sound chunks
+sms/text.mjs       payment and receipt as SMS text (GSM-7 safe), parts for short texts
+sms/gateway.mjs    SMS gateway core: check, broadcast if told, signed receipt reply
+sms/server.mjs     webhooks: Twilio and SMS Gateway for Android
+handoff/           the phone page (src/ and build.mjs; index.html is the built page)
 ```
