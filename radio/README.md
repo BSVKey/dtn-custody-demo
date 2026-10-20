@@ -139,6 +139,25 @@ code and sound, so the scan and the listen in it are real decodes. To remake it:
 `python radio/video/narrate.py` (edge-tts, run in `radio/video/out/`), then
 `node radio/video/record.mjs` and `node radio/video/compose.mjs`.
 
+## Nearby: two phones on the same Wi-Fi or hotspot (WebRTC)
+
+The page's Nearby tab links two phones directly over the local network, with no internet and no
+server. The first phone shows a connection offer as a QR code; the second scans it (the page's
+scanner, or the phone's camera app, which opens the page and joins) and shows an answer code; the
+first scans that back. After that, Send this payment delivers the loaded payment in well under a
+second, and the other phone checks it on Get paid exactly as if it had been scanned, then sends
+back an acknowledgement.
+
+No STUN or TURN servers are configured, so the link only ever uses the local network. The codes
+are kept small and local: only UDP candidates on private addresses (or a browser's `.local`
+name) are kept, public addresses are dropped, and the description is compressed (about 650
+characters, one QR code).
+
+Checked here: two separate Chrome instances on one computer connect through these codes (the
+offer QR opened as a link, the answer QR scanned back), a payment crosses and is checked, and
+10 of 10 offer QR codes decode. **Not checked yet:** two real phones on one Wi-Fi or hotspot.
+Some networks (guest Wi-Fi in particular) stop devices from reaching each other.
+
 ## SMS gateway
 
 A payment by text, for phones with no data, including satellite texting where it works.

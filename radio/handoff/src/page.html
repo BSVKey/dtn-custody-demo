@@ -40,7 +40,7 @@ header.top .title { display: flex; align-items: baseline; gap: 8px; min-width: 0
 .wmenu .wnote { font-size: 12px; color: var(--muted); padding: 8px 10px 4px; border-top: 1px solid var(--line); margin-top: 4px; }
 h1 { font-size: 20px; margin: 0; }
 .brand { color: var(--muted); font-size: 13px; }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--line); padding: 4px; border-radius: var(--radius); margin-bottom: 16px; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--line); padding: 4px; border-radius: var(--radius); margin-bottom: 16px; }
 .tabs button { border: 0; background: transparent; color: var(--text); padding: 10px 4px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 section.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
@@ -75,6 +75,8 @@ label.btn.file { display: inline-flex; align-items: center; margin: 0; font: inh
 .tip { border-bottom: 1px dotted currentColor; cursor: help; }
 .tip:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 #tipBox { position: absolute; z-index: 40; max-width: min(300px, calc(100vw - 32px)); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 400; line-height: 1.4; padding: 9px 11px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.rtclog { list-style: none; padding: 0; margin: 10px 0 0; }
+.rtclog li { margin-bottom: 6px; }
 .hidden { display: none !important; }
 .status { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
 .status.good { background: var(--good-bg); color: var(--good); }
@@ -170,6 +172,17 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     </details>
 
     <details class="step">
+      <summary>Pay instantly over the same Wi-Fi or hotspot (Nearby)</summary>
+      <ol>
+        <li>Put both phones on the same Wi-Fi, or turn on one phone's hotspot and join it with the other. No internet is needed.</li>
+        <li>First phone: open <button class="link" data-goto="nearby">Nearby</button> and press <b>Start</b>. A code appears.</li>
+        <li>Second phone: open Nearby and press <b>Join</b>, then scan that code (or point its camera app at it and open the link).</li>
+        <li>The second phone now shows an answer code. First phone: press <b>Scan their answer</b> and scan it. Both say <b>Connected</b>.</li>
+        <li>Load or sign a payment on <b>Pay</b>, then press <b>Send this payment</b> on Nearby. It arrives on the other phone's Get paid tab, checked.</li>
+      </ol>
+    </details>
+
+    <details class="step">
       <summary>Use it with no internet at all</summary>
       <ol>
         <li>Open this page while you still have a connection, and keep the tab open, or <a href="./index.html" download="bsvkey-offline-pay.html">download it</a> to your phone and open the saved file.</li>
@@ -183,6 +196,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="pay" aria-selected="true">Pay</button>
     <button role="tab" data-tab="get" aria-selected="false">Get paid</button>
+    <button role="tab" data-tab="nearby" aria-selected="false">Nearby</button>
     <button role="tab" data-tab="settings" aria-selected="false">Settings</button>
   </nav>
 
@@ -286,6 +300,26 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <h2><span class="tip" data-term="outbox" tabindex="0">Waiting to be sent</span></h2>
       <p class="muted">Payments you accepted. Only a broadcast rules out a double spend: forward each one when you can. Sent ones stay here, with a link to see them on the chain, until you remove them.</p>
       <ul id="outbox"></ul>
+    </section>
+  </div>
+
+  <div data-panel="nearby" class="hidden">
+    <section class="card">
+      <h2>Link two phones directly</h2>
+      <p class="muted">Both phones on the same Wi-Fi, or one phone's hotspot. No internet is needed and nothing goes through a server: the phones swap two QR codes, then talk to each other directly (<span class="tip" data-term="webrtc" tabindex="0">WebRTC</span>). Payments then arrive in under a second.</p>
+      <div class="row">
+        <button class="btn primary" id="rtcStart">Start (first phone)</button>
+        <button class="btn" id="rtcJoin">Join (second phone): scan their code</button>
+        <button class="btn hidden" id="rtcScanAnswer">Scan their answer</button>
+      </div>
+      <video id="rtcVideo" class="hidden" playsinline muted></video>
+      <div class="qr hidden" id="rtcQrBox"><canvas id="rtcQr"></canvas><span class="muted" id="rtcQrNote"></span></div>
+      <div id="rtcStatus"></div>
+      <div id="rtcSendBox" class="hidden">
+        <p class="muted">Send the payment loaded on the Pay tab. The other phone checks it on its Get paid tab.</p>
+        <div class="row"><button class="btn primary" id="rtcSend">Send this payment</button></div>
+      </div>
+      <ul id="rtcLog" class="rtclog"></ul>
     </section>
   </div>
 

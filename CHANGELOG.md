@@ -17,6 +17,10 @@
   check it offline on the receiving phone, keep it in an outbox, and check the gateway's signed
   receipt. Built by `node radio/handoff/build.mjs` from the same `radio/lib` code the gateway
   runs; third-party licences ship with it.
+- **Nearby (WebRTC)** on the phone page: link two phones on the same Wi-Fi or hotspot by
+  swapping two QR codes (the offer also opens from the camera app), then send payments directly,
+  checked on arrival. Local network only (no STUN/TURN), compact codes with public addresses
+  removed. Tested between two Chrome instances; not yet between two real phones.
 - **Faucet** (`radio/faucet/`): choose a coin size and a count or total; one fan-out transaction
   makes the coins; announce them over sound, walkie-talkie, AM/FM, LoRa, SMS or QR. Claims mode
   pays one coin per sender, address or device key against `BSV1 CLAIM <address>` texts, with a

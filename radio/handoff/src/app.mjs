@@ -67,6 +67,7 @@ const GLOSS = {
   faucet: "Someone giving away small amounts of BSV, announced over sound, radio or text. You claim a share by sending your address.",
   bearer: "A coin whose key is announced openly. Whoever moves it to their own address first keeps it.",
   outbox: "Payments you accepted that have not reached the network yet. Forward each one (by text or Broadcast now) when you can: until then it is not final.",
+  webrtc: "A standard way for two browsers to talk to each other directly. Here it only uses your local network: no server sees the payment.",
   dualtone: "Lower, slower sounds that still get through a walkie-talkie, AM radio or a phone call, which cut off the higher tones.",
   txid: "Transaction ID: the payment's unique reference. Use it to look the payment up on WhatsOnChain.",
   pays: "Every address this payment sends money to, and how much. Change going back to the payer is listed too.",
@@ -606,8 +607,155 @@ session.onLock((why) => {
   wRender();
 }
 
-// ---------- opened from a QR code link (#pay=...) ----------
+// ---------- Nearby: two phones on the same Wi-Fi or hotspot, linked directly (WebRTC) ----------
+// No internet and no server: the connection offer and answer travel as QR codes, and the link
+// itself uses only the local network (no STUN or TURN servers are configured, so nothing leaves
+// it). Payments sent over it are checked on arrival exactly like scanned ones.
+const RTC_TEXT = /^BSVRTC1 ([OA]) ([A-Za-z0-9_-]+)$/;
+const b64u = { enc: (u8) => btoa(String.fromCharCode(...u8)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""), dec: (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)) };
+async function squeeze(text, way) {
+  if (typeof CompressionStream === "undefined") return way === "pack" ? new TextEncoder().encode(text) : new TextDecoder().decode(text);
+  const stream = new Blob([way === "pack" ? new TextEncoder().encode(text) : text]).stream().pipeThrough(way === "pack" ? new CompressionStream("deflate-raw") : new DecompressionStream("deflate-raw"));
+  const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+  return way === "pack" ? buf : new TextDecoder().decode(buf);
+}
+// Keep the code small and local: UDP candidates on private addresses only (192.168/10/172.16-31,
+// IPv6 fc00::/7 and fe80::, or a browser's .local name), and drop lines a data channel does not
+// need. Public addresses would reach past the local network, and put them in the QR code.
+function trimSdp(sdp) {
+  const local = (a) => /\.local$/i.test(a) || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.)/.test(a) || /^(f[cd][0-9a-f]{2}|fe80):/i.test(a);
+  return sdp.split(/\r?\n/).filter((l) => {
+    if (/^a=(extmap-allow-mixed|msid-semantic|ice-options)/.test(l)) return false;
+    const c = l.match(/^a=candidate:\S+ \d+ (\S+) \d+ (\S+) \d+ typ host/i);
+    if (l.startsWith("a=candidate:")) return !!c && c[1].toLowerCase() === "udp" && local(c[2]);
+    return true;
+  }).join("\r\n");
+}
+const packSdp = async (kind, sdp) => `BSVRTC1 ${kind} ${typeof CompressionStream === "undefined" ? "R" : "Z"}${b64u.enc(await squeeze(trimSdp(sdp), "pack"))}`;
+async function unpackSdp(text) {
+  const m = String(text ?? "").trim().match(RTC_TEXT);
+  if (!m) return null;
+  const raw = m[2], bytes = b64u.dec(raw.slice(1));
+  const sdp = raw[0] === "Z" ? await squeeze(bytes, "unpack") : new TextDecoder().decode(bytes);
+  return { kind: m[1] === "O" ? "offer" : "answer", sdp };
+}
+const rtcLink = (t) => `${LINK_BASE}#rtc=${encodeURIComponent(t)}`;
+function drawQrOn(canvas, text) {
+  const q = qrcode(0, "L"); q.addData(text, "Byte"); q.make();
+  const n = q.getModuleCount(), scale = Math.max(4, Math.floor(900 / n)), quiet = 4 * scale, g = canvas.getContext("2d");
+  canvas.width = canvas.height = n * scale + 2 * quiet;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, canvas.width, canvas.height); g.fillStyle = "#000";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(quiet + c * scale, quiet + r * scale, scale, scale);
+}
+function nearbyLog(kind, text) { const li = document.createElement("li"); li.className = `status ${kind}`; li.textContent = `${new Date().toLocaleTimeString()}: ${text}`; $("rtcLog").prepend(li); }
+
+let pc = null, chan = null;
+function rtcState(text, kind = "warn") { status($("rtcStatus"), kind, text); }
+function wireChannel(ch) {
+  chan = ch;
+  ch.onopen = () => { rtcState("Connected. Payments you send now go straight to the other phone.", "good"); $("rtcSendBox").classList.remove("hidden"); $("rtcQrBox").classList.add("hidden"); stopRtcScan(); };
+  ch.onclose = () => { rtcState("Disconnected. Start again to reconnect.", "bad"); $("rtcSendBox").classList.add("hidden"); };
+  ch.onmessage = (e) => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.t !== "pay" || typeof m.text !== "string") return;
+    if (faucetText(m.text)) { nearbyLog("good", "Received a faucet message: see Faucets heard on Get paid."); return; }
+    try {
+      const { tx, type } = readPayment(m.text);
+      received(tx, type, encodePayment(tx, { beef: type === TYPE.PAY_BEEF }).msg);
+      nearbyLog("good", `Received payment ${short(tx.id("hex"))}. Checked on Get paid: ${$("getStatus").textContent}`);
+      chan.send(JSON.stringify({ t: "ack", txid: tx.id("hex") }));
+    } catch (err) { nearbyLog("bad", `Received something that is not a payment: ${err.message}`); }
+  };
+  ch.addEventListener("message", (e) => { try { const m = JSON.parse(e.data); if (m.t === "ack") nearbyLog("good", `The other phone received and checked ${short(m.txid)}.`); } catch {} });
+}
+async function newPeer() {
+  if (pc) try { pc.close(); } catch {}
+  pc = new RTCPeerConnection({ iceServers: [] }); // local network only
+  pc.onconnectionstatechange = () => { if (pc.connectionState === "failed") rtcState("Could not connect. Are both phones on the same Wi-Fi or hotspot? Some guest networks block phones from seeing each other.", "bad"); };
+  return pc;
+}
+const gathered = (p) => new Promise((r) => { if (p.iceGatheringState === "complete") return r(); p.onicegatheringstatechange = () => { if (p.iceGatheringState === "complete") r(); }; setTimeout(r, 4000); });
+async function showRtcQr(kind) {
+  const text = await packSdp(kind, pc.localDescription.sdp);
+  drawQrOn($("rtcQr"), kind === "O" ? rtcLink(text) : text);
+  $("rtcQrBox").classList.remove("hidden");
+  return text;
+}
+async function rtcStart() {
+  const p = await newPeer();
+  wireChannel(p.createDataChannel("bsvkey-pay", { ordered: true }));
+  await p.setLocalDescription(await p.createOffer());
+  await gathered(p);
+  const text = await showRtcQr("O");
+  $("rtcQrNote").textContent = "1. Let the other phone scan this (its camera app works too). 2. Then press Scan their answer.";
+  $("rtcScanAnswer").classList.remove("hidden");
+  rtcState("Waiting for the other phone to scan this code.");
+  return text;
+}
+async function rtcJoin(offerText) {
+  const o = await unpackSdp(offerText);
+  if (!o || o.kind !== "offer") throw new Error("that is not a Nearby connection code");
+  const p = await newPeer();
+  p.ondatachannel = (e) => wireChannel(e.channel);
+  await p.setRemoteDescription({ type: "offer", sdp: o.sdp });
+  await p.setLocalDescription(await p.createAnswer());
+  await gathered(p);
+  const text = await showRtcQr("A");
+  $("rtcQrNote").textContent = "Now let the first phone scan this answer, from its Nearby tab (Scan their answer).";
+  rtcState("Waiting for the first phone to scan this answer.");
+  return text;
+}
+async function rtcFinish(answerText) {
+  const a = await unpackSdp(answerText);
+  if (!a || a.kind !== "answer") throw new Error("that is not a Nearby answer code");
+  if (!pc) throw new Error("press Start first");
+  await pc.setRemoteDescription({ type: "answer", sdp: a.sdp });
+  rtcState("Connecting...");
+}
+
+// a small camera reader for the Nearby codes
+let rtcStop = null;
+function stopRtcScan() { rtcStop?.(); rtcStop = null; $("rtcVideo").classList.add("hidden"); }
+async function rtcScan(onText) {
+  stopRtcScan();
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  const video = $("rtcVideo"); video.srcObject = stream; video.classList.remove("hidden"); await video.play();
+  const detector = "BarcodeDetector" in window ? new window.BarcodeDetector({ formats: ["qr_code"] }) : null;
+  const canvas = document.createElement("canvas"), g = canvas.getContext("2d", { willReadFrequently: true });
+  let live = true;
+  rtcStop = () => { live = false; stream.getTracks().forEach((t) => t.stop()); };
+  const tick = async () => {
+    if (!live) return;
+    let text = null;
+    if (video.videoWidth) {
+      if (detector) text = (await detector.detect(video).catch(() => []))[0]?.rawValue ?? null;
+      else { canvas.width = video.videoWidth; canvas.height = video.videoHeight; g.drawImage(video, 0, 0); const img = g.getImageData(0, 0, canvas.width, canvas.height); text = jsQR(img.data, img.width, img.height)?.data ?? null; }
+    }
+    if (text) { const m = String(text).match(/#rtc=([^#]+)$/); if (m) text = decodeURIComponent(m[1]); }
+    if (text && RTC_TEXT.test(text.trim())) { stopRtcScan(); try { await onText(text.trim()); } catch (e) { rtcState(e.message, "bad"); } return; }
+    requestAnimationFrame(tick);
+  };
+  tick();
+}
+$("rtcStart").onclick = async () => { try { await rtcStart(); } catch (e) { rtcState(`Could not start: ${e.message}`, "bad"); } };
+$("rtcJoin").onclick = async () => { try { rtcState("Point the camera at the first phone's code."); await rtcScan(rtcJoin); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
+$("rtcScanAnswer").onclick = async () => { try { rtcState("Point the camera at the other phone's answer."); await rtcScan(rtcFinish); } catch (e) { rtcState(mediaError("camera", e), "bad"); } };
+$("rtcSend").onclick = () => {
+  if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
+  if (!current?.check?.ok) return nearbyLog("warn", "Load or sign a payment on the Pay tab first.");
+  chan.send(JSON.stringify({ t: "pay", text: current.text }));
+  nearbyLog("good", `Sent payment ${short(current.tx.id("hex"))} to the other phone.`);
+};
+
+// ---------- opened from a QR code link (#pay=... or #rtc=...) ----------
 {
+  if (location.hash.startsWith("#rtc=")) {
+    let code = ""; try { code = decodeURIComponent(location.hash.slice(5)); } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
+    document.querySelector('[data-tab="nearby"]').click();
+    $("guide").open = false;
+    rtcJoin(code).catch((e) => rtcState(e.message, "bad"));
+  }
   const raw = location.hash.startsWith("#pay=") ? fromLink(location.hash) : null;
   if (raw) {
     history.replaceState(null, "", location.pathname + location.search); // keep it out of the address bar and history
@@ -626,4 +774,4 @@ session.onLock((why) => {
 }
 
 // for checks from the browser console (and the built-in browser test)
-window.handoff = { asLink, fromLink, listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
+window.handoff = { nearby: { trimSdp, rtcStart, rtcJoin, rtcFinish, state: () => ({ pc: pc?.connectionState, chan: chan?.readyState }) }, asLink, fromLink, listenStats, faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
