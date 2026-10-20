@@ -39,8 +39,8 @@ async function broadcastEF(efHex) {
 }
 function txLink(el, kind, text, txid) {
   status(el, kind, text);
-  const a = document.createElement("a"); a.href = `https://whatsonchain.com/tx/${txid}`; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = " See it on WhatsOnChain.";
-  el.firstChild.append(a);
+  const a = document.createElement("a"); a.href = `https://whatsonchain.com/tx/${txid}`; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = " See it on WhatsOnChain"; const note = document.createElement("span"); note.textContent = " (it can take a minute to appear there: if it says not found, refresh).";
+  el.firstChild.append(a, note);
 }
 
 function status(el, kind, text) { el.innerHTML = ""; const d = document.createElement("div"); d.className = `status ${kind}`; d.textContent = text; el.append(d); }
