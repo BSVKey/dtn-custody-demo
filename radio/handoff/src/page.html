@@ -153,7 +153,19 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
         <li>On <button class="link" data-goto="get">Get paid</button>, enter your address, then <b>Listen</b> or <b>Scan</b> when a faucet is being announced (or paste its message).</li>
         <li>It appears under <b>Faucets heard</b>.</li>
         <li>For a normal faucet, press <b>Claim by text</b> and send the message. The faucet texts back what it paid you.</li>
-        <li>For a "bearer" coin, press <b>Sweep to my address</b>, then forward it from "Waiting to be sent" as soon as you can. The first person to get a coin to the network keeps it.</li>
+        <li>For a "bearer" coin, press <b>Sweep to my address</b>. It then waits under <b>Waiting to be sent</b>: press <b>Broadcast now (mainnet)</b> there as soon as you have internet. The first person to get a coin to the network keeps it.</li>
+        <li>A new faucet's coins only exist once its setup payment has been broadcast. If a sweep is refused, ask whoever runs the faucet whether it is live yet.</li>
+      </ol>
+    </details>
+
+    <details class="step">
+      <summary>Send a payment you were given to the network (be the courier)</summary>
+      <ol>
+        <li>Someone gives you a signed payment that you are only carrying: it may pay someone else, or set up a faucet. Open <button class="link" data-goto="get">Get paid</button>.</li>
+        <li>Press <b>Scan QR code</b> (or <b>Listen</b>, or paste it in the box and press <b>Check it</b>).</li>
+        <li>If it pays someone else, the page says so and lists where it goes under <b>pays</b>. Check that is what you expect, then press <b>Keep it to forward anyway</b>.</li>
+        <li>Scroll to <b>Waiting to be sent</b> and press <b>Broadcast now (mainnet)</b>. When it says "Sent", the network has it: tap the WhatsOnChain link to see it.</li>
+        <li>No internet yet? Leave it waiting and broadcast it later, or press <b>Text to gateway</b> (set the gateway up in <button class="link" data-goto="settings">Settings</button>).</li>
       </ol>
     </details>
 

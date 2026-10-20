@@ -300,8 +300,8 @@ function received(tx, type, msg) {
     let pay;
     try { pay = paysAddress(tx, addr, want); } catch { return status($("getStatus"), "bad", "Your address does not look right: check it."); }
     rows.unshift(["to you", `${pay.got} sat`]);
-    if (!pay.ok) {
-      status($("getStatus"), "bad", pay.got ? `Signed correctly, but it pays you ${pay.got} sat, not ${want}.` : `Signed correctly, but it does not pay your address ${addr}. See "pays" below for where it goes.`);
+    if (!pay.ok || pay.got === 0) {
+      status($("getStatus"), "bad", pay.got ? `Signed correctly, but it pays you ${pay.got} sat, not ${want}.` : `Signed correctly, but it does not pay your address ${addr}. See "pays" below for where it goes. If you are carrying it for someone (or it sets up a faucet), press "Keep it to forward anyway", then Broadcast now under "Waiting to be sent".`);
       summary($("getSummary"), rows);
       $("forwardRow").classList.remove("hidden"); // a courier can still carry someone else's payment to the network
       return;
@@ -320,7 +320,8 @@ $("forwardAnyway").onclick = () => {
   if (!lastReceived) return;
   addToOutbox(lastReceived.tx, lastReceived.type, lastReceived.msg);
   $("forwardRow").classList.add("hidden");
-  status($("getStatus"), "good", "Kept in \"Waiting to be sent\". It pays someone else: you are only carrying it to the network.");
+  status($("getStatus"), "good", "Kept in \"Waiting to be sent\" below. It pays someone else: you are only carrying it. Press Broadcast now there to send it to the network.");
+  $("outbox").scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
 function renderOutbox() {
