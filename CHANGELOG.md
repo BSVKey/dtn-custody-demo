@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
+
+The npm package gains the payout fix below, `agent/lib/arc.mjs`, and the per-bundle times in
+batch receipts listed under 2026-10-19 (optional; batches without them are unchanged). The
+radio work below is in the repository only, not in the package.
+
+### Fixed
+
+- **Relay payouts could be recorded as paid when they were never sent** (`relief/kit/payout.mjs`).
+  ARC can answer HTTP 200 for a transaction the network will never mine (`SEEN_IN_ORPHAN_MEMPOOL`,
+  `DOUBLE_SPEND_ATTEMPTED`, `REJECTED`), and any 2xx, or any body containing "known" (including
+  "unknown"), counted as sent. The broadcast now goes through `broadcastPayout()`, which reads
+  the `txStatus` (`agent/lib/arc.mjs`) and appends to `payouts.jsonl` only when ARC accepted the
+  payout; otherwise the CLI says NOT SENT with the reason and the handoffs stay owed. The same
+  check now judges broadcasts in `constellation/ttn-run.mjs` and the radio gateway, faucet and
+  phone page.
 
 ### Added
 
