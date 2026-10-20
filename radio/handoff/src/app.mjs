@@ -810,7 +810,13 @@ $("rtcPay").onclick = async () => {
   if (!chan || chan.readyState !== "open") return rtcState("Not connected.", "bad");
   if (!peerAddr) return nearbyLog("warn", "The other device has not shared an address yet.");
   if (!wallet) return nearbyLog("warn", "Open your wallet first: Pay tab, Send real BSV (or the Open wallet button at the top).");
-  if (!coins.length) return nearbyLog("warn", "Get your coins first: Pay tab, Send real BSV, Get my coins (needs internet once).");
+  if (!coins.length) {
+    // online? fetch them now; offline, the person has to load a funding transaction
+    nearbyLog("warn", "Getting your coins from WhatsOnChain...");
+    try { coins = await fetchCoins(wallet.address); showCoins(); }
+    catch (e) { return nearbyLog("bad", `Could not get your coins (${e.message}). With no internet, paste a funding transaction under Send real BSV on the Pay tab.`); }
+    if (!coins.length) return nearbyLog("bad", `Your wallet ${short(wallet.address)} has no coins to spend.`);
+  }
   try {
     $("to").value = peerAddr; $("sats").value = $("rtcSats").value;
     await $("sign").onclick();
