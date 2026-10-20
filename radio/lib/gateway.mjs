@@ -6,7 +6,7 @@
 // VALID_NOT_SENT); arcBroadcaster() sends to BSV mainnet and is used only when the operator asks.
 import { split, parse, reassembler, TYPE } from "./frame.mjs";
 import { decodePayment, checkOffline, signReceipt, STATUS } from "./payment.mjs";
-import { arcVerdict } from "./arc.mjs";
+import { arcVerdict } from "../../agent/lib/arc.mjs";
 
 export const dryRun = async () => ({ ok: true, sent: false, detail: "dry run: checked, not broadcast" });
 

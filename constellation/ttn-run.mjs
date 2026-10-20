@@ -53,6 +53,7 @@ import { parseTles, makeOrbitalConstellation } from "./orbits.mjs";
 import { batchProof } from "../agent/lib/batch.mjs";
 import { verifyPath, pinnedDirectory, assemblePath } from "../agent/lib/path.mjs";
 import { leafHash, buildTree } from "../agent/lib/merkle.mjs";
+import { arcVerdict } from "../agent/lib/arc.mjs";
 
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1] ?? d;
 const NET = arg("network", "teratestnet");
@@ -138,10 +139,12 @@ async function sendTo(b, tx, maxAttempts) {
   for (let attempt = 0; ; attempt++) {
     const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(30000) }).catch((e) => ({ status: 0, text: async () => String(e) }));
     const text = await r.text();
-    if (r.status >= 200 && r.status < 300) return { ok: true, status: r.status, text };
-    if (/already|known|exists|txn-already/i.test(text)) return { ok: true, status: r.status, text };
-    if ((r.status === 0 || r.status === 429 || r.status >= 500) && attempt < maxAttempts) { retries++; await sleep(250 * 2 ** Math.min(attempt, 6)); continue; }
-    return { ok: false, status: r.status, text: text.slice(0, 200) };
+    // ARC and Arcade can answer 200 for a transaction that will never be mined (an orphan or a
+    // double spend), so their txStatus decides; WhatsOnChain answers a bare txid on success.
+    const v = arcVerdict(r.status, text);
+    if (v.ok || (b.kind === "woc" && r.status >= 200 && r.status < 300)) return { ok: true, status: r.status, text };
+    if (!v.txStatus && (r.status === 0 || r.status === 429 || r.status >= 500) && attempt < maxAttempts) { retries++; await sleep(250 * 2 ** Math.min(attempt, 6)); continue; }
+    return { ok: false, status: r.status, text: (v.txStatus ? `${v.txStatus}: ${v.why}` : text).slice(0, 200) };
   }
 }
 // The primary must accept; the others are best effort and only counted.

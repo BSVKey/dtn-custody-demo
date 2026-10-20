@@ -27,7 +27,7 @@ import { PrivateKey, Transaction } from "@bsv/sdk";
 import { planFaucet, buildFanout, faucetId, coinKey, coinLine, announcement, sweepCoinLine } from "./faucet.mjs";
 import { faucetClaims, combineHandlers } from "./claims.mjs";
 import { arcBroadcaster, dryRun } from "../lib/gateway.mjs";
-import { arcVerdict } from "../lib/arc.mjs";
+import { arcVerdict } from "../../agent/lib/arc.mjs";
 import { encodePayment, checkOffline } from "../lib/payment.mjs";
 import { paymentTexts } from "../sms/text.mjs";
 import { smsGateway } from "../sms/gateway.mjs";

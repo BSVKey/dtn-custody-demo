@@ -12,7 +12,7 @@ import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../s
 import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../../lib/sound.mjs";
 import { parseAnnouncement, parseCoinLine, sweepCoinLine, claimText } from "../../faucet/faucet.mjs";
 import { importWallet, fetchCoins, buildFromCoins } from "../../lib/wallet.mjs";
-import { arcVerdict } from "../../lib/arc.mjs";
+import { arcVerdict } from "../../../agent/lib/arc.mjs";
 
 const $ = (id) => document.getElementById(id);
 const store = {

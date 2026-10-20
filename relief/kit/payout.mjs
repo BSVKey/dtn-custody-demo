@@ -20,6 +20,7 @@ import { PrivateKey, Transaction, P2PKH, Script, SatoshisPerKilobyte } from "@bs
 import { importKeypair } from "../../agent/lib/keys.mjs";
 import { leafHash, buildTree } from "../../agent/lib/merkle.mjs";
 import { makeHub } from "./lib/roles.mjs";
+import { arcVerdict } from "../../agent/lib/arc.mjs";
 
 const ARC = process.env.ARC_URL || "https://arc.gorillapool.io";
 const WOC = "https://api.whatsonchain.com/v1/bsv/main";
@@ -64,6 +65,16 @@ export async function buildPayout(rows, { funder, fundTx, vout, feeRate = 100, n
   return { tx, payable, root };
 }
 
+// Broadcast through ARC and record the payout as paid only if ARC accepted it. ARC can answer
+// HTTP 200 for a transaction that will never be mined (an orphan or a double spend), so the
+// txStatus decides (agent/lib/arc.mjs). Returns the verdict { ok, txStatus, why }.
+export async function broadcastPayout({ tx, payable, root, dataDir, arc = ARC, fetchFn = fetch }) {
+  const r = await fetchFn(`${arc}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: tx.toHexEF() }) });
+  const v = arcVerdict(r.status, await r.text());
+  if (v.ok) appendFileSync(join(dataDir, "payouts.jsonl"), JSON.stringify({ txid: tx.id("hex"), at: new Date().toISOString(), commitment: root, paid: payable.map(({ relay, payTo, bundleIds, sats }) => ({ relay, payTo, sats, bundleIds })) }) + "\n");
+  return v;
+}
+
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const arg = (k) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); if (a) return a.slice(k.length + 3); const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   const has = (k) => process.argv.includes(`--${k}`);
@@ -93,9 +104,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   const { tx, payable, root } = await buildPayout(rows, { funder, fundTx, vout, feeRate });
   console.log(`built ${tx.id("hex")}: ${payable.length} relay outputs, fee ${feeRate} sat/kB, commitment ${root}`);
   if (!has("spend-real-bsv")) { console.log(`not sent (add --spend-real-bsv to broadcast on MAINNET). raw tx:\n${tx.toHex()}`); process.exit(0); }
-  const r = await fetch(`${ARC}/v1/tx`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rawTx: tx.toHexEF() }) });
-  const text = await r.text();
-  if (!(r.status >= 200 && r.status < 300) && !/already|known/i.test(text)) { console.error(`broadcast refused (${r.status}): ${text.slice(0, 300)}`); process.exit(1); }
-  appendFileSync(join(dataDir, "payouts.jsonl"), JSON.stringify({ txid: tx.id("hex"), at: new Date().toISOString(), commitment: root, paid: payable.map(({ relay, payTo, bundleIds, sats }) => ({ relay, payTo, sats, bundleIds })) }) + "\n");
-  console.log(`broadcast ${tx.id("hex")} via ${ARC}; recorded in ${join(dataDir, "payouts.jsonl")}`);
+  const v = await broadcastPayout({ tx, payable, root, dataDir });
+  if (!v.ok) { console.error(`NOT SENT, nothing recorded as paid: ${v.txStatus ? `${v.txStatus}, ` : ""}${v.why}`); process.exit(1); }
+  console.log(`broadcast ${tx.id("hex")} via ${ARC} (${v.txStatus}); recorded in ${join(dataDir, "payouts.jsonl")}`);
 }

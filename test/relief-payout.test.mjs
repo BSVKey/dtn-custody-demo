@@ -4,14 +4,14 @@
 // is broadcast.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, appendFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, appendFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PrivateKey, Transaction, P2PKH } from "@bsv/sdk";
 import { provision } from "../relief/kit/provision.mjs";
 import { startNode } from "../relief/kit/node.mjs";
 import { memoryNetwork } from "../relief/kit/lib/transport.mjs";
-import { owed, buildPayout, commitment } from "../relief/kit/payout.mjs";
+import { owed, buildPayout, commitment, broadcastPayout } from "../relief/kit/payout.mjs";
 
 const deployment = JSON.parse(readFileSync(new URL("../relief/kit/deployment.example.json", import.meta.url), "utf8"));
 const report = readFileSync(new URL("../relief/kit/samples/clinic-north-report.json", import.meta.url));
@@ -59,4 +59,30 @@ test("payout: refuses an underfunded output and a deployment without payout addr
   small.addOutput({ lockingScript: new P2PKH().lock(funder.toPublicKey().toAddress()), satoshis: 10 });
   await assert.rejects(buildPayout(rows, { funder, fundTx: small, vout: 0 }));
   await assert.rejects(buildPayout(rows.map((r) => ({ ...r, payTo: null })), { funder, fundTx: small, vout: 0 }), /nothing payable/);
+});
+
+test("payout: an ARC answer of HTTP 200 with an orphan or double spend status is not sent and records nothing", async () => {
+  const { hub, hubDir } = await deliver();
+  const { rows } = owed(hub, hubDir);
+  const funder = PrivateKey.fromRandom();
+  const fundTx = new Transaction();
+  fundTx.addOutput({ lockingScript: new P2PKH().lock(funder.toPublicKey().toAddress()), satoshis: 100_000 });
+  const { tx, payable, root } = await buildPayout(rows, { funder, fundTx, vout: 0, feeRate: 100 });
+  const calls = [];
+  const arcSays = (status, body) => async (url, init) => { calls.push({ url, init }); return { status, text: async () => JSON.stringify(body) }; };
+  const ledger = join(hubDir, "payouts.jsonl");
+
+  for (const txStatus of ["SEEN_IN_ORPHAN_MEMPOOL", "DOUBLE_SPEND_ATTEMPTED", "REJECTED"]) {
+    const v = await broadcastPayout({ tx, payable, root, dataDir: hubDir, arc: "https://arc.invalid", fetchFn: arcSays(200, { txid: tx.id("hex"), txStatus }) });
+    assert.equal(v.ok, false, txStatus);
+    assert.equal(v.txStatus, txStatus);
+    assert.equal(existsSync(ledger), false, `${txStatus}: nothing recorded as paid`);
+    assert.deepEqual(owed(hub, hubDir).rows, rows, `${txStatus}: still owed`);
+  }
+  assert.equal(calls[0].url, "https://arc.invalid/v1/tx");
+
+  const v = await broadcastPayout({ tx, payable, root, dataDir: hubDir, arc: "https://arc.invalid", fetchFn: arcSays(200, { txid: tx.id("hex"), txStatus: "SEEN_ON_NETWORK" }) });
+  assert.equal(v.ok, true);
+  assert.equal(JSON.parse(readFileSync(ledger, "utf8")).txid, tx.id("hex"));
+  assert.deepEqual(owed(hub, hubDir).rows, []);
 });

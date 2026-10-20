@@ -1,8 +1,8 @@
-// Reading an ARC broadcaster's answer (radio/lib/arc.mjs): the txStatus decides, because ARC can
+// Reading an ARC broadcaster's answer (agent/lib/arc.mjs): the txStatus decides, because ARC can
 // answer HTTP 200 for a payment the network will never mine (seen with a demo payment: an orphan).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { arcVerdict } from "../radio/lib/arc.mjs";
+import { arcVerdict } from "../agent/lib/arc.mjs";
 
 test("arc: accepted statuses are success; orphans, double spends and rejections are not, even at HTTP 200", () => {
   for (const s of ["SEEN_ON_NETWORK", "ACCEPTED_BY_NETWORK", "SENT_TO_NETWORK", "ANNOUNCED_TO_NETWORK", "STORED", "MINED"]) assert.equal(arcVerdict(200, JSON.stringify({ txStatus: s })).ok, true, s);
