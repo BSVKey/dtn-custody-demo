@@ -155,8 +155,10 @@ characters, one QR code).
 
 Checked here: two separate Chrome instances on one computer connect through these codes (the
 offer QR opened as a link, the answer QR scanned back), a payment crosses and is checked, and
-10 of 10 offer QR codes decode. **Not checked yet:** two real phones on one Wi-Fi or hotspot.
-Some networks (guest Wi-Fi in particular) stop devices from reaching each other.
+10 of 10 offer QR codes decode. **Real devices (2026-10-20):** an iPhone and a Windows PC on one
+home Wi-Fi linked this way and carried a real payment, mined in block 971849 (`RESULTS.md`). Not
+yet tried on a phone hotspot with no internet. Some networks (guest Wi-Fi in particular) stop
+devices from reaching each other.
 
 ## SMS gateway
 

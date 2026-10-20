@@ -1,5 +1,30 @@
 # Pay over radio: results
 
+## 2026-10-20: a real payment over Nearby (WebRTC), PC and iPhone on one Wi-Fi
+
+An iPhone and a Windows PC on the same home Wi-Fi, both on the live page's Nearby tab. They swapped
+the two connection codes as QR codes (the camera held while connecting, so each shared its real
+local address), linked directly over the local network, and told each other their addresses. A
+real payment was signed in the paying device's wallet, sent over the link (Pay them), received and
+checked on the other device, then broadcast from there.
+
+- Transaction [`3d8301a8...c7d234`](https://whatsonchain.com/tx/3d8301a8fea17f98421a2f435da1b56c143ab4d66a7b5f95ffca34ac65c7d234)
+  (226 bytes): 1,000 sat to 1ErDfgzGWe6kDSHWWZPUSpVRRvfQo7rDdZ and 36,767,743 sat change back to
+  the payer. Mined in block 971849.
+
+What this proves: two different devices (Safari on iOS, Chrome on Windows) can link over a local
+network with no server, using only QR codes to set up, and carry a real payment that the network
+then mines.
+
+Found and fixed during the test: the first attempt could not connect, because without camera or
+microphone access browsers hide their local address behind a random `.local` name, which Safari
+and Chrome could not resolve for each other (fixed: the camera is held while connecting); scanning
+the answer twice threw an error (now harmless); and the paying device had to type an address the
+link could have shared (now shared automatically).
+
+What it does not prove: a phone's hotspot with no internet at all, or networks that keep devices
+apart (guest Wi-Fi).
+
 ## 2026-10-20: a real faucet, announced by sound, claimed from a phone
 
 A bearer faucet on Bitcoin BSV mainnet (`radio/faucet/`), run end to end with real money.
