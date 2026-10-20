@@ -4,14 +4,20 @@
 //
 //   S <part 1-9a-z> <count> <first 8 hex of the message id> <up to 128 base64 characters>
 //
-// A 266-byte EF payment is 3 chunks: about 26 s of sound on the Fast setting, 14 s on Fastest
-// (measured from the generated audio at 48 kHz). The 8-byte message id is checked on the
+// A 266-byte EF payment is 3 chunks: about 26 s of sound on the Fast setting, 14 s on Fastest,
+// and about 40 s on dual-tone Fastest for narrow channels (measured from the generated audio at
+// 48 kHz). The 8-byte message id is checked on the
 // rebuilt payment, so a chunk from another payment cannot slip in unnoticed.
 import { messageId, TYPE } from "./frame.mjs";
 
 const DIGITS = "123456789abcdefghijklmnopqrstuvwxyz"; // part numbers 1..35
 export const CHUNK = 128;
-export const SPEEDS = { normal: "GGWAVE_PROTOCOL_AUDIBLE_NORMAL", fast: "GGWAVE_PROTOCOL_AUDIBLE_FAST", fastest: "GGWAVE_PROTOCOL_AUDIBLE_FASTEST" };
+// audible: 2.2-5.8 kHz, for speakers and FM. dt (dual tone): low enough for walkie-talkies, AM
+// radio and phone calls (see channels.mjs), but slower.
+export const SPEEDS = {
+  normal: "GGWAVE_PROTOCOL_AUDIBLE_NORMAL", fast: "GGWAVE_PROTOCOL_AUDIBLE_FAST", fastest: "GGWAVE_PROTOCOL_AUDIBLE_FASTEST",
+  "dt-normal": "GGWAVE_PROTOCOL_DT_NORMAL", "dt-fast": "GGWAVE_PROTOCOL_DT_FAST", "dt-fastest": "GGWAVE_PROTOCOL_DT_FASTEST",
+};
 
 export function soundChunks(type, msg) {
   const b64 = Buffer.from(msg).toString("base64"), id = messageId(Buffer.from(msg)).toString("hex");
@@ -46,6 +52,9 @@ export function soundAssembler() {
     },
   };
 }
+
+// Pass to the ggwave factory to keep its debug printing off stdout: factory(QUIET)
+export const QUIET = { print() {}, printErr() {} };
 
 // Thin wrapper over a loaded ggwave module (browser or Node). Samples are float32.
 export function ggwaveCodec(gg, { sampleRate = 48000 } = {}) {

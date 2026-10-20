@@ -161,6 +161,51 @@ Both webhooks are tested with simulated requests over a real local HTTP server
 (`test/radio-sms.test.mjs`). **Not yet run against a live Twilio number or a phone running the
 app.**
 
+## Over walkie-talkies, AM and FM radio, and phone calls
+
+Any link that carries a voice can carry the payment as tones: play the sound into a
+walkie-talkie, a station's audio feed or a phone call, and decode it at the other end with the
+phone page (Listen) or from a recording. Each channel keeps a different part of the audio, so each
+profile picks the tones that survive it (measured in simulation: band limits plus noise,
+`test/radio-channels.test.mjs`):
+
+| Channel | Audio it keeps | Tones | One payment |
+| --- | --- | --- | --- |
+| Phone speaker to phone | about 100 Hz-16 kHz | Fast (2.2-5.8 kHz) | about 26 s |
+| FM broadcast | about 50 Hz-15 kHz | Fastest | about 14 s |
+| AM broadcast | about 100 Hz-4.5 kHz | dual tone, Fastest | about 40 s |
+| Walkie-talkie (FRS/GMRS) | about 300 Hz-3 kHz | dual tone, Fastest | about 40 s |
+| Phone call | about 300 Hz-3.4 kHz | dual tone, Fastest | about 40 s |
+
+The normal tones do not get through a walkie-talkie or a phone call, which is why the dual-tone
+profile exists.
+
+```bash
+node radio/audio/make-wav.mjs --channel walkie --demo --out pay.wav     # play this into the radio
+node radio/audio/decode-wav.mjs recording.wav                           # decode what came out
+node radio/audio/decode-wav.mjs pay.wav --simulate walkie               # or try it in simulation
+```
+
+`make-wav` adds a lead-in of silence for push-to-talk and plays everything twice. `decode-wav`
+rebuilds and checks the payment and prints it as a BSV1 text, ready to forward to an SMS
+gateway. On the phone page, pick the walkie-talkie setting under Settings.
+
+**Not tested on real equipment.** The simulation is band limits plus noise. Real links add FM
+pre-emphasis, station limiters and AGC, squelch tails, push-to-talk delay and phone codecs. If
+you try it on a real walkie-talkie, station or call, please open an issue with what you used and
+what happened. Broadcasting on AM or FM needs a licensed station: this is something to test with
+a station's engineer, not on air without one.
+
+## Amateur (ham) radio: coded, locked, not used
+
+`radio/lib/ham.mjs` is an amateur profile that this project does not use. `make-wav --ham
+<CALLSIGN>` needs a valid callsign, sends "DE <CALLSIGN>" first, at least every 9.5 minutes of
+airtime and last, and passes only short plain-text messages. It refuses payments, receipts,
+faucet traffic and long encoded data in every format this repo makes, because US amateur rules
+(FCC Part 97) forbid traffic with a money interest and messages encoded to obscure their meaning.
+Whether any transmission is lawful is the licensed operator's call; other countries have their
+own rules.
+
 ## Radio rules
 
 - Use licence-free LoRa bands (US 902-928 MHz under FCC Part 15; EU 868 MHz, which has duty-cycle
@@ -183,7 +228,10 @@ cli.mjs            gateway / send / fetch-fund on real radios (--port or --host)
 meshtasticd/       run-sim.sh: two real-firmware nodes in Docker, no radios needed
 RESULTS.md         what has been run, and what it does and does not show
 run-demo.mjs       the simulated end-to-end demo
-lib/sound.mjs      payment as ggwave sound chunks
+lib/sound.mjs      payment as ggwave sound chunks (audible and dual-tone)
+lib/channels.mjs   channel profiles (speaker, FM, AM, walkie-talkie, phone call) and their simulation
+lib/ham.mjs        amateur profile: station ID, refuses payment traffic (not used)
+audio/             make-wav.mjs (to play into a radio or call), decode-wav.mjs (from a recording)
 sms/text.mjs       payment and receipt as SMS text (GSM-7 safe), parts for short texts
 sms/gateway.mjs    SMS gateway core: check, broadcast if told, signed receipt reply
 sms/server.mjs     webhooks: Twilio and SMS Gateway for Android

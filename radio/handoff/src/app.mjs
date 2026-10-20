@@ -9,7 +9,7 @@ import { PrivateKey, Transaction } from "@bsv/sdk";
 import { TYPE } from "../../lib/frame.mjs";
 import { encodePayment, decodePayment, checkOffline, paysAddress, buildRadioPayment, demoPayment } from "../../lib/payment.mjs";
 import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../sms/text.mjs";
-import { soundChunks, parseChunk, soundAssembler, ggwaveCodec } from "../../lib/sound.mjs";
+import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../../lib/sound.mjs";
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -35,7 +35,7 @@ for (const id of ["gwNumber", "gwPub", "speed", "myAddr", "want"]) { const el = 
 // ---------- ggwave, loaded once ----------
 let codecPromise = null, audio = null;
 function audioCtx() { audio ??= new (window.AudioContext || window.webkitAudioContext)(); return audio; }
-const codec = () => (codecPromise ??= ggwaveFactory().then((gg) => ggwaveCodec(gg, { sampleRate: audioCtx().sampleRate })));
+const codec = () => (codecPromise ??= ggwaveFactory(QUIET).then((gg) => ggwaveCodec(gg, { sampleRate: audioCtx().sampleRate })));
 
 // ---------- pay ----------
 let current = null; // { tx, type, msg, text }
@@ -121,6 +121,8 @@ $("play").onclick = async () => {
     await ctx.resume();
     const chunks = soundChunks(current.type, current.msg), speed = $("speed").value || "fast";
     const order = [...chunks, ...chunks];
+    // over a walkie-talkie or a call, give push-to-talk (or the line) a moment before the first tone
+    if (speed.startsWith("dt")) { note.textContent = "Press and hold talk now, with the phone at the radio's microphone..."; await new Promise((r) => setTimeout(r, 1500)); }
     for (const [i, text] of order.entries()) {
       note.textContent = `Playing part ${(i % chunks.length) + 1} of ${chunks.length}${i >= chunks.length ? " (second time)" : ""}. Hold the phones close.`;
       bar.style.width = `${(100 * i) / order.length}%`;

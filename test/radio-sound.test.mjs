@@ -5,9 +5,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { encodePayment, demoPayment } from "../radio/lib/payment.mjs";
-import { soundChunks, parseChunk, soundAssembler, ggwaveCodec } from "../radio/lib/sound.mjs";
+import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../radio/lib/sound.mjs";
 
-const codec = ggwaveCodec(await createRequire(import.meta.url)("ggwave")()); // one per process: each holds WebAssembly memory
+const codec = ggwaveCodec(await createRequire(import.meta.url)("ggwave")(QUIET)); // one per process: each holds WebAssembly memory
 
 function room(samples, { gain = 0.3, noise = 0.05, lead = 12000 } = {}) {
   const out = new Float32Array(samples.length + 2 * lead);

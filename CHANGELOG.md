@@ -17,6 +17,13 @@
   check it offline on the receiving phone, keep it in an outbox, and check the gateway's signed
   receipt. Built by `node radio/handoff/build.mjs` from the same `radio/lib` code the gateway
   runs; third-party licences ship with it.
+- **Walkie-talkie, AM, FM and phone-call audio** (`radio/lib/channels.mjs`, `radio/audio/`): channel
+  profiles that pick the ggwave tones each channel keeps (dual tone for walkie-talkies, AM and
+  calls), `make-wav.mjs` to play a payment into a radio or call and `decode-wav.mjs` to decode a
+  recording. Tested in simulation only (band limits and noise), not on real equipment. The phone
+  page gains a walkie-talkie setting.
+- **Amateur profile** (`radio/lib/ham.mjs`): coded and locked, not used. Requires a callsign,
+  identifies at least every 9.5 minutes, and refuses payments, receipts and encoded data.
 - **SMS gateway** (`radio/sms/`): payments as GSM-7-safe texts (one text, or parts for short
   satellite texts), checked offline and answered with the signed receipt; Twilio and SMS Gateway
   for Android webhooks with signature checks. Tested with simulated requests; not yet run on a
