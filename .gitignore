@@ -41,3 +41,7 @@ constellation/.main-state*.json
 ip-sf/runs/
 constellation/.main-sweep.json
 constellation/.ttn-sweep.json
+
+# Local only: outreach drafts and funding addresses for live runs
+outreach-drafts/
+constellation/*.address.txt
