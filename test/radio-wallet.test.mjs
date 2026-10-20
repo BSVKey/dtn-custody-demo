@@ -18,8 +18,9 @@ test("import: private key, recovery phrase and wallet file; bad input is refused
   assert.equal(importWallet(file).kind, "wallet file (recovery phrase)");
   assert.throws(() => importWallet(JSON.stringify({ address: k.toAddress(), mnemonic: phrase })), /not loaded/);
   assert.equal(importWallet(JSON.stringify({ wif: k.toWif() })).address, k.toAddress());
-  const words = phrase.split(" "); [words[0], words[1]] = [words[1], words[0]];
-  assert.throws(() => importWallet(words.join(" ")), /does not check out|misspelled/);
+  // A fixed phrase (BIP-39 vector "legal winner ...") with its first two words swapped: a random
+  // phrase would be flaky, since a 4-bit checksum lets about 1 swap in 16 still check out.
+  assert.throws(() => importWallet("winner legal thank year wave sausage worth useful legal winner thank yellow"), /does not check out|misspelled/);
   assert.throws(() => importWallet("one two three"), /12, 15/);
   assert.throws(() => importWallet(""), /paste/);
   assert.throws(() => importWallet("{not json"), /not a wallet file/);
