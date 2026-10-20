@@ -58,7 +58,8 @@ dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regul
 video { width: 100%; border-radius: 10px; background: #000; margin-top: 10px; }
 .meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 10px; }
 .meter > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-.outbox li { margin-bottom: 10px; font-size: 14px; }
+.outbox li, .faucets li { margin-bottom: 10px; font-size: 14px; }
+.faucets { padding-left: 18px; margin: 8px 0 0; }
 .outbox ul { padding-left: 18px; margin: 8px 0 0; }
 details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
 </style>
@@ -136,11 +137,16 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       </div>
       <video id="video" class="hidden" playsinline muted></video>
       <p class="muted hidden" id="listenNote"></p>
-      <label for="getPaste">Or paste what you were sent</label>
+      <label for="getPaste">Or paste what you were sent (a payment, a faucet announcement or a coin)</label>
       <textarea id="getPaste" spellcheck="false"></textarea>
       <div class="row"><button class="btn" id="getLoad">Check it</button></div>
       <div id="getStatus"></div>
       <dl id="getSummary" class="hidden"></dl>
+    </section>
+    <section class="card">
+      <h2>Faucets heard</h2>
+      <p class="muted">Faucet announcements and coins picked up by Scan, Listen or paste. A claims faucet pays you when you text it; a bearer coin is yours only if your sweep reaches the network first.</p>
+      <ul id="faucets" class="faucets"></ul>
     </section>
     <section class="card outbox">
       <h2>Waiting to be sent</h2>

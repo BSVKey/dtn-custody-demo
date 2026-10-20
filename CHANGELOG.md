@@ -17,6 +17,13 @@
   check it offline on the receiving phone, keep it in an outbox, and check the gateway's signed
   receipt. Built by `node radio/handoff/build.mjs` from the same `radio/lib` code the gateway
   runs; third-party licences ship with it.
+- **Faucet** (`radio/faucet/`): choose a coin size and a count or total; one fan-out transaction
+  makes the coins; announce them over sound, walkie-talkie, AM/FM, LoRa, SMS or QR. Claims mode
+  pays one coin per sender, address or device key against `BSV1 CLAIM <address>` texts, with a
+  signed receipt, a ledger that survives restarts, and one-at-a-time payouts. Bearer mode
+  broadcasts coin keys for offline sweeps. Refuses coins too small to claim and funding too small
+  to make them. The phone page turns heard announcements into a claim text and sweeps bearer
+  coins. Not yet run on mainnet.
 - **Walkie-talkie, AM, FM and phone-call audio** (`radio/lib/channels.mjs`, `radio/audio/`): channel
   profiles that pick the ggwave tones each channel keeps (dual tone for walkie-talkies, AM and
   calls), `make-wav.mjs` to play a payment into a radio or call and `decode-wav.mjs` to decode a

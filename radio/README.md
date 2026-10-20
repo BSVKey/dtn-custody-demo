@@ -196,6 +196,14 @@ you try it on a real walkie-talkie, station or call, please open an issue with w
 what happened. Broadcasting on AM or FM needs a licensed station: this is something to test with
 a station's engineer, not on air without one.
 
+## Faucet
+
+Give Bitcoin BSV to whoever can hear it: you set the coin size and the count (or a total), one
+funding transaction makes the coins, and they are announced over any of the links above. In
+claims mode people (and robots) text a claim and get one coin each, within limits. In bearer mode
+the coin keys are broadcast and the first sweep to reach the network wins each coin. See
+`radio/faucet/README.md`.
+
 ## Amateur (ham) radio: coded, locked, not used
 
 `radio/lib/ham.mjs` is an amateur profile that this project does not use. `make-wav --ham
@@ -235,5 +243,6 @@ audio/             make-wav.mjs (to play into a radio or call), decode-wav.mjs (
 sms/text.mjs       payment and receipt as SMS text (GSM-7 safe), parts for short texts
 sms/gateway.mjs    SMS gateway core: check, broadcast if told, signed receipt reply
 sms/server.mjs     webhooks: Twilio and SMS Gateway for Android
+faucet/            the faucet: plan, fan-out, claims, bearer coins, CLI (faucet/README.md)
 handoff/           the phone page (src/ and build.mjs; index.html is the built page)
 ```

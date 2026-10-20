@@ -58,3 +58,18 @@ test("ham: payments, receipts and opaque data are refused; plain text gets stati
   let since = 0;
   for (const t of plan) { since = t.startsWith("DE") ? 5 : since + 60; assert.ok(since <= 9.5 * 60); }
 });
+
+test("faucet over a walkie-talkie: the announcement and bearer coin lines come through intact", async () => {
+  const { PrivateKey } = await import("@bsv/sdk");
+  const { buildFanout, parseAnnouncement, parseCoinLine } = await import("../radio/faucet/faucet.mjs");
+  const { announceLines } = await import("../radio/faucet/cli.mjs");
+  const master = PrivateKey.fromRandom();
+  const { tx: fundTx } = await demoPayment({ to: master.toAddress(), sats: 5000, fund: 9000 });
+  const b = await buildFanout({ master, fundTx, coinSats: 500, count: 2, mode: "bearer" });
+  const lines = announceLines({ config: { id: b.id, funding: b.funding, mode: "bearer", coinSats: 500, count: 2, fanoutTxid: b.tx.id("hex") }, master });
+  const ch = CHANNELS.walkie;
+  const { messages } = decodeSamples(codec, simulateChannel(render(codec, lines, { speed: ch.speed, leadInS: ch.leadInS, repeat: 1 }), "walkie", { seed: 3 }));
+  assert.deepEqual(messages, lines);
+  assert.ok(parseAnnouncement(messages[0]));
+  assert.equal(parseCoinLine(messages[2]).i, 1);
+});

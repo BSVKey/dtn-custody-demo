@@ -10,6 +10,7 @@ import { TYPE } from "../../lib/frame.mjs";
 import { encodePayment, decodePayment, checkOffline, paysAddress, buildRadioPayment, demoPayment } from "../../lib/payment.mjs";
 import { paymentTexts, parseText, textAssembler, readReceiptText } from "../../sms/text.mjs";
 import { soundChunks, parseChunk, soundAssembler, ggwaveCodec, QUIET } from "../../lib/sound.mjs";
+import { parseAnnouncement, parseCoinLine, sweepCoinLine, claimText } from "../../faucet/faucet.mjs";
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -196,7 +197,52 @@ function renderOutbox() {
 }
 renderOutbox();
 
-$("getLoad").onclick = () => { try { const { tx, type } = readPayment($("getPaste").value); received(tx, type, encodePayment(tx, { beef: type === TYPE.PAY_BEEF }).msg); } catch (e) { status($("getStatus"), "bad", e.message); } };
+// ---------- faucets ----------
+const heard = new Set();
+// a faucet announcement or a bearer coin: show it once, with what can be done. Returns true if handled.
+function faucetText(text) {
+  const t = String(text ?? "").trim(), ann = parseAnnouncement(t), coin = !ann && parseCoinLine(t);
+  if (!ann && !coin) return false;
+  if (heard.has(t)) return true;
+  heard.add(t);
+  const li = document.createElement("li"), row = document.createElement("div"), s = document.createElement("div");
+  row.className = "row";
+  if (ann) {
+    li.textContent = ann.mode === "claims" ? `Faucet ${ann.id}: ${ann.coinSats} sat each, ${ann.left} of ${ann.count} left.` : `Bearer faucet ${ann.id}: coins of ${ann.coinSats} sat. Listen on for the coins themselves.`;
+    if (ann.mode === "claims") {
+      const send = () => { const a = $("myAddr").value.trim(); if (!a) { status(s, "warn", "Add your address at the top first."); return null; } return claimText(a); };
+      if (ann.claimTo && /^\+?[0-9]{5,15}$/.test(ann.claimTo)) {
+        const a = document.createElement("a"); a.className = "btn"; a.textContent = "Claim by text"; a.href = "#";
+        a.onclick = (e) => { const body = send(); if (!body) { e.preventDefault(); return; } a.href = smsHref(ann.claimTo, body); };
+        row.append(a);
+      }
+      const c = document.createElement("button"); c.className = "btn"; c.textContent = "Copy claim text";
+      c.onclick = async () => { const body = send(); if (!body) return; try { await navigator.clipboard.writeText(body); status(s, "good", `Copied: ${body}`); } catch { prompt("Send this to the faucet:", body); } };
+      row.append(c);
+    }
+  } else {
+    li.textContent = `Bearer coin ${coin.i}: ${coin.sats} sat, heard ${new Date().toLocaleTimeString()}.`;
+    const b = document.createElement("button"); b.className = "btn primary"; b.textContent = "Sweep to my address";
+    b.onclick = async () => {
+      const a = $("myAddr").value.trim();
+      if (!a) return status(s, "warn", "Add your address at the top first.");
+      try {
+        const tx = await sweepCoinLine(t, a);
+        received(tx, TYPE.PAY_EF, encodePayment(tx).msg);
+        status(s, "good", `Signed over to you: ${tx.outputs[0].satoshis} sat. It is in "Waiting to be sent": forward it soon, since anyone else who heard this coin can try too.`);
+        b.disabled = true;
+      } catch (e) { status(s, "bad", e.message); }
+    };
+    row.append(b);
+  }
+  li.append(row, s);
+  $("faucets").prepend(li);
+  return true;
+}
+
+$("getLoad").onclick = () => {
+  for (const line of $("getPaste").value.split(/\n+/)) if (faucetText(line)) { status($("getStatus"), "good", "Faucet text added below."); return; }
+ try { const { tx, type } = readPayment($("getPaste").value); received(tx, type, encodePayment(tx, { beef: type === TYPE.PAY_BEEF }).msg); } catch (e) { status($("getStatus"), "bad", e.message); } };
 
 let stopper = null;
 function stopAll() { stopper?.(); stopper = null; $("stop").classList.add("hidden"); $("video").classList.add("hidden"); $("listenNote").classList.add("hidden"); }
@@ -220,6 +266,7 @@ $("scan").onclick = async () => {
         if (detector) { const codes = await detector.detect(video).catch(() => []); text = codes[0]?.rawValue ?? null; }
         else { canvas.width = video.videoWidth; canvas.height = video.videoHeight; g.drawImage(video, 0, 0); const img = g.getImageData(0, 0, canvas.width, canvas.height); text = jsQR(img.data, img.width, img.height)?.data ?? null; }
       }
+      if (text && !seen.has(text) && faucetText(text)) { seen.add(text); status($("getStatus"), "good", "Faucet code scanned: see below."); }
       const p = text && parseText(text);
       if (p && !seen.has(text)) {
         seen.add(text);
@@ -246,6 +293,7 @@ $("listen").onclick = async () => {
     note.textContent = "Listening. Hold this phone close to the payer's speaker."; note.classList.remove("hidden"); $("stop").classList.remove("hidden");
     proc.onaudioprocess = (ev) => {
       for (const text of c.decode(new Float32Array(ev.inputBuffer.getChannelData(0)))) {
+        if (faucetText(text)) { note.textContent = "Heard a faucet message: see Faucets heard."; continue; }
         const p = parseChunk(text); if (!p) continue;
         const r = asm.add(p);
         if (r.msg) { stopAll(); received(decodePayment(r.type, r.msg), r.type, r.msg); return; }
@@ -258,4 +306,4 @@ $("listen").onclick = async () => {
 };
 
 // for checks from the browser console (and the built-in browser test)
-window.handoff = { readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };
+window.handoff = { faucetText, readPayment, setPayment, received, current: () => current, jsQR, codec, soundChunks, parseChunk, soundAssembler, parseText };

@@ -50,6 +50,15 @@ export function androidSender({ device, user, pass }) {
   };
 }
 
+// --twilio-token-file + --public-url and/or --android-key-file + --android-device/-user/-pass-file
+export function adaptersFromArgs(arg, read) {
+  const twilio = arg("twilio-token-file") ? { authToken: read("twilio-token-file"), publicUrl: arg("public-url") } : null;
+  if (twilio && !twilio.publicUrl) { console.error("--public-url (the exact URL Twilio calls) is needed to check Twilio signatures"); process.exit(2); }
+  const android = arg("android-key-file") ? { signingKey: read("android-key-file"), send: androidSender({ device: arg("android-device"), user: arg("android-user"), pass: read("android-pass-file") }) } : null;
+  if (!twilio && !android) { console.error("give --twilio-token-file and/or --android-key-file"); process.exit(2); }
+  return { twilio, android };
+}
+
 const xml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export function smsServer({ gateway, twilio, android, maxSkewS = 300, log = () => {} }) {
@@ -96,10 +105,7 @@ async function main() {
     if (e.ev === "payment") console.log(`${ts()} payment ${e.txid} from ${e.from}: status ${e.status}${e.detail ? ` (${e.detail})` : ""}`);
     else if (e.ev !== "ignored") console.log(`${ts()} ${e.ev} ${e.id ?? ""} ${e.part ? `${e.part}/${e.of}` : ""}`);
   } });
-  const twilio = arg("twilio-token-file") ? { authToken: read("twilio-token-file"), publicUrl: arg("public-url") } : null;
-  if (twilio && !twilio.publicUrl) { console.error("--public-url (the exact URL Twilio calls) is needed to check Twilio signatures"); process.exit(2); }
-  const android = arg("android-key-file") ? { signingKey: read("android-key-file"), send: androidSender({ device: arg("android-device"), user: arg("android-user"), pass: read("android-pass-file") }) } : null;
-  if (!twilio && !android) { console.error("give --twilio-token-file and/or --android-key-file"); process.exit(2); }
+  const { twilio, android } = adaptersFromArgs(arg, read);
   const port = Number(arg("port") ?? 8787);
   smsServer({ gateway, twilio, android, log: (e) => console.log(`${ts()} ${e.ev} ${e.via ?? e.detail ?? ""}`) }).listen(port, () => {
     console.log(`${ts()} SMS gateway on :${port} (${[twilio && "/twilio", android && "/android"].filter(Boolean).join(", ")}); receipt key ${key.toPublicKey().toString()}`);
