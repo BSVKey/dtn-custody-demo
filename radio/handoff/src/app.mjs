@@ -44,7 +44,63 @@ function txLink(el, kind, text, txid) {
 }
 
 function status(el, kind, text) { el.innerHTML = ""; const d = document.createElement("div"); d.className = `status ${kind}`; d.textContent = text; el.append(d); }
-function summary(el, rows) { el.innerHTML = ""; for (const [k, v] of rows) { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; el.append(dt, dd); } el.classList.remove("hidden"); }
+const DT_TERMS = { txid: "txid", pays: "pays", fee: "fee", size: "size", "to you": "toyou" };
+function summary(el, rows) { el.innerHTML = ""; for (const [k, v] of rows) { const dt = document.createElement("dt");
+  if (DT_TERMS[k]) { const t = document.createElement("span"); t.className = "tip"; t.tabIndex = 0; t.dataset.term = DT_TERMS[k]; t.textContent = k; dt.append(t); } else dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; el.append(dt, dd); } el.classList.remove("hidden"); }
+
+// ---------- plain-words tips: point at a dotted word, or tap it on a phone ----------
+const GLOSS = {
+  signed: "A payment your wallet has approved with its key. Anyone can check it is genuine, but no money moves until it is broadcast.",
+  ef: "Two standard ways to write a signed Bitcoin BSV payment as text. Both carry what is needed to check it with no internet; BEEF can also carry proof that the coins exist.",
+  bsv1: "This page's own text form of a payment, starting with BSV1. You can paste it, show it as a QR code, or send it by text message.",
+  wif: "WIF (wallet import format) is the usual way to write a private key: about 52 letters and numbers starting with K, L or 5. Whoever has it can spend the coins, so keep it secret.",
+  phrase: "12 to 24 ordinary words that rebuild your wallet's keys. Anyone with them can take your coins. Never share them or type them into a site you do not trust.",
+  coins: "The separate amounts your address holds. A payment spends one or more of them, and any change comes back to you as a new one.",
+  funding: "An earlier payment into your address, as raw text. Saved while you were online, it lets this page spend that money with no internet.",
+  address: "Where BSV is sent, like an account number. Safe to share. It starts with 1.",
+  sat: "Satoshis (sat) are the smallest unit of Bitcoin BSV. 100,000,000 sat is 1 BSV.",
+  gateway: "A phone or computer that is online and receives payments by text message, sends them to the network for you, and texts back a receipt.",
+  receipt: "The gateway's signed reply saying what it did with your payment. ACCEPTED means the network took it.",
+  pinned: "The gateway's public key, given to you by whoever runs it. The page uses it to check that a receipt really came from that gateway and not from someone pretending.",
+  faucet: "Someone giving away small amounts of BSV, announced over sound, radio or text. You claim a share by sending your address.",
+  bearer: "A coin whose key is announced openly. Whoever moves it to their own address first keeps it.",
+  outbox: "Payments you accepted that have not reached the network yet. Forward each one (by text or Broadcast now) when you can: until then it is not final.",
+  dualtone: "Lower, slower sounds that still get through a walkie-talkie, AM radio or a phone call, which cut off the higher tones.",
+  txid: "Transaction ID: the payment's unique reference. Use it to look the payment up on WhatsOnChain.",
+  pays: "Every address this payment sends money to, and how much. Change going back to the payer is listed too.",
+  fee: "A small amount paid to the network to process the payment.",
+  size: "How big the payment is as data. Smaller is quicker to send by sound or radio.",
+  toyou: "How much of this payment goes to the address you entered above.",
+};
+const tipBox = $("tipBox");
+let tipFor = null;
+function showTip(el) {
+  const text = GLOSS[el.dataset.term];
+  if (!text) return;
+  tipFor = el; tipBox.textContent = text; tipBox.classList.remove("hidden");
+  const r = el.getBoundingClientRect(), w = tipBox.offsetWidth;
+  const left = Math.min(Math.max(8, r.left + window.scrollX), window.scrollX + document.documentElement.clientWidth - w - 8);
+  tipBox.style.left = `${left}px`;
+  tipBox.style.top = `${r.bottom + window.scrollY + 6}px`;
+}
+function hideTip() { tipFor = null; tipBox.classList.add("hidden"); }
+function initTips(root = document) {
+  for (const el of root.querySelectorAll(".tip:not([data-tip-ready])")) {
+    el.dataset.tipReady = "1";
+    el.setAttribute("aria-label", `${el.textContent}: ${GLOSS[el.dataset.term] ?? ""}`);
+    el.addEventListener("mouseenter", () => showTip(el));
+    el.addEventListener("mouseleave", () => { if (tipFor === el) hideTip(); });
+    el.addEventListener("focus", () => showTip(el));
+    el.addEventListener("blur", () => { if (tipFor === el) hideTip(); });
+    // a tap on a phone: show it, and do not let a label around it move focus to the field
+    el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); if (tipFor === el && e.pointerType !== "mouse") hideTip(); else showTip(el); });
+  }
+}
+document.addEventListener("click", (e) => { if (tipFor && !e.target.closest(".tip")) hideTip(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+addEventListener("resize", hideTip);
+initTips();
+new MutationObserver(() => initTips()).observe(document.body, { childList: true, subtree: true });
 
 // ---------- tabs and settings ----------
 for (const b of document.querySelectorAll("[data-tab]")) b.onclick = () => {
@@ -71,7 +127,7 @@ function setPayment(tx, type) {
   const check = checkOffline(tx);
   const text = paymentTexts(type, msg)[0];
   current = { tx, type, msg, text, check };
-  if (check.ok) status($("payStatus"), "good", "Signed correctly. Ready to hand over.");
+  if (check.ok) status($("payStatus"), "good", "Signed correctly. Ready to give to the other person.");
   else status($("payStatus"), "bad", `This payment does not check out: ${check.reason}`);
   summary($("paySummary"), [["txid", short(tx.id("hex"))], ["pays", paysList(tx).join("\n")], ["fee", check.ok ? `${check.fee} sat` : "?"], ["size", `${msg.length} bytes, ${type === TYPE.PAY_BEEF ? "BEEF" : "EF"}`]]);
   for (const id of ["showQr", "play", "copy", "broadcastPay"]) $(id).disabled = !check.ok;
@@ -158,7 +214,7 @@ $("sign").onclick = async () => {
     coins = coins.filter((c) => !spent.has(`${c.tx.id("hex")}:${c.vout}`));
     tx.outputs.forEach((o, vout) => { if (vout > 0) coins.push({ tx, vout, sats: o.satoshis }); });
     setPayment(tx, TYPE.PAY_EF);
-    status($("payStatus"), "good", `Signed: ${sats} sat to ${to}. Hand it over below. Nothing is sent until someone forwards or broadcasts it.`);
+    status($("payStatus"), "good", `Signed: ${sats} sat to ${to}. Give it to the other person below. Nothing is sent until someone forwards or broadcasts it.`);
     showCoins();
   } catch (e) { status($("payStatus"), "bad", e.message); }
 };
@@ -170,7 +226,7 @@ $("broadcastPay").onclick = async () => {
     const r = await broadcastEF(Buffer.from(current.tx.toEF()).toString("hex"));
     if (r.ok) txLink($("handStatus"), "good", `Sent: the network accepted it (${r.status}).`, txid);
     else { status($("handStatus"), "bad", `Refused (${r.status}): ${r.body.slice(0, 200)}`); b.disabled = false; }
-  } catch (e) { status($("handStatus"), "bad", `No connection: ${e.message}. Hand it over instead, or try again when online.`); b.disabled = false; }
+  } catch (e) { status($("handStatus"), "bad", `No connection: ${e.message}. Give it to the other person instead, or try again when online.`); b.disabled = false; }
 };
 $("copy").onclick = async () => { try { await navigator.clipboard.writeText(current.text); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy text"), 1500); } catch { prompt("Copy this:", current.text); } };
 

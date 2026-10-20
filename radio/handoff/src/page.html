@@ -72,6 +72,9 @@ a { color: var(--accent); }
 details.real { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
 details.real > summary { font-weight: 700; cursor: pointer; }
 label.btn.file { display: inline-flex; align-items: center; margin: 0; font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px; padding: 11px 14px; min-height: 44px; cursor: pointer; }
+.tip { border-bottom: 1px dotted currentColor; cursor: help; }
+.tip:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+#tipBox { position: absolute; z-index: 40; max-width: min(300px, calc(100vw - 32px)); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 400; line-height: 1.4; padding: 9px 11px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 .hidden { display: none !important; }
 .status { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
 .status.good { background: var(--good-bg); color: var(--good); }
@@ -178,13 +181,14 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <div class="row">
         <button class="btn" id="demo">Try a demo payment</button>
       </div>
-      <label for="paste">Or paste a signed payment (EF or BEEF hex, or a BSV1 text)</label>
+      <label for="paste">Or paste a <span class="tip" data-term="signed" tabindex="0">signed payment</span> (<span class="tip" data-term="ef" tabindex="0">EF or BEEF hex</span>, or a <span class="tip" data-term="bsv1" tabindex="0">BSV1 text</span>)</label>
       <textarea id="paste" spellcheck="false" placeholder="0100000000000000..."></textarea>
       <div class="row"><button class="btn" id="load">Load it</button></div>
       <details class="real" id="real">
         <summary>Send real BSV</summary>
+        <p class="muted">Tip: words with a dotted line explain themselves. Point at them, or tap them on a phone.</p>
         <p class="muted">Use your own wallet. Your key or recovery phrase stays in this page's memory only: it is never saved or sent, and closing the tab forgets it.</p>
-        <label for="walletIn">1. Your private key (WIF) or recovery phrase (12 to 24 words)</label>
+        <label for="walletIn">1. Your <span class="tip" data-term="wif" tabindex="0">private key (WIF)</span> or <span class="tip" data-term="phrase" tabindex="0">recovery phrase</span> (12 to 24 words)</label>
         <input id="walletIn" type="password" autocomplete="off" spellcheck="false" placeholder="L1... or twelve words">
         <div class="row">
           <button class="btn primary" id="walletLoad">Load wallet</button>
@@ -193,21 +197,21 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
         </div>
         <div id="walletStatus"></div>
         <div id="coinsBox" class="hidden">
-          <label>2. Your coins</label>
-          <div class="row"><button class="btn" id="coinsGet">Get my coins (needs internet)</button></div>
+          <label>2. Your <span class="tip" data-term="coins" tabindex="0">coins</span></label>
+          <div class="row"><button class="btn" id="coinsGet" title="Looks up what your address holds, on WhatsOnChain. Needs internet. Nothing is sent.">Get my coins (needs internet)</button></div>
           <details class="step">
-            <summary>No internet? Paste a funding transaction</summary>
+            <summary>No internet? Paste a <span class="tip" data-term="funding" tabindex="0">funding transaction</span></summary>
             <p class="muted">Raw hex of a transaction that paid your address, saved while you were online.</p>
             <textarea id="fund" spellcheck="false"></textarea>
             <div class="row"><button class="btn" id="fundAdd">Use it</button></div>
           </details>
           <div id="coinsStatus"></div>
-          <label for="to">3. Pay to address</label>
+          <label for="to">3. Pay to <span class="tip" data-term="address" tabindex="0">address</span></label>
           <input id="to" autocomplete="off" spellcheck="false">
-          <label for="sats">Amount (satoshis)</label>
+          <label for="sats">Amount (<span class="tip" data-term="sat" tabindex="0">satoshis</span>)</label>
           <input id="sats" type="number" min="1" inputmode="numeric">
-          <div class="row"><button class="btn primary" id="sign">Sign payment</button></div>
-          <p class="muted">Signing needs no internet, and nothing is sent yet. Then hand it over below by QR code, sound or text, or, if you are online, press <b>Broadcast now</b> to send it yourself.</p>
+          <div class="row"><button class="btn primary" id="sign" title="Signs the payment with your key, here on this device. Nothing is sent yet.">Sign payment</button></div>
+          <p class="muted">Signing needs no internet, and nothing is sent yet. Then give it to the other person below (QR code, sound or text), or, if you are online, press <b>Broadcast now</b> to send it yourself.</p>
         </div>
       </details>
       <div id="payStatus"></div>
@@ -215,14 +219,14 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     </section>
 
     <section class="card" id="handover" aria-disabled="true">
-      <h2>2. Hand it over</h2>
+      <h2>2. Give it to the other person</h2>
       <p class="muted">Show the code, play it as sound, or text it to a gateway that is online.</p>
       <div class="row">
-        <button class="btn primary" id="showQr" disabled>Show QR code</button>
-        <button class="btn" id="play" disabled>Play as sound</button>
+        <button class="btn primary" id="showQr" title="Shows the payment as a QR code for the other phone's camera." disabled>Show QR code</button>
+        <button class="btn" id="play" title="Plays the payment as sound for the other phone's microphone." disabled>Play as sound</button>
         <a class="btn hidden" id="smsLink" href="#">Text to gateway</a>
-        <button class="btn" id="copy" disabled>Copy text</button>
-        <button class="btn" id="broadcastPay" disabled>Broadcast now (mainnet)</button>
+        <button class="btn" id="copy" title="Copies the payment as text, to paste into a message or the other person's page." disabled>Copy text</button>
+        <button class="btn" id="broadcastPay" title="Sends the payment to the real Bitcoin BSV network now. Only do this when you mean to pay: it cannot be undone." disabled>Broadcast now (mainnet)</button>
       </div>
       <div id="handStatus"></div>
       <div class="qr hidden" id="qrBox"><canvas id="qr"></canvas><span class="muted" id="qrNote"></span></div>
@@ -231,7 +235,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     </section>
 
     <section class="card">
-      <h2>3. Check the gateway's receipt</h2>
+      <h2>3. Check the <span class="tip" data-term="gateway" tabindex="0">gateway</span>'s <span class="tip" data-term="receipt" tabindex="0">receipt</span></h2>
       <p class="muted">Paste the gateway's reply text. Its signature is checked against the gateway key in Settings.</p>
       <textarea id="receipt" spellcheck="false" placeholder="BSV RECEIPT ACCEPTED ..."></textarea>
       <div class="row"><button class="btn" id="checkReceipt">Check receipt</button></div>
@@ -242,19 +246,19 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
   <div data-panel="get" class="hidden">
     <section class="card">
       <h2>Receive a payment</h2>
-      <label for="myAddr">Your address</label>
+      <label for="myAddr">Your <span class="tip" data-term="address" tabindex="0">address</span></label>
       <input id="myAddr" autocomplete="off" spellcheck="false">
-      <label for="want">Amount you expect (satoshis)</label>
+      <label for="want">Amount you expect (<span class="tip" data-term="sat" tabindex="0">satoshis</span>)</label>
       <input id="want" type="number" min="0" inputmode="numeric">
       <div class="row">
-        <button class="btn primary" id="scan">Scan QR code</button>
-        <button class="btn" id="listen">Listen</button>
+        <button class="btn primary" id="scan" title="Opens the camera to read the payer's QR code.">Scan QR code</button>
+        <button class="btn" id="listen" title="Turns on the microphone to hear a payment played as sound.">Listen</button>
         <button class="btn hidden" id="stop">Stop</button>
       </div>
       <video id="video" class="hidden" playsinline muted></video>
       <p class="muted hidden" id="listenNote"></p>
       <div class="meter hidden" id="micMeter" title="Microphone level"><div></div></div>
-      <label for="getPaste">Or paste what you were sent (a payment, a faucet announcement or a coin)</label>
+      <label for="getPaste">Or paste what you were sent (a payment, a <span class="tip" data-term="faucet" tabindex="0">faucet</span> announcement or a <span class="tip" data-term="bearer" tabindex="0">coin</span>)</label>
       <textarea id="getPaste" spellcheck="false"></textarea>
       <div class="row"><button class="btn" id="getLoad">Check it</button></div>
       <div id="getStatus"></div>
@@ -262,12 +266,12 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
       <div class="row hidden" id="forwardRow"><button class="btn" id="forwardAnyway">Keep it to forward anyway</button></div>
     </section>
     <section class="card">
-      <h2>Faucets heard</h2>
+      <h2><span class="tip" data-term="faucet" tabindex="0">Faucets</span> heard</h2>
       <p class="muted">Faucet announcements and coins picked up by Scan, Listen or paste. A claims faucet pays you when you text it; a bearer coin is yours only if your sweep reaches the network first.</p>
       <ul id="faucets" class="faucets"></ul>
     </section>
     <section class="card outbox">
-      <h2>Waiting to be sent</h2>
+      <h2><span class="tip" data-term="outbox" tabindex="0">Waiting to be sent</span></h2>
       <p class="muted">Payments you accepted. Only a broadcast rules out a double spend: forward each one when you can.</p>
       <ul id="outbox"></ul>
     </section>
@@ -276,11 +280,11 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
   <div data-panel="settings" class="hidden">
     <section class="card">
       <h2>Gateway</h2>
-      <label for="gwNumber">Gateway phone number</label>
+      <label for="gwNumber"><span class="tip" data-term="gateway" tabindex="0">Gateway</span> phone number</label>
       <input id="gwNumber" type="tel" placeholder="+15551234567">
-      <label for="gwPub">Gateway public key (pinned)</label>
+      <label for="gwPub">Gateway <span class="tip" data-term="pinned" tabindex="0">public key (pinned)</span></label>
       <input id="gwPub" spellcheck="false" placeholder="02...">
-      <label for="speed">Sound speed</label>
+      <label for="speed">Sound speed (<span class="tip" data-term="dualtone" tabindex="0">dual tone</span> is for radios and calls)</label>
       <select id="speed">
         <option value="fast">Fast: about 26 s for a payment, sturdier</option>
         <option value="fastest">Fastest: about 14 s, needs a quiet room</option>
@@ -297,6 +301,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 4px; }
     </section>
   </div>
 </main>
+<div id="tipBox" class="hidden" role="tooltip"></div>
 <script>/*APP*/</script>
 </body>
 </html>
