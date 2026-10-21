@@ -9,6 +9,11 @@
   illustrative DSN track plan with a missed track. Downlink science frame and uplink command
   load both verify chunk by chunk with full custody chains; Voyager's signed delivery receipt
   comes back down. Simulated in virtual time. `make voyager`, `voyager/RESULTS.md`.
+- **Voyager 2, signed schedules, bit errors** (`voyager/`): missions in `missions.json`
+  (Voyager 2 commandable only from DSS-43); each schedule is a contact plan compiled to ION and
+  HDTN and signed as `dtn.contact-plan/1`, the only source of link windows, with gap records
+  checked against it; per-bit errors with NACK-driven resends over the reverse link
+  (`node voyager/sweep.mjs`, 20 seeds per rate).
 
 ## 0.4.1
 

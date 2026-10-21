@@ -1,0 +1,40 @@
+{
+  "voyager1": {
+    "spacecraft": "Voyager 1",
+    "ipn": 1,
+    "planEpoch": "2026-10-19T00:00:00Z",
+    "oneWayLightTimeH": 23.8,
+    "lightTimeNote": "Approximate Earth-to-Voyager 1 light time for late October 2026 (about 172 AU); NASA expects it to pass one light-day in November 2026.",
+    "downlinkBps": 160,
+    "uplinkBps": 16,
+    "tracksNote": "Illustrative 70 m DSN schedule, not the real one: one 8-hour track a day at 06:00-14:00 UTC (Goldstone or Madrid), with 22 October missed (antenna maintenance). Every track can command.",
+    "tracks": {
+      "firstDay": "2026-10-21", "days": 30, "startUtc": "06:00", "hours": 8,
+      "station": "70 m", "missedDays": ["2026-10-22"], "commandEveryNthDay": 1
+    },
+    "downlink": { "readyAt": "2026-10-22T13:50:00Z", "bytes": 32768, "chunkSize": 1024 },
+    "uplink": { "readyAt": "2026-10-21T13:50:00Z", "bytes": 1024, "chunkSize": 256 }
+  },
+  "voyager2": {
+    "spacecraft": "Voyager 2",
+    "ipn": 2,
+    "planEpoch": "2026-10-19T00:00:00Z",
+    "oneWayLightTimeH": 20.0,
+    "lightTimeNote": "Approximate Earth-to-Voyager 2 light time for late October 2026 (about 144 AU). Voyager 2 is far south of the ecliptic, so only the Canberra complex sees it, and only the 70 m DSS-43 can send it commands.",
+    "downlinkBps": 160,
+    "uplinkBps": 16,
+    "tracksNote": "Illustrative Canberra schedule, not the real one: one 8-hour track a day at 20:00-04:00 UTC; every third track is DSS-43 (can command), the others an array of 34 m dishes that can only listen.",
+    "tracks": {
+      "firstDay": "2026-10-20", "days": 30, "startUtc": "20:00", "hours": 8,
+      "station": "34 m array", "commandStation": "DSS-43", "missedDays": [], "commandEveryNthDay": 3
+    },
+    "downlink": { "readyAt": "2026-10-22T07:50:00Z", "bytes": 32768, "chunkSize": 1024 },
+    "uplink": { "readyAt": "2026-10-21T03:50:00Z", "bytes": 1024, "chunkSize": 256 }
+  },
+  "common": {
+    "groundLinkMs": 50,
+    "bundleOverheadBytes": 48,
+    "overheadNote": "Estimated BPv7 primary + payload block headers per bundle. The Merkle leaf and branch carried in each bundle are counted from the real bundle.",
+    "dsnIpn": 10
+  }
+}
