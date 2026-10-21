@@ -301,3 +301,38 @@ docker run --rm --entrypoint bash -v "$PWD:/app" dtn-custody-hardy-custodian /ap
 cd ../hardy-custody-receipt && cargo test -p hardy-custody-receipt   # needs Rust 1.95+
 node transport/bpv7/interop/hardy-custodian/vector.mjs               # a new vector (new seed)
 ```
+
+## 8. Do the stacks count hops? Yes, all four (2026-10-21)
+
+The receipts can show that a stretch of path went unsigned, but not how long it was:
+Previous Node is replaced at every hop, so plain forwarders leave no names behind. The
+RFC 9171 Hop Count block (type 10) is different: every node that forwards a bundle is
+meant to add 1 to it. If the stacks really do, a receipt that records the hop count it saw
+when it signed lets a verifier size each gap: `next.hopCount - prev.hopCount - 1` unsigned
+nodes in between. This check settles whether they do, before any receipt or draft change.
+
+`HOPCOUNT=1` makes `interop/live.mjs` add a Hop Count block (limit 30, count 0) at the
+source and report the count on arrival; `STACK_NODES` is the number of stack nodes on the
+path. The same five live paths as sections 3 and 5, same images:
+
+```
+docker run --rm -e HOPCOUNT=1 -e STACK_NODES=<n> ... <image> .../<stack>-run.sh
+```
+
+| Path | Stack nodes | Blocks sent | Blocks received | Hop Count on arrival | Run |
+|---|---|---|---|---|---|
+| uD3TN, two nodes, MTCP | 2 | `[10, 224, 1]` | `[10, 224, 1]` | limit 30, count 2 | PASS |
+| NASA HDTN 7fbe90c, STCP, held across a gap | 1 | `[10, 224, 1]` | `[6, 10, 224, 1]` | limit 30, count 1 | PASS |
+| JPL ION c5a4d87, UDP CL, held by contact graph routing | 1 | `[10, 224, 1]` | `[10, 224, 6, 7, 1]` | limit 30, count 1 | PASS |
+| Aalyria Hardy 0da2247, gRPC CLA, held across a gap | 1 | `[10, 224, 1]` | `[224, 6, 10, 1]` | limit 30, count 1 | PASS |
+| uD3TN then NASA HDTN (TCPCLv3), held across a gap | 2 | `[10, 224, 1]` | `[6, 10, 224, 1]` | limit 30, count 2 | PASS |
+
+Every stack adds exactly 1 per node it forwards through, keeps the limit, and the count
+survives the hand-off between two implementations. Block 224 stayed byte-identical and the
+custody chain verified in all five runs. Hardy reorders the blocks (224 first) and uD3TN
+adds no Previous Node; neither matters for the count.
+
+So the gap sizing proposed for draft -02 (`docs/custody-receipt-02-proposals.md`) rests
+on behaviour all four stacks already have. What it does not cover: a node that drops or
+does not update the block (none here did), and nodes that are not BPAs (an IP router under
+a convergence layer is invisible to the count, as it is to the receipts).

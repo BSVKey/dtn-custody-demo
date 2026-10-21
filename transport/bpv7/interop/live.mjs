@@ -4,7 +4,9 @@
 //      BIB-HMAC-SHA2 BIB over the payload at the source and verify it on arrival),
 //      BIB_IPPT=ion (build the MAC input the way JPL ION does, see bpsec.mjs), BIB_SCOPE,
 //      RECEIPT=2 (custody receipt version 2: COSE_Sign1, bound to the bundle identity and
-//      payload bytes, receipt-v2.mjs; default version 1).
+//      payload bytes, receipt-v2.mjs; default version 1), HOPCOUNT=1 (add an RFC 9171 Hop
+//      Count block, limit 30 count 0, and report the count on arrival; STACK_NODES = how
+//      many stack nodes the bundle crosses, for the HOPCOUNT_RESULT line).
 //   node live.mjs make <out.hex>            our gateway agent stamps hop 1, writes the bundle
 //   node live.mjs check <in.hex> <out.hex>  after the unaware DTN stack: block intact? stamp hop 2, verify
 import fs from "node:fs";
@@ -13,6 +15,7 @@ import { encodeBundle, decodeBundle, BLOCK, CRC32C } from "../bundle.mjs";
 import { stampBundle, verifyBundleCustody, auditBundleCustody, previousNode, readCustody, CUSTODY_BLOCK_TYPE } from "../custody-block.mjs";
 import { addBib, verifyBibs, SHA, IPPT_MODE } from "../bpsec.mjs";
 import { stampBundleV2, verifyBundleV2 } from "../receipt-v2.mjs";
+import { encode as cbor, decode as uncbor } from "../cbor.mjs";
 import { makeRelay } from "../../../agent/relay.mjs";
 import { prepare } from "../../../agent/source.mjs";
 
@@ -33,6 +36,7 @@ const BPSEC = process.env.BPSEC === "1";
 const BIB_KEY = Buffer.from(process.env.BIB_KEY_HEX || "1a2b1a2b1a2b1a2b1a2b1a2b1a2b1a2b", "hex");
 const MODE = process.env.BIB_IPPT === "ion" ? IPPT_MODE.ION : IPPT_MODE.RFC9173;
 const V2 = process.env.RECEIPT === "2";
+const HOPCOUNT = process.env.HOPCOUNT === "1";
 const DTN_NOW = () => Date.now() - Date.UTC(2000, 0, 1);
 const custodyBlock = (b) => b.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
 
@@ -44,6 +48,10 @@ if (mode === "make") {
     primary: { crcType: CRC32C, dest: DST, source: SRC, created: [Date.now() - DTN_EPOCH, 1], lifetime: 3600000 },
     blocks: [{ type: BLOCK.PAYLOAD, number: 1, crcType: CRC32C, data: Buffer.from(JSON.stringify({ payloadId: c.payloadId, index: c.index, leafHex: c.leafHex, bytesB64: c.bytesB64, branch: c.branch })) }],
   };
+  if (HOPCOUNT) {
+    bundle.blocks.unshift({ type: BLOCK.HOP_COUNT, number: 2, crcType: CRC32C, data: cbor([30, 0]) });
+    console.log("[live] source added a Hop Count block (limit 30, count 0)");
+  }
   if (BPSEC) {
     bundle = addBib(bundle, { targets: [1], key: BIB_KEY, source: SRC, shaVariant: SHA.HMAC256, scope: Number(process.env.BIB_SCOPE ?? 7), mode: MODE });
     console.log(`[live] source added a BPSec BIB (BIB-HMAC-SHA2, HMAC 256, scope ${process.env.BIB_SCOPE ?? 7}, MAC input ${MODE}) over the payload`);
@@ -64,6 +72,13 @@ if (mode === "make") {
   const intact = custodyBlock(got) && custodyBlock(got).data.equals(custodyBlock(sent).data)
     && custodyBlock(got).flags === custodyBlock(sent).flags;
   console.log(`[live] custody block after ${VIA}: ${intact ? "byte-identical" : "CHANGED OR MISSING"}`);
+  if (HOPCOUNT) {
+    const hc = got.blocks.find((x) => x.type === BLOCK.HOP_COUNT);
+    const [limit, count] = hc ? uncbor(hc.data) : [null, null];
+    const nodes = Number(process.env.STACK_NODES || 0);
+    console.log(`[live] Hop Count after ${VIA}: ${hc ? `limit ${limit}, count ${count} (sent 0; ${nodes} stack node${nodes === 1 ? "" : "s"} on the path)` : "BLOCK MISSING"}`);
+    console.log("HOPCOUNT_RESULT " + JSON.stringify({ via: VIA, present: !!hc, limit, count, stackNodes: nodes, countsEveryNode: !!hc && count === nodes }));
+  }
   const now = Date.now();
   if (V2) {
     // Version 2: hop 2 names the node the stack reports (Previous Node) or, with none, the

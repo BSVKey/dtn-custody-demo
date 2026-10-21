@@ -87,3 +87,22 @@ These are implementation guidance, possibly worth a short note in -02:
 - Precompute the constant parts of the COSE Sig_structure and of the receipt payload.
 
 Measured effect is in `docs/overhead-benchmark.md`, section "Latency before forwarding".
+
+## 4. Size the uncustodied gaps with the Hop Count block
+
+A verifier can already tell that a stretch of path went unsigned (the transit-gap audit),
+but not how many nodes were in it: plain forwarders leave no names, because Previous Node
+is replaced at every hop. The RFC 9171 Hop Count block (type 10) is updated by every node
+that forwards.
+
+Proposal: an optional version 2 receipt field, key 8 = the Hop Count value the custodian
+saw when it signed (before its own increment). A verifier then reports each gap as
+`next[8] - prev[8] - 1` unsigned nodes, for example "3 unsigned nodes, last ipn:10.0"
+(the last one from Previous Node). Receipts without key 8, or bundles without a Hop Count
+block, keep today's unsized gap.
+
+Evidence (`transport/bpv7/RESULTS.md` section 8, 2026-10-21): uD3TN, NASA HDTN, JPL ION and
+Aalyria Hardy each add exactly 1 per node, keep the limit, and the count survives a
+uD3TN-to-HDTN hand-off; five live paths, counts 2, 1, 1, 1 and 2 for 2, 1, 1, 1 and 2 stack
+nodes. Not yet built: the field, its tests and the draft text, held until the working group
+responds to -01.
