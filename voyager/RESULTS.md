@@ -126,8 +126,9 @@ whose resends ran past the last track in the 30-day signed plan.
   50 ms and lossless.
 - Bundle headers are an estimate (48 B); the Merkle leaf and branch are counted from the real
   bundles. Custody receipts are signed at the DSN and JPL, not carried over the space link.
-- Real Bundle Protocol stacks run at Mars light time in `mars/` and at Voyager's data rate in
-  `ion-160bps/`; `tc netem` caps one delay at about 268 s, so a light-day on a real stack
-  would need hundreds of stacked delays and days of wall time.
+- Real Bundle Protocol stacks run at Mars light time in `mars/`, and JPL ION runs at
+  Voyager's data rates (160 / 16 bps) with a 240 s light time in `voyager/ION-RESULTS.md`;
+  `tc netem` caps one delay at about 268 s, so a light-day on a real stack would need
+  hundreds of stacked delays and days of wall time.
 - An earlier IP store-and-forward run to both Voyagers over the QUIC workbench is in
   `ip-sf/RESULTS.md`.

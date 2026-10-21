@@ -173,7 +173,9 @@ infrastructure:
   signed plan. Voyager 2 can be commanded only from DSS-43, which shows: 112 h from command
   ready to its signed receipt at JPL, against 88 h for Voyager 1. A bit error sweep with
   NACK-driven resends shows each lost bundle costs about two days. `make voyager`,
-  `node voyager/sweep.mjs`, see `voyager/RESULTS.md`.
+  `node voyager/sweep.mjs`, see `voyager/RESULTS.md`. Real JPL ION over LTP also passes at
+  Voyager's data rates, 160 bps down and 16 bps up, with a 240 s light time (netem-capped):
+  `make ion-voyager`, see `voyager/ION-RESULTS.md`.
 
 - **Onboard signing in C (`flight/`)**: the same records produced in portable C99
   with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures

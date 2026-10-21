@@ -12,8 +12,8 @@ const OUT = process.env.SEND_DIR || "/tmp/send";
 mkdirSync(OUT, { recursive: true });
 const source = genKeypair();
 const sender = genKeypair();
-const payload = Buffer.from("DTN CUSTODY over JPL ION: chunked, Merkle-committed, custody-signed, routed by a compiled contact plan. ".repeat(12), "utf8");
-const { manifest, bundles } = prepare(source, payload, { payloadId: "0xion-interop-001", chunkSize: 64 });
+const payload = Buffer.from("DTN CUSTODY over JPL ION: chunked, Merkle-committed, custody-signed, routed by a compiled contact plan. ".repeat(Number(process.env.PAYLOAD_REPEAT || 12)), "utf8");
+const { manifest, bundles } = prepare(source, payload, { payloadId: "0xion-interop-001", chunkSize: Number(process.env.CHUNK_SIZE || 64) });
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest));
 const now = Date.now();
 for (const b of bundles) {

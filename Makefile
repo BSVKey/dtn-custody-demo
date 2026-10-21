@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -29,6 +29,15 @@ radio:
 
 voyager:
 	node voyager/run-voyager.mjs
+
+# Real JPL ION over LTP at Voyager's data rates (160 bps down, 16 bps up), with the light
+# time capped at 240 s by netem. Reuses the Mars image. See voyager/ION-RESULTS.md.
+ion-voyager:
+	docker build -t dtn-custody-mars -f mars/Dockerfile .
+	docker run --rm --privileged -e OWLT=240 -e RATE_DOWN_BPS=160 -e RATE_UP_BPS=16 -e SEG=1400 -e QTIME=60 \
+	  -e PAYLOAD_REPEAT=2 -e CHUNK_SIZE=128 -e RECV_TIMEOUT_S=1800 -e WAIT_S=1800 \
+	  -e TRANSPORT="JPL ION over LTP/UDP, netem 240 s each way, 160 bps down, 16 bps up" \
+	  -v "$(CURDIR):/app" dtn-custody-mars bash /app/mars/run-mars.sh
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:

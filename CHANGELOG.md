@@ -14,6 +14,13 @@
   HDTN and signed as `dtn.contact-plan/1`, the only source of link windows, with gap records
   checked against it; per-bit errors with NACK-driven resends over the reverse link
   (`node voyager/sweep.mjs`, 20 seeds per rate).
+- **JPL ION at Voyager's data rates** (`make ion-voyager`, `voyager/ION-RESULTS.md`): LTP over
+  UDP at 160 bps down / 16 bps up, 240 s light time, every chunk and custody handoff verified.
+  `mars/run-mars.sh` gains optional `RATE_DOWN_BPS`, `RATE_UP_BPS`, `SEG`, `QTIME`, `PACE`
+  and timeouts (defaults unchanged); `ion/prepare.mjs` takes `PAYLOAD_REPEAT` and
+  `CHUNK_SIZE`. Open: LTP segments under about 575 bytes did not deliver in our setup.
+- **Hop Count check** (`transport/bpv7/RESULTS.md` section 8): uD3TN, HDTN, ION and Hardy each
+  add 1 per node; basis for gap sizing in draft -02 (proposal 4).
 
 ## 0.4.1
 
