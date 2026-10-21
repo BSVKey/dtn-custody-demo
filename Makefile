@@ -105,6 +105,16 @@ bpv7-block-ion-ltp:
 
 bpv7-block-all: bpv7-block bpv7-block-hdtn bpv7-block-ion bpv7-block-ion-ltp bpv7-block-hardy bpv7-block-mix
 
+# Offline key management (spec/KEY-RECORDS.md): key records and a revocation in block 225, the
+# destination holding only the operator's root key, through the same five paths.
+KR = -e KEYRING=1 -e RECEIPT=2 -e HOPCOUNT=1
+bpv7-keyring-all:
+	docker run --rm $(KR) -e STACK_NODES=2 -v "$(CURDIR):/app" dtn-custody-r2 bash /app/transport/bpv7/interop/ud3tn-run.sh
+	docker run --rm $(KR) -e STACK_NODES=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hdtn /app/transport/bpv7/interop/hdtn-run.sh
+	docker run --rm $(KR) -e STACK_NODES=1 --privileged --entrypoint bash -v "$(CURDIR):/app" dtn-custody-ion /app/transport/bpv7/interop/ion-run.sh
+	docker run --rm $(KR) -e STACK_NODES=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy /app/transport/bpv7/interop/hardy-run.sh
+	docker run --rm $(KR) -e STACK_NODES=2 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-mix /app/transport/bpv7/interop/mix-run.sh
+
 # A second implementation of the Custody Receipt Block inside a real BPA: Aalyria's Hardy
 # built from a local checkout (HARDY_SRC) with the custody-receipt Egress Rewriter, which
 # signs version 2 receipts. Checked both ways against receipt-v2.mjs. See RESULTS.md section 7.

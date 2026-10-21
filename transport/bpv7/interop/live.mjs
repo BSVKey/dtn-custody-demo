@@ -6,7 +6,10 @@
 //      RECEIPT=2 (custody receipt version 2: COSE_Sign1, bound to the bundle identity and
 //      payload bytes, receipt-v2.mjs; default version 1), HOPCOUNT=1 (add an RFC 9171 Hop
 //      Count block, limit 30 count 0, and report the count on arrival; STACK_NODES = how
-//      many stack nodes the bundle crosses, for the HOPCOUNT_RESULT line).
+//      many stack nodes the bundle crosses, for the HOPCOUNT_RESULT line), KEYRING=1 (with
+//      RECEIPT=2: the source carries the operator's key records and a revocation in a Key
+//      Record Block, type 225; the destination holds only the operator's root key, learns
+//      every other key from the bundle, and verifies with keyring.mjs).
 //   node live.mjs make <out.hex>            our gateway agent stamps hop 1, writes the bundle
 //   node live.mjs check <in.hex> <out.hex>  after the unaware DTN stack: block intact? stamp hop 2, verify
 import fs from "node:fs";
@@ -16,6 +19,7 @@ import { stampBundle, verifyBundleCustody, auditBundleCustody, previousNode, rea
 import { addBib, verifyBibs, SHA, IPPT_MODE } from "../bpsec.mjs";
 import { stampBundleV2, verifyBundleV2 } from "../receipt-v2.mjs";
 import { encode as cbor, decode as uncbor } from "../cbor.mjs";
+import { Keyring, issueKey, revokeKey, carryRecords, ingest, readKeyBlock, keyIdOf, KEY_BLOCK_TYPE, ROLE } from "../keyring.mjs";
 import { makeRelay } from "../../../agent/relay.mjs";
 import { prepare } from "../../../agent/source.mjs";
 
@@ -37,6 +41,20 @@ const BIB_KEY = Buffer.from(process.env.BIB_KEY_HEX || "1a2b1a2b1a2b1a2b1a2b1a2b
 const MODE = process.env.BIB_IPPT === "ion" ? IPPT_MODE.ION : IPPT_MODE.RFC9173;
 const V2 = process.env.RECEIPT === "2";
 const HOPCOUNT = process.env.HOPCOUNT === "1";
+const KEYRING = process.env.KEYRING === "1";
+// One operator: root key (the only thing the destination holds) -> issuer -> node keys.
+const kRoot = testKey("04".repeat(32)), kIssuer = testKey("05".repeat(32)), kDecoy = testKey("06".repeat(32));
+function operatorRecords() {
+  const nb = DTN_NOW() - 86400000, na = DTN_NOW() + 86400000;
+  return [
+    issueKey(kRoot, { subject: "dtn://operator.dtn/issuer", pub: kIssuer.pub, roles: ROLE.ISSUE | ROLE.REVOKE, notBefore: nb, notAfter: na }),
+    issueKey(kIssuer, { subject: UP, pub: kUp.pub, notBefore: nb, notAfter: na }),
+    issueKey(kIssuer, { subject: DOWN, pub: kDown.pub, notBefore: nb, notAfter: na }),
+    issueKey(kIssuer, { subject: "dtn://lost-relay.dtn/", pub: kDecoy.pub, notBefore: nb, notAfter: na }),
+    revokeKey(kIssuer, { target: kDecoy.pub, effectiveFrom: DTN_NOW() - 3600000, reason: "relay reported lost" }),
+  ];
+}
+const keyBlock = (b) => b.blocks.find((x) => x.type === KEY_BLOCK_TYPE);
 const DTN_NOW = () => Date.now() - Date.UTC(2000, 0, 1);
 const custodyBlock = (b) => b.blocks.find((x) => x.type === CUSTODY_BLOCK_TYPE);
 
@@ -56,10 +74,14 @@ if (mode === "make") {
     bundle = addBib(bundle, { targets: [1], key: BIB_KEY, source: SRC, shaVariant: SHA.HMAC256, scope: Number(process.env.BIB_SCOPE ?? 7), mode: MODE });
     console.log(`[live] source added a BPSec BIB (BIB-HMAC-SHA2, HMAC 256, scope ${process.env.BIB_SCOPE ?? 7}, MAC input ${MODE}) over the payload`);
   }
-  const raw = encodeBundle(bundle);
+  let raw = encodeBundle(bundle);
+  if (KEYRING) {
+    raw = carryRecords(raw, operatorRecords());
+    console.log(`[live] source carries ${readKeyBlock(decodeBundle(raw)).length} key records in block 225 (issuer, 3 node keys, 1 revocation)`);
+  }
   const now = Date.now();
   const out = V2
-    ? stampBundleV2(raw, { kp: kUp, eid: UP }, { prevHop: "dtn://source.dtn/", receivedAt: DTN_NOW(), forwardedAt: DTN_NOW() })
+    ? stampBundleV2(raw, { kp: kUp, eid: UP }, { prevHop: "dtn://source.dtn/", receivedAt: DTN_NOW(), forwardedAt: DTN_NOW(), chain: KEYRING, hops: KEYRING })
     : stampBundle(raw, makeRelay(kUp, UP), { prevHop: "dtn://source.dtn/", receivedAt: now, forwardedAt: now });
   fs.writeFileSync(a, out.toString("hex"));
   console.log(`[live] hop 1 (${UP}) stamped${V2 ? " with a version 2 receipt (COSE_Sign1)" : ""}; bundle ${fs.readFileSync(a, "utf8").length / 2} bytes, handed to ${VIA.replace(/^(two |one )?unaware /, "")}`);
@@ -84,16 +106,33 @@ if (mode === "make") {
     // Version 2: hop 2 names the node the stack reports (Previous Node) or, with none, the
     // gateway; the verifier pins both keys and checks bundle identity and payload hash.
     const keys = { [UP]: kUp.pub, [DOWN]: kDown.pub }, via = previousNode(got);
-    const final = stampBundleV2(gotBytes, { kp: kDown, eid: DOWN }, { prevHop: via ?? UP, receivedAt: DTN_NOW(), forwardedAt: DTN_NOW() });
-    const v2 = verifyBundleV2(final, { keys, origin: "dtn://source.dtn/", lastNode: DOWN });
+    const final = stampBundleV2(gotBytes, { kp: kDown, eid: DOWN }, { prevHop: via ?? UP, receivedAt: DTN_NOW(), forwardedAt: DTN_NOW(), chain: KEYRING, hops: KEYRING });
+    let ring = null, keyOk = true;
+    if (KEYRING) {
+      const kb = keyBlock(got), kbSent = keyBlock(sent);
+      const kbIntact = !!kb && kb.data.equals(kbSent.data) && kb.flags === kbSent.flags;
+      ring = new Keyring({ anchors: [{ name: "operator root", pub: kRoot.pub }] });
+      const learned = ingest(ring, gotBytes, DTN_NOW());
+      const revoked = ring.revokedFrom(keyIdOf(kDecoy.pub).toString("hex")) !== null;
+      console.log(`[live] key record block after ${VIA}: ${kbIntact ? "byte-identical" : "CHANGED OR MISSING"}; destination held only the root key, learned ${learned} records, revocation of the lost relay's key in force: ${revoked}`);
+      keyOk = kbIntact && learned === 5 && revoked;
+    }
+    const v2 = verifyBundleV2(final, KEYRING ? { keyring: ring, arrivedAt: DTN_NOW(), origin: "dtn://source.dtn/", lastNode: DOWN } : { keys, origin: "dtn://source.dtn/", lastNode: DOWN });
     let bibOk = true;
     if (BPSEC) {
       const r = verifyBibs(decodeBundle(final), BIB_KEY, { mode: MODE }); bibOk = r.ok;
       console.log(`[live] BPSec BIB over the payload after hop 2 appended: ${r.ok ? "verifies" : "FAILS " + r.reason}`);
     }
     console.log(`[live] hop 2 (${DOWN}) stamped, version 2 chain: ${JSON.stringify(v2)}`);
-    const want = via ? v2.ok && v2.gaps.length === 1 && v2.gaps[0].lastUnsigned === via : v2.ok && v2.complete;
-    process.exit(intact && want && bibOk ? 0 : 1);
+    let want = via ? v2.ok && v2.gaps.length === 1 && v2.gaps[0].lastUnsigned === via : v2.ok && v2.complete;
+    if (KEYRING && HOPCOUNT) {
+      // Receipt field 8 sizes the unsigned stretch, even where the stack leaves no Previous
+      // Node (uD3TN): it must equal the number of stack nodes the bundle crossed.
+      const nodes = Number(process.env.STACK_NODES || 0);
+      want = v2.ok && (nodes === 0 ? v2.complete : v2.gaps.length === 1 && v2.gaps[0].unsignedNodes === nodes);
+    }
+    if (KEYRING) console.log("KEYRING_RESULT " + JSON.stringify({ via: VIA, ok: intact && want && bibOk && keyOk, chainVerifiedFromRootOnly: v2.ok, gaps: v2.gaps, keyBlockIntact: keyOk }));
+    process.exit(intact && want && bibOk && keyOk ? 0 : 1);
   }
   const final = stampBundle(gotBytes, makeRelay(kDown, DOWN), { prevHop: UP, receivedAt: now, forwardedAt: now });
   const v = verifyBundleCustody(final, { hops });

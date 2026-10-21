@@ -104,5 +104,15 @@ block, keep today's unsized gap.
 Evidence (`transport/bpv7/RESULTS.md` section 8, 2026-10-21): uD3TN, NASA HDTN, JPL ION and
 Aalyria Hardy each add exactly 1 per node, keep the limit, and the count survives a
 uD3TN-to-HDTN hand-off; five live paths, counts 2, 1, 1, 1 and 2 for 2, 1, 1, 1 and 2 stack
-nodes. Not yet built: the field, its tests and the draft text, held until the working group
-responds to -01.
+nodes. Built 2026-10-21 (receipt field 8, `[received, released]`); live through the same five
+paths with gaps sized exactly, including uD3TN's, where it is the only evidence (results
+section 9).
+
+## 5. Chain digest and offline key management
+
+Field 9: SHA-256 of the receipts already in the block, so each receipt commits to every earlier
+one. With it, key records and revocations carried in a Key Record Block (type 225) give a
+verifier offline key management: chains to operator root keys, roles, validity windows,
+rotation, self-revocation, and witnessed time for receipts made with keys revoked later
+(`spec/KEY-RECORDS.md`). Built and live through all five paths (results section 9). This
+answers the key-management gap BPSec leaves out of scope; it could stand as its own draft.

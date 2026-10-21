@@ -336,3 +336,36 @@ So the gap sizing proposed for draft -02 (`docs/custody-receipt-02-proposals.md`
 on behaviour all four stacks already have. What it does not cover: a node that drops or
 does not update the block (none here did), and nodes that are not BPAs (an IP router under
 a convergence layer is invisible to the count, as it is to the receipts).
+
+## 9. Offline key management through the same five paths (2026-10-21)
+
+`spec/KEY-RECORDS.md`. The destination holds **only the operator's root key**. The source
+carries the operator's key records in a Key Record Block (type 225): the issuer's key, three
+node keys, and a revocation of a lost relay's key. Receipts carry fields 8 (hop count) and 9
+(chain digest). On arrival the destination reads block 225 into its keyring, learns every
+other key and the revocation from the bundle, stamps hop 2 and verifies the chain through
+the keyring: chains to the root, roles, validity windows, revocation.
+
+```
+docker run --rm -e KEYRING=1 -e RECEIPT=2 -e HOPCOUNT=1 -e STACK_NODES=<n> ... <image> .../<stack>-run.sh
+```
+
+| Path | Block 225 on arrival | Records learned | Revocation in force | Chain from root only | Unsigned stretch reported | Run |
+|---|---|---|---|---|---|---|
+| uD3TN, two nodes | byte-identical | 5 | yes | verifies | 2 nodes (no Previous Node: sized by field 8 alone) | PASS |
+| NASA HDTN | byte-identical | 5 | yes | verifies | 1 node, last `ipn:10.0` | PASS |
+| JPL ION | byte-identical | 5 | yes | verifies | 1 node, last `ipn:10.0` | PASS |
+| Aalyria Hardy | byte-identical | 5 | yes | verifies | 1 node, last `ipn:20.0` | PASS |
+| uD3TN then NASA HDTN | byte-identical | 5 | yes | verifies | 2 nodes, last `ipn:10.0` | PASS |
+
+None of the four stacks knows block 225; all carried it unchanged next to block 224. Every
+unsigned stretch was sized exactly (it equals the number of stack nodes). On the uD3TN path
+the hop count is the only evidence: uD3TN adds no Previous Node block, so the destination
+names the gateway as its previous hop, and before field 8 that path read as fully custodied.
+
+The attack cases are unit tests (`test/bpv7-keyring.test.mjs`, 8 of 8): self-issued and
+unanchored keys, wrong role, expired and not-yet-valid keys, rotation, a stolen key signing
+after its revocation, backdating with and without an honest witness, a receipt spliced in
+ahead of a witness (chain digest mismatch), self-revocation, a revocation attempted from
+another operator's node key, an issuer compromise with a backdated key, revocations carried
+by an unrelated bundle, the 32-record cap.

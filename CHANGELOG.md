@@ -4,6 +4,15 @@
 
 ### Added
 
+- **Offline key management** (`spec/KEY-RECORDS.md`, `transport/bpv7/keyring.mjs`): COSE-signed
+  key and revocation records chaining to operator root keys, carried in a Key Record Block
+  (type 225) and spread by custodians with ordinary traffic. Roles, validity windows,
+  rotation, self-revocation, issuer compromise, and witnessed time: a stolen key cannot
+  backdate a receipt past an honest witness. Receipt v2 gains optional field 8 (hop count,
+  sizes unsigned gaps) and field 9 (digest of earlier receipts). `verifyBundleV2` takes a
+  keyring. Live through uD3TN, HDTN, ION, Hardy and the mixed path with the destination
+  holding only the root key (`make bpv7-keyring-all`, results section 9).
+
 - **Voyager 1 at one light-day** (`voyager/`): the custody agent over a contact-window link
   model with Voyager 1's light time (23.8 h), 160 bps downlink and 16 bps uplink, and an
   illustrative DSN track plan with a missed track. Downlink science frame and uplink command
