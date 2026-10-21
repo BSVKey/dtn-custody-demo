@@ -66,6 +66,7 @@ ground/              ground-side pilot kit: station-signed ledgers from received
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
 mars/                JPL ION over LTP at Mars light time
+voyager/             Voyager 1 at one light-day: DSN tracks, 160/16 bps, both directions
 ion/, mix/, hardy/  JPL ION, mixed uD3TN/HDTN and Aalyria Hardy interop runs
 bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
@@ -164,6 +165,12 @@ infrastructure:
   arriving exactly one light time later; and a rover to relay-orbiter to Earth chain with
   5% packet loss each way on a 4-minute link, repaired by LTP. `make mars`, see
   `mars/RESULTS.md`.
+
+- **Voyager 1 (`voyager/`)**: custody both ways at a 23.8-hour light time, 160 bps down and
+  16 bps up, over a scheduled DSN track plan with a missed track (simulated, virtual time).
+  Voyager transmits a light time before each track; bundles that miss a window are held and
+  recorded in a gap record; Voyager's signed delivery receipt for a command reaches JPL 88 h
+  after the command was ready. `make voyager`, see `voyager/RESULTS.md`.
 
 - **Onboard signing in C (`flight/`)**: the same records produced in portable C99
   with TweetNaCl Ed25519, byte-identical to the published test vectors (signatures

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Voyager 1 at one light-day** (`voyager/`): the custody agent over a contact-window link
+  model with Voyager 1's light time (23.8 h), 160 bps downlink and 16 bps uplink, and an
+  illustrative DSN track plan with a missed track. Downlink science frame and uplink command
+  load both verify chunk by chunk with full custody chains; Voyager's signed delivery receipt
+  comes back down. Simulated in virtual time. `make voyager`, `voyager/RESULTS.md`.
+
 ## 0.4.1
 
 The npm package gains the payout fix below, `agent/lib/arc.mjs`, and the per-bundle times in

@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio test spike spike-local clean
+.PHONY: help demo radio voyager test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -26,6 +26,9 @@ demo:
 # Pay over radio: offline-signed BSV payment over a simulated Meshtastic LoRa link, gateway receipt back.
 radio:
 	node radio/run-demo.mjs
+
+voyager:
+	node voyager/run-voyager.mjs
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:
