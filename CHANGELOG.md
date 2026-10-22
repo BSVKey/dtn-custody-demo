@@ -17,6 +17,11 @@
   20 of 20 bundles, the stolen-key delivery refused, forgeries refused. The filter can now
   sign receipt keys 8 and 9 (`chain-and-hops: true`, Hardy commit 2e7f1ef4, local), byte-
   identical with receipt-v2.mjs; with it every unsigned relay is sized. `make ssi-hardy`.
+- **Hardy spreads revocations** (`gossip-revocations: true`, Hardy commit 191d4d30, local): bundles
+  that left their origin without a revocation arrived carrying it, added by Hardy nodes.
+  Explorer for the real-stack run (`ssi/hardy/explorer.mjs`, live at dtn.bsvkey.com/ssi/hardy/)
+  and `ssi/hardy/pay.mjs`, which pays operators on Bitcoin BSV from the signed statements (one
+  output each, OP_RETURN commitment to the statement ids; sends only with --spend-real-bsv).
 
 ## 0.5.0
 

@@ -42,7 +42,7 @@ ssi:
 ssi-hardy:
 	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
 	docker build -t dtn-custody-hardy-custodian --build-arg HARDY_REVISION=$$(git -C $(HARDY_SRC) rev-parse --short HEAD) -f transport/bpv7/interop/hardy-custodian/Dockerfile $(HARDY_SRC)
-	docker run --rm -e CHAIN_AND_HOPS=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy-custodian /app/ssi/hardy/run.sh
+	docker run --rm -e CHAIN_AND_HOPS=1 -e GOSSIP=1 -e ENDPOINT_RELAY=0 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy-custodian /app/ssi/hardy/run.sh
 
 # Real JPL ION over LTP at Voyager's data rates (160 bps down, 16 bps up), with the light
 # time capped at 240 s by netem. Reuses the Mars image. See voyager/ION-RESULTS.md.

@@ -61,6 +61,25 @@ in the key record block of every command it sends.
 - The thief's forged claims: a receipt appended to a real delivery and backdated before the
   theft (`revoked_unwitnessed`), and one signed at its true time (`signed_after_revocation`).
 
+## Revocations spread by Hardy itself
+
+Hardy's filter can also gossip revocations (`gossip-revocations: true`, Hardy commit 191d4d30):
+a second Egress Rewriter learns the revocation records arriving in any bundle's Key Record
+Block and adds the ones it knows to every bundle it forwards. To show that Hardy, not our
+endpoints, did the spreading, the final run (`ENDPOINT_RELAY=0`) had the lander and rover
+payload computers learn key news but never pass it on; only mission operations sends it.
+
+| | Result |
+|---|---|
+| Bundles that arrived carrying the revocation | 5 |
+| Of those, left their origin without it and picked it up from a Hardy node | 3: lander-tlm-14.5, lander-tlm-16.5, rover-img-17 |
+| Lander and rover payload computers heard of it | 3.5 and 4.2 scenario hours after it was issued |
+
+The lander and rover BPAs learned the revocation from commands that had passed through them
+earlier, then added it to the telemetry they forwarded. Everything else as in runs 1 and 2:
+20 of 20 bundles, 50 receipts signed inside Hardy, the stolen-key delivery and both forgeries
+refused. Live page: https://dtn.bsvkey.com/ssi/hardy/.
+
 ## Settlement from the receipts
 
 | Operator | Bundles credited | Amount | Receipts refused |
@@ -70,15 +89,31 @@ in the key record block of every command it sends.
 | Lunar relay operator B (no filter) | 0 | 0 | 0 |
 | Mars relay operator | 1 | 0.400 | 0 |
 
+## Paying the operators on Bitcoin BSV
+
+`ssi/hardy/pay.mjs` turns the clearing house's signed statements into one mainnet payment:
+each statement is verified (signature, clearing-house key, operator) before anything is built;
+one output per operator at an address derived from the funding key (sweepable by its holder);
+an OP_RETURN `ssi-settlement/1` with the Merkle root of the statement ids it pays. Amounts
+convert at 10,000 sats per unit. Built and signed for the final run, not sent:
+
+```
+statements verified: ground 0.211 -> 2110 sat, lunaA 0.248 -> 2480 sat, marsnet 0.4 -> 4000 sat
+commitment (Merkle root of 3 statement ids): 1f3f3396c87a22d1c6158929e12a1bd06f89d0b894cc57c7ff72b91a0f4cd7fa
+txid 884c01fa6cbdb797f9e6be1c58be1b8c8249a6a816bdee1fd8989a34f3fb8793, fee 36 sat at 100 sat/kB, 354 bytes
+NOT SENT (add --spend-real-bsv to broadcast on BSV mainnet)
+```
+
+Operator B gets no output: it signed nothing, so it has no statement.
+
 ## Limits
 
 - The space links are emulated (contact windows, light time and rate enforced by one
   process); the BPAs, routing agents, storage and signing are real Hardy processes.
 - Routing schedules are computed offline by our CGR and loaded into Hardy's time-variant
   routing agent; Hardy does not run CGR itself.
-- Key and revocation records are carried by the JS endpoints only; Hardy's filter signs
-  receipts but does not yet append key news, so the revocation reaches the spacecraft
-  only on bundles that mission operations sends.
+- Hardy carries revocations without verifying them (verification stays with whoever acts on
+  a key); key records other than revocations are carried by the JS endpoints only.
 - Time compressed 120 times; amounts in an abstract unit, no payment made.
-- The Hardy filter with keys 8 and 9 is commit 2e7f1ef4 on the local branch
-  custody-receipt-filter of the Hardy checkout; not yet offered upstream.
+- The Hardy filter changes (keys 8 and 9: commit 2e7f1ef4; gossip: 191d4d30) are on the local
+  branch custody-receipt-filter of the Hardy checkout; not yet offered upstream.

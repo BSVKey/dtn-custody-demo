@@ -83,7 +83,7 @@ export function makePlan(dir, t0) {
     writeFileSync(`${d}/contacts`, tvr[x]);
     // Each routing agent also serves its own gRPC API; one port per node so they can share a host.
     writeFileSync(`${d}/tvr.toml`, `bpa-address = "http://[::1]:${port(x)}"\ncontact-plan = "${d}/contacts"\ngrpc-listen = "[::1]:${port(x) - 10000}"\n`);
-    const custody = NODES[x].custodian ? `custody-receipt:\n  eid: "${x}"\n  key-file: "${d}/seed"\n  policy: always\n${process.env.CHAIN_AND_HOPS === "1" ? "  chain-and-hops: true\n" : ""}` : "";
+    const custody = NODES[x].custodian ? `custody-receipt:\n  eid: "${x}"\n  key-file: "${d}/seed"\n  policy: always\n${process.env.CHAIN_AND_HOPS === "1" ? "  chain-and-hops: true\n" : ""}${process.env.GOSSIP === "1" ? "  gossip-revocations: true\n" : ""}` : "";
     writeFileSync(`${d}/bpa.yaml`, `log-level: info\nadmin-endpoints: ["${x}"]\ngrpc:\n  address: "[::1]:${port(x)}"\n  services: [application, cla, service, routing]\nstorage:\n  metadata: { type: memory }\n  bundle: { type: memory }\nclas: []\n${custody}`);
   }
   const plan = {

@@ -14,7 +14,7 @@ import { createRequire } from "node:module";
 import { encode, decode } from "../../transport/bpv7/cbor.mjs";
 import { encodeBundle, decodeBundle, BLOCK, CRC32C } from "../../transport/bpv7/bundle.mjs";
 import { stampBundleV2, verifyBundleV2, readBlockItems, receiptFields } from "../../transport/bpv7/receipt-v2.mjs";
-import { Keyring, revokeKey, carryRecords, ingest } from "../../transport/bpv7/keyring.mjs";
+import { Keyring, revokeKey, carryRecords, ingest, readKeyBlock, recordFields } from "../../transport/bpv7/keyring.mjs";
 import { route } from "../cgr.mjs";
 import { keyFromSeed } from "./plan.mjs";
 
@@ -101,10 +101,12 @@ function originate({ src, dst, bytes, label }) {
       { type: BLOCK.PAYLOAD, number: 1, crcType: CRC32C, data: Buffer.alloc(bytes, label.length) },
     ],
   });
-  const news = E.ring.forCarriage([]);
+  // ENDPOINT_RELAY=0: the payload computers learn key news but do not pass it on, so any
+  // revocation on their bundles at arrival was added by a Hardy node on the way.
+  const news = src === "ipn:1.0" || process.env.ENDPOINT_RELAY !== "0" ? E.ring.forCarriage([]) : [];
   if (news.length) b = carryRecords(b, news);
   b = stampBundleV2(b, { kp: E.kp, eid: src }, { prevHop: src, receivedAt: dtnNow(), forwardedAt: dtnNow(), chain: true, hops: true });
-  byKey.set(keyOf(b), { label, src, dst, sent: now() });
+  byKey.set(keyOf(b), { label, src, dst, sent: now(), revocationAtOrigin: hasRevocation(b) });
   send(src, b);
 }
 function send(from, b) {
@@ -118,13 +120,16 @@ function send(from, b) {
   }
   dispatch({ "ipn:51.0": "ipn:50.0", "ipn:61.0": "ipn:60.0" }[from], b, from);
 }
+const hasRevocation = (bytes) => readKeyBlock(decodeBundle(bytes)).some((r) => recordFields(r).kind === 2);
 function arrive(e, bytes, prev) {
   const E = EP[e];
   const learned = ingest(E.ring, bytes, dtnNow());
+  const revocationOnArrival = hasRevocation(bytes);
+  if (revocationOnArrival && !E.heardAt) E.heardAt = now();
   const final = stampBundleV2(bytes, { kp: E.kp, eid: e }, { prevHop: prev, receivedAt: dtnNow(), forwardedAt: dtnNow(), chain: true, hops: true });
   const meta = byKey.get(keyOf(bytes)) || {};
   const v = verifyBundleV2(final, { keyring: E.ring, arrivedAt: dtnNow(), origin: meta.src, lastNode: e });
-  deliveries.push({ ...meta, at: e, delivered: now(), learned, ok: v.ok, reason: v.reason, gaps: v.gaps, data: final.toString("hex") });
+  deliveries.push({ ...meta, at: e, delivered: now(), learned, revocationOnArrival, ok: v.ok, reason: v.reason, gaps: v.gaps, data: final.toString("hex") });
   log(`${meta.label} delivered to ${P.endpoints[e].name}: ${v.ok ? "chain verified" : "REFUSED " + v.reason}${v.gaps?.length ? `, gap ${JSON.stringify(v.gaps[0])}` : ""}`);
 }
 
@@ -147,12 +152,13 @@ setTimeout(() => {
   const op = P.hardy.find((h) => h.eid === VICTIM).op;
   const rev = revokeKey(keyFromSeed(P.ops[op].issuer), { target: keyFromSeed(P.seeds[VICTIM]).pub, effectiveFrom: real(THEFT_H) - DTN_EPOCH, reason: "key copied" });
   EP["ipn:1.0"].ring.add(rev, dtnNow());
+  EP["ipn:1.0"].heardAt = now();
   writeFileSync(`${dir}/revocation.hex`, Buffer.from(encode(rev)).toString("hex"));
   log(`revocation of ${VICTIM}'s key published (effective from scenario +${THEFT_H} h)`);
 }, Math.max(0, real(DETECT_H) - now()));
 
 setTimeout(() => {
-  const heard = Object.fromEntries(Object.entries(EP).map(([e, E]) => [e, [...E.ring.records.values()].some((r) => r.f.kind === 2)]));
+  const heard = Object.fromEntries(Object.entries(EP).map(([e, E]) => [e, E.heardAt ? +(((E.heardAt - real(DETECT_H)) * P.scale) / H).toFixed(2) : null]));
   writeFileSync(`${dir}/results.json`, JSON.stringify({ traffic, deliveries, trace, stats, problems, heard, theft: real(THEFT_H), detect: real(DETECT_H), victim: VICTIM }));
   log(`done: ${deliveries.length} of ${traffic.length} delivered, ${stats.forwards} forwards, ${problems.length} problems`);
   process.exit(0);

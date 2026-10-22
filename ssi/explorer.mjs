@@ -65,7 +65,7 @@ svg{width:100%;min-width:760px;height:auto}.lbl{font-size:10px;fill:var(--mut)}.
 .chip{display:inline-block;border:1.5px solid;border-radius:6px;padding:0 5px;font-size:12px;margin:1px 0;white-space:nowrap}.chip.un{border-style:dashed;opacity:.75}.arr{color:var(--mut);margin:0 2px}
 .note{color:var(--mut);font-size:13px;margin-top:8px}
 </style></head><body><main>
-<p class="note" style="margin:0 0 14px"><a href="https://dtn.bsvkey.com/">DTN Custody</a> · <a href="https://github.com/BSVKey/dtn-custody-demo/tree/main/ssi">Code and results (Apache-2.0)</a></p>
+<p class="note" style="margin:0 0 14px"><a href="https://dtn.bsvkey.com/">DTN Custody</a> · <a href="https://dtn.bsvkey.com/ssi/hardy/">The same network on real Hardy BPAs</a> · <a href="https://github.com/BSVKey/dtn-custody-demo/tree/main/ssi">Code and results (Apache-2.0)</a></p>
 <h1>Accountable Solar System Internet</h1>
 <p class="sub">One simulated 72-hour run from ${esc(r.period.from.slice(0, 10))}: five independent operators, contacts computed from the positions of Earth stations, the Moon, Mars and relay orbiters, real Bundle Protocol v7 bundles routed by contact graph routing, a custody receipt at every signing node, keys and revocations carried inside the traffic, a stolen relay key, and settlement between operators from receipts alone.</p>
 <div class="stats">

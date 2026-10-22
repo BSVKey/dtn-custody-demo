@@ -48,3 +48,4 @@ constellation/*.address.txt
 
 # radio walkthrough render outputs (frames, audio, intermediate files)
 radio/video/out/
+ssi/hardy/out/

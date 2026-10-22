@@ -25,6 +25,11 @@ echo "[ssi-hardy] ${#PIDS[@]} Hardy processes running (BPAs and routing agents);
 wait "$NET"
 kill "${PIDS[@]}" 2>/dev/null
 node ssi/hardy/report.mjs "$D"; CODE=$?
+# Keep what the explorer and the payment need (never plan.json: it holds the run's keys).
+OUT=/app/ssi/hardy/out/$(date -u +%Y%m%dT%H%M%SZ); mkdir -p "$OUT"
+cp "$D/report.json" "$OUT/" 2>/dev/null
+node -e 'const r=require(process.argv[1]); for (const d of r.deliveries) delete d.data; require("fs").writeFileSync(process.argv[2], JSON.stringify(r))' "$D/results.json" "$OUT/results.json" 2>/dev/null
+echo "[ssi-hardy] outputs in ssi/hardy/out/$(basename "$OUT")"
 if [ "$CODE" != 0 ]; then for n in "$D"/n2[0-9]; do echo "--- $(basename "$n") bpa.log"; tail -5 "$n/bpa.log"; echo "--- tvr.log"; tail -5 "$n/tvr.log"; done; fi
 echo "=== ssi-hardy exit: $CODE ==="
 exit "$CODE"

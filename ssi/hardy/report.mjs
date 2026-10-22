@@ -29,7 +29,12 @@ for (const d of R.deliveries) {
 out.receipts = { byHardy: hardySigned, byJsEndpoints: jsSigned };
 out.unsignedGaps = R.deliveries.flatMap((d) => d.gaps || []).length;
 out.bundles = signersByBundle;
-out.revocationHeardBy = R.heard;
+out.revocationHeardAfterScenarioH = R.heard;
+// Gossip: bundles that arrived carrying the revocation although their origin did not attach it.
+out.gossip = {
+  arrivedWithRevocation: R.deliveries.filter((d) => d.revocationOnArrival).length,
+  addedOnTheWay: R.deliveries.filter((d) => d.revocationOnArrival && !d.revocationAtOrigin).map((d) => d.label),
+};
 
 // Clearing: the ground's keyring (all records, the revocation as published).
 const anchors = Object.entries(P.ops).map(([op, k]) => ({ name: op, pub: keyFromSeed(k.root).pub }));
@@ -50,6 +55,8 @@ if (notVia.length >= 2) {
 const c = clear({ claims, keyring: ring, delivered, clearingKey: keyFromSeed(P.seeds["ipn:1.0"]), period: { scale: P.scale }, opOf });
 out.forgeries = claims.filter((x) => x.source === "submitted").map((x) => ({ claim: x.note, outcome: c.rejected.filter((r) => r.claim === x.note).map((r) => r.reason).join(", ") || "accepted (BUG)" }));
 out.settlement = Object.fromEntries(Object.entries(c.perOp).filter(([op]) => op !== "science").map(([op, s]) => [op, { bundles: s.bundles, amount: +s.amount.toFixed(4), refused: s.rejected }]));
+out.statements = c.statements;
+out.clearingPub = keyFromSeed(P.seeds["ipn:1.0"]).pub;
 out.honestLossAfterTheft = c.rejected.filter((r) => r.hop === R.victim && !String(r.claim).startsWith("forged")).length;
 
 out.ok = out.delivered === out.sent && out.problems.length === 0 && out.receipts.byHardy > 0
@@ -61,6 +68,8 @@ else {
   console.log(`[report] delivered ${out.delivered}/${out.sent}, chains verified ${out.verified}; receipts signed by Hardy ${hardySigned}, by JS endpoints ${jsSigned}; forwards ${out.stats.forwards}, held by link ${out.stats.heldByLink}`);
   for (const b of out.bundles) console.log(`  ${b.label.padEnd(18)} ${b.ok ? "verified" : "REFUSED " + b.reason}  signers ${b.signers.join(" > ")}${b.gaps?.length ? `  gap: last unsigned ${b.gaps[0].lastUnsigned ?? "?"}${b.gaps[0].unsignedNodes !== undefined ? `, ${b.gaps[0].unsignedNodes} node(s)` : ""}` : ""}  (${b.latencyScenarioH} h)`);
   for (const f of out.forgeries) console.log(`  ${f.claim}: ${f.outcome}`);
+  console.log(`  revocation heard (scenario hours after it was issued): ${JSON.stringify(out.revocationHeardAfterScenarioH)}`);
+  console.log(`  gossip: ${out.gossip.arrivedWithRevocation} bundles arrived carrying the revocation; added on the way by Hardy: ${out.gossip.addedOnTheWay.length ? out.gossip.addedOnTheWay.join(", ") : "none"}`);
   console.log(`  settlement ${JSON.stringify(out.settlement)}; honest receipts lost after the theft: ${out.honestLossAfterTheft}`);
   if (out.problems.length) console.log(`  problems: ${out.problems.join(" | ")}`);
   console.log(`SSI_HARDY_RESULT ${JSON.stringify({ ok: out.ok, delivered: out.delivered, sent: out.sent, verified: out.verified, receipts: out.receipts })}`);
