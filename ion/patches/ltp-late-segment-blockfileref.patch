@@ -1,0 +1,33 @@
+ltp: don't discard segments of a block that has no block file yet
+
+acceptRedContent() treats blockFileRef == 0 as "the block file was destroyed",
+but blockFileRef is also 0 before the file is first created: the receiver keeps
+the first maxAcqInHeap bytes (heapmax, default 560) of each block in the heap
+and only creates the block file when data goes past them. So when the first
+segment of a block fits in the heap, every later segment is discarded as
+"late", no report is sent, and the sender cancels the session.
+
+Seen with a max segment size under about 575 bytes at the default heapmax, and
+with any segment size once heapmax is raised (heapmax 65536, segments of 1,400:
+nothing delivered). A destroyed file ref still leaves fileBufferPath set, so
+checking it keeps the late-segment protection added in 3180084.
+
+Against nasa-jpl/ION-DTN integration (c5a4d87 tested; the line is unchanged on
+integration as of 2026-10-22). Reproduction: dtn-custody-demo, voyager/ION-RESULTS.md.
+
+--- a/ltp/library/libltpP.c
++++ b/ltp/library/libltpP.c
+@@ -6813,7 +6813,12 @@
+ 		 *	destroyed (set to 0 by clearImportSession), the
+ 		 *	file is gone and no further writes are possible.	*/
+
+-		if (sessionBuf->delivered || sessionBuf->blockFileRef == 0)
++		/*	blockFileRef is also 0 before the file is first
++		 *	created; fileBufferPath is set only once it has.	*/
++
++		if (sessionBuf->delivered
++		|| (sessionBuf->fileBufferPath[0] != '\0'
++		&& sessionBuf->blockFileRef == 0))
+ 		{
+ #if LTPDEBUG
+ putErrmsg("Discarded late segment: block already delivered.", itoa(sessionNbr));

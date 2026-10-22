@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager ion-voyager ssi ssi-hardy test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager ion-ltp-bug ssi ssi-hardy test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -52,6 +52,16 @@ ion-voyager:
 	  -e PAYLOAD_REPEAT=2 -e CHUNK_SIZE=128 -e RECV_TIMEOUT_S=1800 -e WAIT_S=1800 \
 	  -e TRANSPORT="JPL ION over LTP/UDP, netem 240 s each way, 160 bps down, 16 bps up" \
 	  -v "$(CURDIR):/app" dtn-custody-mars bash /app/mars/run-mars.sh
+
+# ION LTP discards every segment after the first of a block whose first segment fits in the
+# receiver's heap (voyager/ION-RESULTS.md). Four 1 s light-time runs: two fail on stock ION,
+# both pass with ion/patches/ltp-late-segment-blockfileref.patch. About 3 minutes.
+ion-ltp-bug:
+	docker build -t dtn-custody-mars -f mars/Dockerfile .
+	@for p in 0 1; do for c in "SEG=550" "SEG=1400 -e HEAPMAX=65536"; do \
+	  r=$$(docker run --rm --privileged -e OWLT=1 -e $$c -e SEG_UP=1400 -e ION_LTP_PATCH=$$p -e RECV_TIMEOUT_S=90 -e WAIT_S=100 \
+	    -v "$(CURDIR):/app" dtn-custody-mars bash /app/mars/run-mars.sh 2>&1 | grep -o 'received files: [0-9]*'); \
+	  echo "patch=$$p $$c: $$r"; done; done
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:

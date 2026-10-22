@@ -55,28 +55,45 @@ At a 10 s light time, same rates and payload:
 
 Pacing in ION made no measurable difference here. It is configuration, not a finding.
 
-## Open: LTP segments under about 575 bytes did not deliver
+## Found: ION LTP discarded every segment after the first (fixed by a one-line patch)
 
 The first attempt used 200-byte LTP segments and delivered nothing in 30 minutes. A bisect
-from the passing Mars defaults at a 10 s and then 1 s light time, **with no rate limit**,
-changing one setting at a time:
+found that segments under about 575 bytes never delivered; the cause is a bug in ION's LTP
+receiver, introduced upstream in nasa-jpl/ION-DTN commit 3180084 (2026-05-29, "ltp: discard
+late segments when block delivered") and still on `integration` on 2026-10-22.
 
-| Data sender's LTP max segment size | Result |
-|---|---|
-| 1,400 / 1,399 / 1,200 / 1,000 / 900 / 750 / 600 / 575 | delivered |
-| 550 / 512 / 508 / 400 / 300 / 200 | nothing delivered |
+**Cause.** The receiver keeps the first `heapmax` bytes of each block (ltpadmin `m heapmax`,
+default and minimum 560) in its heap and creates the block's overflow file only when data goes
+past them, which is when `blockFileRef` is set. Commit 3180084 added a check in
+`acceptRedContent()` that discards a segment as late when `blockFileRef == 0`, meaning "the
+file was destroyed after delivery". But it is also 0 before the file exists. So when a block's
+first segment fits in the heap, every later segment is discarded, the receiver never reports,
+and the sender retransmits its checkpoint and cancels the session. ION logs nothing unless
+built with `LTPDEBUG`, which shows "Discarded late segment: block already delivered" for
+every segment after the first.
 
-- Only the data sender's segment size matters; the receiver's (report) span at 508 is fine,
-  and the `a protocol ltp` frame size is irrelevant. Queuing latency and payload size were
-  ruled out.
-- The boundary depends on the payload: 575 delivered for three payload shapes, 550 failed
-  for two.
-- Datagrams do reach the receiver, ION logs no error, and nothing reaches the bundle layer.
+That explains both earlier observations: segments of 575 bytes and more overflow 560 bytes on
+the first segment, so the file exists from the start; and the boundary moved with the payload
+because segment headers vary by a few bytes.
 
-This is unexplained behaviour **in our configuration** (aggregation 10,000 bytes / 1 s,
-veth with netem, ION `c5a4d87`); it is not established as an ION defect. Next step, if
-wanted: a minimal two-node repro without our payload, then ION's LTP watch output from a
-foreground daemon. Nothing has been reported upstream.
+**Worse than small segments.** Raising heapmax, a usual tuning step, breaks any segment size:
+with `m heapmax 65536` and 1,400-byte segments, stock ION delivered nothing; every
+multi-segment block under 64 KB fits the heap.
+
+**Fix.** `ion/patches/ltp-late-segment-blockfileref.patch` treats `blockFileRef == 0` as
+destroyed only once the file was created (`fileBufferPath` is set when it is created and never
+cleared), so the protection against truly late segments stays.
+
+`make ion-ltp-bug` (four runs at a 1 s light time, about 3 minutes):
+
+| ION | 550-byte segments | 1,400-byte segments, heapmax 65536 |
+|---|---|---|
+| stock c5a4d87 | 0 of 21 files | 0 of 21 files |
+| with the patch | 21 of 21 | 21 of 21 |
+
+With the patch, the original Voyager configuration with 200-byte segments (240 s light time,
+160 bps down, 16 bps up) passed: 2 of 2 chunks and 2 of 2 custody handoffs verified, first
+arrival 301.6 s, last 382.2 s after sending. Not yet reported to ION upstream.
 
 ## Limits
 

@@ -6,8 +6,15 @@
 # Optional link rates (Voyager's, make ion-voyager): RATE_DOWN_BPS (node 1 -> 2) and
 # RATE_UP_BPS (2 -> 1) throttle each direction with netem and set the same rates in the
 # contact plan; SEG is LTP's maximum segment size; WAIT_S how long the sender stays up.
+# HEAPMAX sets ltpadmin's heapmax; ION_LTP_PATCH=1 first applies
+# ion/patches/ltp-late-segment-blockfileref.patch to this container's ION (make ion-ltp-bug).
 set -uo pipefail
 cd /app
+if [ "${ION_LTP_PATCH:-0}" = 1 ]; then
+  (cd /opt/ion && patch -p1 -s < /app/ion/patches/ltp-late-segment-blockfileref.patch \
+    && make -j4 >/dev/null 2>&1 && make install >/dev/null 2>&1 && ldconfig) || { echo "[mars] ION patch failed"; exit 2; }
+  echo "[mars] ION LTP patch applied (ion/patches/ltp-late-segment-blockfileref.patch)"
+fi
 OWLT=${OWLT:-240}
 node contact-plans/compile.mjs mars/interop.json --ion /tmp/contacts.ionrc
 # The planned light time must match the emulated one (LTP sizes its timers from it).
@@ -68,6 +75,7 @@ mk_node() { # node peer
     # bundles are handed to LTP but never transmitted.
     echo "## begin ionsecadmin"; echo "1"; echo "## end ionsecadmin"
     echo "## begin ltpadmin"; echo "1 64"
+    [ -n "${HEAPMAX:-}" ] && echo "m heapmax $HEAPMAX"
     local rate seg; [ "$n" = 1 ] && rate=$RATE_DOWN_BPS seg=$SEG || rate=$RATE_UP_BPS seg=${SEG_UP:-$SEG}
     [ "${PACE:-1}" = 0 ] && rate=""   # control run: netem limits the wire, ION does not pace
     echo "a span $p 64 64 $seg 10000 1 'udplso 10.9.0.$p:1113${rate:+ $rate}' $QTIME"
