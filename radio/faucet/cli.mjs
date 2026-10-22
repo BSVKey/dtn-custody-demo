@@ -8,7 +8,7 @@
 //   broadcast  node radio/faucet/cli.mjs broadcast --dir my-faucet --spend-real-bsv
 //              sends the fan-out to BSV mainnet (ARC); you run this
 //   announce   node radio/faucet/cli.mjs announce --dir my-faucet [--key-file faucet.wif]
-//                  [--wav out.wav --channel walkie|am|fm|phone|speaker] [--out lines.txt]
+//                  [--wav out.wav --channel walkie|am|fm|phone|speaker [--repeat 2]] [--out lines.txt]
 //              claims mode: one announcement line. bearer mode: the line plus one line per coin
 //              still unclaimed, each holding that coin's key (needs --key-file)
 //   serve      node radio/faucet/cli.mjs serve --dir my-faucet --key-file faucet.wif
@@ -116,9 +116,12 @@ async function main() {
       const ch = CHANNELS[arg("channel") ?? "speaker"];
       if (!ch) fail(`--channel is one of ${Object.keys(CHANNELS).join(", ")}`);
       const codec = ggwaveCodec(await createRequire(import.meta.url)("ggwave")(QUIET));
-      const samples = render(codec, lines, { speed: ch.speed, leadInS: ch.leadInS, repeat: Number(arg("repeat") ?? 1) });
+      // Played twice like every other radio recording: on a walkie-talkie about 1 broadcast in 150
+      // loses a whole line when played once (none in 300 when played twice); listeners drop repeats.
+      const repeat = Number(arg("repeat") ?? 2);
+      const samples = render(codec, lines, { speed: ch.speed, leadInS: ch.leadInS, repeat });
       writeFileSync(arg("wav"), writeWav(samples, codec.sampleRate));
-      console.error(`${arg("wav")}: ${lines.length} line(s), ${ch.label}, ${(samples.length / codec.sampleRate / 60).toFixed(1)} min`);
+      console.error(`${arg("wav")}: ${lines.length} line(s) played ${repeat}x, ${ch.label}, ${(samples.length / codec.sampleRate / 60).toFixed(1)} min`);
     }
     if (!arg("out") && !arg("wav")) console.log(lines.join("\n"));
     return;

@@ -68,8 +68,10 @@ test("faucet over a walkie-talkie: the announcement and bearer coin lines come t
   const b = await buildFanout({ master, fundTx, coinSats: 500, count: 2, mode: "bearer" });
   const lines = announceLines({ config: { id: b.id, funding: b.funding, mode: "bearer", coinSats: 500, count: 2, fanoutTxid: b.tx.id("hex") }, master });
   const ch = CHANNELS.walkie;
-  const { messages } = decodeSamples(codec, simulateChannel(render(codec, lines, { speed: ch.speed, leadInS: ch.leadInS, repeat: 1 }), "walkie", { seed: 3 }));
-  assert.deepEqual(messages, lines);
-  assert.ok(parseAnnouncement(messages[0]));
-  assert.equal(parseCoinLine(messages[2]).i, 1);
+  // Played twice, as the faucet does: played once, about 1 run in 150 lost a whole line. A line
+  // lost in the first pass arrives in the second, so compare without order.
+  const { messages } = decodeSamples(codec, simulateChannel(render(codec, lines, { speed: ch.speed, leadInS: ch.leadInS, repeat: 2 }), "walkie", { seed: 3 }));
+  assert.deepEqual([...messages].sort(), [...lines].sort());
+  assert.ok(parseAnnouncement(messages.find((m) => m.startsWith("BSVF1 "))));
+  assert.deepEqual(messages.map(parseCoinLine).filter(Boolean).map((c) => c.i).sort(), [0, 1]);
 });
