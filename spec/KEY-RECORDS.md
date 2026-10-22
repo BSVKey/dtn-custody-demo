@@ -1,7 +1,8 @@
 # Key records: offline key management for custody receipts
 
 Version 1, 2026-10-21. Implementation: `transport/bpv7/keyring.mjs`, verification in
-`transport/bpv7/receipt-v2.mjs`. Tests: `test/bpv7-keyring.test.mjs`. Live runs:
+`transport/bpv7/receipt-v2.mjs`; onboard in C, `flight/keyring.c` (same answers on 30
+queries, `flight/RESULTS.md`). Tests: `test/bpv7-keyring.test.mjs`. Live runs:
 `transport/bpv7/RESULTS.md` section 9.
 
 ## The problem

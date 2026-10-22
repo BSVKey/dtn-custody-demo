@@ -19,6 +19,15 @@ Ed25519 comes from TweetNaCl (public domain), fetched from its authors' site at 
 time and pinned by SHA-256. It is chosen for size and auditability; a faster Ed25519
 can be swapped in behind the same calls.
 
+## Offline key management onboard
+
+`keyring.h` / `keyring.c`: the rules of `spec/KEY-RECORDS.md` in C (no heap, about 3 KB of
+code on a Cortex-M4). A spacecraft holding only its operators' root keys can take key and
+revocation records out of arriving bundles (`ck_kr_ingest_block`) and decide by itself
+whether a key may sign for a node at a given time (`ck_kr_status`), including refusing a key
+its operator revoked while it was out of contact. Same answers as the reference keyring on
+30 queries (`RESULTS.md`).
+
 ## As a NASA cFS application
 
 `flight/cfs/` packages this signer as a standard cFS app (CUSTODY): it self-tests against

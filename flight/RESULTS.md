@@ -44,3 +44,39 @@ What this shows:
 
 Not claimed: flight qualification, radiation behavior, measured stack depth, or timing
 on target hardware.
+
+## Offline key management onboard: PASS (2026-10-21)
+
+`keyring.c` applies the rules of `spec/KEY-RECORDS.md` on the spacecraft: it reads key and
+revocation records (COSE_Sign1, from a Key Record Block or one at a time, in any order),
+checks their Ed25519 signatures over the COSE Sig_structure with the same TweetNaCl, and
+answers whether a key may sign in a role for a node at a time, and whether a revocation
+applies. `keyring-vectors.mjs` builds 7 scenarios with the reference keyring
+(`transport/bpv7/keyring.mjs`); `kr_check` answers the same 30 queries in C; every answer is
+the same:
+
+```
+  valid                          ok                                   SAME
+  expired                        key_expired                          SAME
+  self_issued                    chain_not_anchored                   SAME
+  out_of_order                   ok                                   SAME
+  bad_signature                  record_signature_invalid             SAME
+  issuer_lacks_role              issuer_lacks_issue_role              SAME
+  issued_outside_issuer_window   issuer_not_valid_at_issuance         SAME
+  rev_earliest_wins              ok revoked from 846691200000         SAME
+  rev_hostile_ignored            ok                                   SAME
+  rev_role_other_anchor          ok                                   SAME
+  issuer_compromise_thief        issuer_revoked                       SAME
+  block_revoked                  ok revoked from 846172800000         SAME
+  ... (30 in all, every reason code)
+KEYRING_RESULT {"ok":true,"queries":30,"differ":0,"extra":0}
+```
+
+| ARM Cortex-M4, `-Os -mthumb` | text | bss |
+|---|---|---|
+| `keyring.o` | 2,957 B | 704 B (one static verify buffer) |
+| one `ck_keyring` (32 records, 4 anchors) | | 16,856 B, caller-owned |
+
+No heap; the keyring is one struct the caller places. Built warning-free with
+`-Wall -Wextra -Werror`. Not yet run on flight hardware or inside the cFS app, and receipt
+verification itself (block 224) is still done on the ground.

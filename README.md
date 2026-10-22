@@ -171,7 +171,7 @@ infrastructure:
   root keys and travel inside bundles (block 225); a verifier needs only the root keys and its
   own clock. Rotation, self-revocation, issuer compromise, and witnessed time, so a stolen key
   cannot backdate a receipt past an honest custodian. Live through uD3TN, HDTN, ION and Hardy
-  (`make bpv7-keyring-all`).
+  (`make bpv7-keyring-all`), and onboard in C (`flight/keyring.c`, about 3 KB on a Cortex-M4).
 
 - **Voyager 1 and 2 (`voyager/`)**: custody both ways at 23.8 and 20-hour light times, 160 bps
   down and 16 bps up (simulated, virtual time). Link windows come only from a DSN schedule

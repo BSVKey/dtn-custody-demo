@@ -10,6 +10,9 @@ the Hop Count check and the ION runs below are in the repository only.
 
 ### Added
 
+- **Offline key management onboard** (`flight/keyring.c`): the key record rules in C99 with
+  TweetNaCl and no heap, about 3 KB of code on an ARM Cortex-M4; same answers as the
+  reference keyring on 30 queries (`make flight`, `flight/RESULTS.md`). Repository only.
 - **Offline key management** (`spec/KEY-RECORDS.md`, `transport/bpv7/keyring.mjs`): COSE-signed
   key and revocation records chaining to operator root keys, carried in a Key Record Block
   (type 225) and spread by custodians with ordinary traffic. Roles, validity windows,
