@@ -14,17 +14,11 @@ import { leafHash, buildTree } from "../agent/lib/merkle.mjs";
 import { chunk } from "../agent/source.mjs";
 import { verifyDeliveryLive } from "./verify-delivery-live.mjs";
 
-// A real BSV mainnet settlement: 5942 sats to the seller, from the BSVKey fixtures.
-const REAL = {
-  settlementRef: "77030c6192c6e86b808f1d7afa210b874bad86ed6a6b4ef69a8ccebc51ec83c6",
-  payTo: "1LdqUbdZ6GY71KxThU6aKfuKXxgmTn82cv",
-  amountAtomic: 5942,
-};
+import { SETTLEMENT as REAL, ANCHOR_TXID as PINNED_ANCHOR } from "./pinned.mjs";
 // The pinned provenance anchor: the Merkle root of live/anchored-payload.txt, committed
 // on-chain in an OP_RETURN. Overridable via env for a different run's root/anchor.
 const here = dirname(fileURLToPath(import.meta.url));
 const payloadRoot = "0x" + buildTree(chunk(readFileSync(join(here, "anchored-payload.txt")), 64).map((c) => leafHash(c))).root;
-const PINNED_ANCHOR = "733dcc21bb592ab70118fcd68f9e398dd0a51e135e0fe3570ab3ea3724b51207";
 const root = process.env.MANIFEST_ROOT || payloadRoot;
 const anchorTxid = process.env.ANCHOR_TXID || PINNED_ANCHOR;
 

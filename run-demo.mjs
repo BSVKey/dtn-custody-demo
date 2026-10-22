@@ -2,9 +2,12 @@
 // scripted occultation -> out-of-order Merkle verification -> per-hop custody receipts
 // -> gap object across the blackout -> delivery bound to a settlement. Fully offline.
 //
-// The one seam to production: `settlementRef` below is a placeholder. In the live
-// path it is readSettlement(res).txid from a real BSV payment, and the demo's
-// `--live` mode (TODO) anchors the manifest root on-chain.
+// Offline, `settlementRef` is a placeholder. With --live (read-only, spends nothing) the
+// demo carries live/anchored-payload.txt, checks on Bitcoin BSV mainnet that its manifest
+// root is in the anchor transaction's OP_RETURN, and binds delivery to a real settlement
+// verified on chain (live/pinned.mjs). For your own anchor: build it with
+// live/build-anchor.mjs, broadcast it yourself, then
+//   node run-demo.mjs --live --payload <file> --anchor <txid>
 import { genKeypair } from "./agent/lib/keys.mjs";
 import { prepare } from "./agent/source.mjs";
 import { makeRelay } from "./agent/relay.mjs";
@@ -13,10 +16,18 @@ import { gapObject } from "./agent/lib/gap.mjs";
 import { readFileSync } from "node:fs";
 import { simulate, defaultSimPlan } from "./transport/sim.mjs";
 import { toSimPlan, normalize } from "./contact-plans/compile.mjs";
+import { verifyDeliveryLive } from "./live/verify-delivery-live.mjs";
+import { SETTLEMENT, ANCHOR_TXID, ANCHORED_PAYLOAD } from "./live/pinned.mjs";
 
 // Optional mission schedule: node run-demo.mjs --plan contact-plans/mars-relay.json
 const planArg = process.argv.indexOf("--plan");
 const missionPlan = planArg > 0 ? JSON.parse(readFileSync(process.argv[planArg + 1], "utf8")) : null;
+const opt = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
+const LIVE = process.argv.includes("--live");
+if (LIVE && opt("--payload") && !opt("--anchor")) {
+  console.error("--payload needs --anchor <txid>: the transaction that anchors that payload's root (live/build-anchor.mjs)");
+  process.exit(2);
+}
 
 const line = (s = "") => console.log(s);
 const ok = (b) => (b ? "PASS" : "FAIL");
@@ -29,8 +40,9 @@ const destKp = genKeypair();
 
 const EID = { src: "dtn://source/", a: "dtn://relaya/", b: "dtn://relayb/", dst: "dtn://dest/" };
 
-// A payload (stand-in for a rover image / short clip): ~1.2 KB over 64-byte chunks.
-const payload = Buffer.from(
+// A payload (stand-in for a rover image / short clip): ~1.2 KB over 64-byte chunks. Live, the
+// payload whose root is anchored on chain.
+const payload = LIVE ? readFileSync(opt("--payload") ?? ANCHORED_PAYLOAD) : Buffer.from(
   "OPEN SOURCE DTN CUSTODY DEMO :: " +
     "verifiable data custody and relay-payment over a delay/disruption-tolerant link. " +
     "This payload is chunked, Merkle-committed, carried across three hops with a " +
@@ -90,27 +102,47 @@ const sample = sim.arrivalOrder[0].bundleId;
 const chain = dest.verifyChain(sample);
 line(`  chain verifies across ${pinnedHops.length} hops? ${ok(chain.ok)} ${chain.ok ? "" : "(" + chain.reason + ")"}`);
 // forged-hop detection: tamper a copy of the recorded receipts and re-run the check.
-import("./agent/lib/receipt.mjs").then(({ verifyCustodyChain }) => {
+{
+  const { verifyCustodyChain } = await import("./agent/lib/receipt.mjs");
   const forged = dest._custody.get(sample).map((r, i) => (i === 1 ? { ...r, sig: "AAAA" } : r));
   const res = verifyCustodyChain(forged, { bundleId: sample, hops: pinnedHops });
   line(`  forged hop detected? ${ok(!res.ok)} ${res.ok ? "" : "(" + res.reason + ")"}`);
-});
+}
 
 line("\n== Gap object across the occultation ==");
 const gap = gapObject({ link: sim.occultedLink, linkEvents: sim.linkEvents, delayed: sim.delayed, lost: sim.lost });
 line(`  ${gap.kind} link ${gap.link} down@${gap.downAt}ms up@${gap.upAt}ms duration ${gap.durationMs}ms delayed ${gap.bundlesDelayed.length} lost ${gap.bundlesLostConfirmed.length}`);
 
 line("\n== Delivery bound to the settlement the verifier paid ==");
-const settlementRef = "0x4e40b7bf86a0ca24f9746f3b6b5178def04b3a29024e4c7c9f8b95099ce380b8"; // placeholder txid
-const paid = { settlementRef }; // in production: readSettlement(res).txid
+// Offline a placeholder txid; live the real settlement the verifier paid (production:
+// readSettlement(res).txid of the payment for this delivery).
+const settlementRef = LIVE ? SETTLEMENT.settlementRef : "0x4e40b7bf86a0ca24f9746f3b6b5178def04b3a29024e4c7c9f8b95099ce380b8";
+const paid = { settlementRef };
 const { receipt, bind } = dest.settle(destKp, {
   payloadId: manifest.payloadId, root: manifest.root, rail: "bsv", network: "bsv",
-  settlementRef, payTo: "1LdqUbdZ6GY71KxThU6aKfuKXxgmTn82cv", amountAtomic: 5942,
+  settlementRef, payTo: SETTLEMENT.payTo, amountAtomic: SETTLEMENT.amountAtomic,
 }, paid);
 line(`  bound to MY txid? ${ok(bind.ok)}`);
 line(`  bound to a DIFFERENT txid? ${ok(dest.settle(destKp, { settlementRef }, { settlementRef: "0x" + "9".repeat(64) }).bind.reason === "settlementRef_not_mine")} (refused: settlementRef_not_mine)`);
 line(`  UNBOUND refuses? ${ok(dest.settle(destKp, { settlementRef }, {}).bind.reason.startsWith("unbound"))}`);
 
+let liveOk = true;
+if (LIVE) {
+  const anchorTxid = opt("--anchor") ?? ANCHOR_TXID;
+  line("\n== Live: Bitcoin BSV mainnet (read-only, nothing is spent) ==");
+  const res = await verifyDeliveryLive(receipt, paid, { minSats: SETTLEMENT.amountAtomic, minConf: 1, anchorTxid });
+  liveOk = res.ok;
+  if (res.ok) {
+    line(`  manifest root in anchor tx ${anchorTxid}? PASS (${res.anchor.confirmations} conf)`);
+    line(`  settlement ${settlementRef} on chain? PASS (${res.settlement.paidSats} sats to ${res.settlement.payTo}, ${res.settlement.confirmations} conf)`);
+  } else {
+    line(`  FAIL at ${res.stage}: ${res.reason || JSON.stringify(res)}`);
+  }
+}
+
 line("\n== Summary ==");
 line(`  chunks verified out of order, tamper rejected, custody chain intact, gap documented, delivery bound. Receipt ${receipt.claimId.slice(0, 18)}...`);
-line("  (Real transport = BPv7/uD3TN + netem; real settlement = a live BSV txid. Both are marked seams.)");
+line(LIVE
+  ? `  Live: manifest root anchored and settlement verified on Bitcoin BSV mainnet: ${ok(liveOk)}.`
+  : "  (Real transport = BPv7/uD3TN + netem; real settlement and anchor: node run-demo.mjs --live.)");
+if (!liveOk) process.exitCode = 1;

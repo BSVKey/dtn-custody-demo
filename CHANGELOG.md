@@ -2,7 +2,21 @@
 
 ## Unreleased
 
+### Fixed
+
+- **ION LTP lost every segment after the first** of a block whose first segment fits the
+  receiver's heap (segments under about 575 bytes, or any size once heapmax is raised): a bug
+  in ION's `acceptRedContent()` since upstream commit 3180084. One-line patch in
+  `ion/patches/`, before and after in `make ion-ltp-bug`; Voyager rates with 200-byte segments
+  now pass. `voyager/ION-RESULTS.md`.
+- **Radio**: faucet `announce --wav` plays every line twice (played once over a walkie-talkie,
+  about 1 broadcast in 150 lost a line); the channel tests play twice, as the tools do.
+
 ### Added
+
+- **`run-demo.mjs --live`**: carries the anchored payload, then checks on Bitcoin BSV mainnet
+  that its manifest root is in the anchor transaction and binds delivery to a real settlement
+  verified on chain. Read-only; `--payload` and `--anchor` for your own anchor.
 
 - **Accountable Solar System Internet** (`ssi/`): five operators with their own keys and signed
   contact plans; contacts computed from geometry (`ssi/ephem.mjs`: Moon and Mars ephemerides,
