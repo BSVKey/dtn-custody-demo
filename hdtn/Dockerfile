@@ -11,6 +11,8 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_X86_HARDWARE_ACCELERATION=OFF -DLT
     && make -j2 hdtn-one-process bpsendfile bpreceivefile \
     && git -C /opt/HDTN rev-parse --short HEAD > /opt/HDTN/COMMIT
 ENV HDTN_SOURCE_ROOT=/opt/HDTN
+# netem for hdtn/ltp-sweep.sh (after the HDTN build so that layer stays cached)
+RUN apt-get update && apt-get install -y --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . /app
 CMD ["bash", "/app/hdtn/run-hdtn.sh"]

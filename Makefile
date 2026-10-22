@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager ion-voyager ion-ltp-bug ssi ssi-hardy test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager ion-ltp-bug hdtn-ltp-sweep ssi ssi-hardy test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -62,6 +62,13 @@ ion-ltp-bug:
 	  r=$$(docker run --rm --privileged -e OWLT=1 -e $$c -e SEG_UP=1400 -e ION_LTP_PATCH=$$p -e RECV_TIMEOUT_S=90 -e WAIT_S=100 \
 	    -v "$(CURDIR):/app" dtn-custody-mars bash /app/mars/run-mars.sh 2>&1 | grep -o 'received files: [0-9]*'); \
 	  echo "patch=$$p $$c: $$r"; done; done
+
+# NASA HDTN's LTP under the sweep that found ION's bug (hdtn/LTP-RESULTS.md): segment and file
+# sizes on a clean link, then loss, corruption and delay. About 10 minutes.
+hdtn-ltp-sweep:
+	docker build -t dtn-custody-hdtn -f hdtn/Dockerfile .
+	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" -e SWEEP=full -e CASE_TIMEOUT_S=120 \
+	  dtn-custody-hdtn /app/hdtn/ltp-sweep.sh
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:
