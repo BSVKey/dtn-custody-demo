@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager ion-voyager ssi test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager ssi ssi-hardy test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -35,6 +35,14 @@ voyager:
 ssi:
 	node ssi/run.mjs
 	node ssi/explorer.mjs
+
+# The same network on ten real Hardy BPAs (custody-receipt filter with keys 8 and 9, one
+# routing agent each), emulated space links, 24 scenario hours in 12 minutes. HARDY_SRC is the
+# Hardy checkout with the filter (branch custody-receipt-filter). See ssi/hardy/RESULTS.md.
+ssi-hardy:
+	docker build -t dtn-custody-hardy -f hardy/Dockerfile .
+	docker build -t dtn-custody-hardy-custodian --build-arg HARDY_REVISION=$$(git -C $(HARDY_SRC) rev-parse --short HEAD) -f transport/bpv7/interop/hardy-custodian/Dockerfile $(HARDY_SRC)
+	docker run --rm -e CHAIN_AND_HOPS=1 --entrypoint bash -v "$(CURDIR):/app" dtn-custody-hardy-custodian /app/ssi/hardy/run.sh
 
 # Real JPL ION over LTP at Voyager's data rates (160 bps down, 16 bps up), with the light
 # time capped at 240 s by netem. Reuses the Mars image. See voyager/ION-RESULTS.md.

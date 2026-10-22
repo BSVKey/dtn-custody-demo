@@ -175,6 +175,9 @@ infrastructure:
   stolen and revoked mid-run, forged billing refused, and settlement between operators from
   receipts alone; a relay that does not sign carries data but cannot bill. Simulated, 72 hours,
   52 of 52 bundles. `make ssi`, see `ssi/RESULTS.md` and the explorer page `ssi/explorer.html`.
+  The same network also runs on ten real Hardy BPAs, each signing receipts inside the BPA
+  with routing from geometry: 20 of 20 bundles, unsigned relays sized by Hardy's own
+  receipts (`make ssi-hardy`, see `ssi/hardy/RESULTS.md`).
 
 - **Offline key management (`spec/KEY-RECORDS.md`)**: the key-management gap BPSec leaves out
   of scope, closed for custody receipts. Signed key and revocation records chain to operator

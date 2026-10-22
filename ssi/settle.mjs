@@ -19,7 +19,7 @@ const sha = (x) => createHash("sha256").update(x).digest("hex");
 
 // claims: [{ data, arrivedAt (DTN ms, the owner's own clock), source: "delivery" | "submitted", note }]
 // delivered: Set of bundle identity strings the owner actually received.
-export function clear({ claims, keyring, delivered, owner = "science", clearingKey, period }) {
+export function clear({ claims, keyring, delivered, owner = "science", clearingKey, period, opOf = (eid) => NODES[eid]?.op }) {
   const credited = new Map(), rejected = [], perOp = {};
   for (const op of Object.keys(OPERATORS)) perOp[op] = { bundles: 0, bytes: 0, amount: 0, leaves: [], rejected: 0, unsignedHops: 0 };
   for (const claim of claims) {
@@ -39,7 +39,7 @@ export function clear({ claims, keyring, delivered, owner = "science", clearingK
     // A tampered chain earns nothing for anyone: the claim is refused as a whole.
     if (verdicts.some((v) => v.reason === "chain_digest_mismatch")) { rejected.push({ claim: claim.note, reason: "chain_digest_mismatch" }); continue; }
     for (let i = 0; i < items.length; i++) {
-      const v = verdicts[i], hop = f[i].thisHop, op = NODES[hop]?.op;
+      const v = verdicts[i], hop = f[i].thisHop, op = opOf(hop);
       if (v.ok && v.revokedFrom !== null && v.revokedFrom !== undefined) {
         const t = f[i].forwardedAt ?? f[i].receivedAt;
         if (!(t < v.revokedFrom)) Object.assign(v, { ok: false, reason: "signed_after_revocation" });

@@ -11,6 +11,12 @@
   in-band key records, one keyring per node (`ssi/network.mjs`); a stolen relay key revoked
   mid-run; clearing that judges each receipt and signs settlement statements
   (`ssi/settle.mjs`); an explorer page (`ssi/explorer.mjs`). `make ssi`, `ssi/RESULTS.md`.
+- **The Solar System Internet on real BPAs** (`ssi/hardy/`): ten Hardy BPAs with the
+  custody-receipt filter and one routing agent each, schedules compiled by CGR from geometry,
+  emulated space links over Hardy's gRPC CLA API, JS endpoints that verify with keyrings;
+  20 of 20 bundles, the stolen-key delivery refused, forgeries refused. The filter can now
+  sign receipt keys 8 and 9 (`chain-and-hops: true`, Hardy commit 2e7f1ef4, local), byte-
+  identical with receipt-v2.mjs; with it every unsigned relay is sized. `make ssi-hardy`.
 
 ## 0.5.0
 
