@@ -95,13 +95,16 @@ refused. Live page: https://dtn.bsvkey.com/ssi/hardy/.
 each statement is verified (signature, clearing-house key, operator) before anything is built;
 one output per operator at an address derived from the funding key (sweepable by its holder);
 an OP_RETURN `ssi-settlement/1` with the Merkle root of the statement ids it pays. Amounts
-convert at 10,000 sats per unit. Built and signed for the final run, not sent:
+convert at 10,000 sats per unit. Sent on Bitcoin BSV mainnet 2026-10-22, transaction
+[884c01fa6cbdb797f9e6be1c58be1b8c8249a6a816bdee1fd8989a34f3fb8793](https://whatsonchain.com/tx/884c01fa6cbdb797f9e6be1c58be1b8c8249a6a816bdee1fd8989a34f3fb8793)
+(accepted by ARC as SEEN_ON_NETWORK): 2,110, 2,480 and 4,000 sats to the three operators, the
+OP_RETURN, and 33,969 sats change to the funding address. The run's output:
 
 ```
 statements verified: ground 0.211 -> 2110 sat, lunaA 0.248 -> 2480 sat, marsnet 0.4 -> 4000 sat
 commitment (Merkle root of 3 statement ids): 1f3f3396c87a22d1c6158929e12a1bd06f89d0b894cc57c7ff72b91a0f4cd7fa
 txid 884c01fa6cbdb797f9e6be1c58be1b8c8249a6a816bdee1fd8989a34f3fb8793, fee 36 sat at 100 sat/kB, 354 bytes
-NOT SENT (add --spend-real-bsv to broadcast on BSV mainnet)
+SENT 884c01fa6cbdb797f9e6be1c58be1b8c8249a6a816bdee1fd8989a34f3fb8793 via https://arc.gorillapool.io (SEEN_ON_NETWORK)
 ```
 
 Operator B gets no output: it signed nothing, so it has no statement.
