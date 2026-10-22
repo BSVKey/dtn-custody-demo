@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Accountable Solar System Internet** (`ssi/`): five operators with their own keys and signed
+  contact plans; contacts computed from geometry (`ssi/ephem.mjs`: Moon and Mars ephemerides,
+  turning Earth stations, relay orbits, occultation); contact graph routing (`ssi/cgr.mjs`);
+  an event-driven network of real BPv7 bundles with receipt v2 (fields 8 and 9), Hop Count and
+  in-band key records, one keyring per node (`ssi/network.mjs`); a stolen relay key revoked
+  mid-run; clearing that judges each receipt and signs settlement statements
+  (`ssi/settle.mjs`); an explorer page (`ssi/explorer.mjs`). `make ssi`, `ssi/RESULTS.md`.
+
 ## 0.5.0
 
 The npm package gains the BPv7 side: Custody Receipt Block receipts version 2

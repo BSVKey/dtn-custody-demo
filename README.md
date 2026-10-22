@@ -67,6 +67,7 @@ flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
 mars/                JPL ION over LTP at Mars light time
 voyager/             Voyager 1 and 2 at a light-day: signed DSN schedule, 160/16 bps, bit errors
+ssi/                 accountable Solar System Internet: five operators, geometry, CGR, keys, settlement
 ion/, mix/, hardy/  JPL ION, mixed uD3TN/HDTN and Aalyria Hardy interop runs
 bench/               performance and overhead measurements
 test/                the acceptance-criteria suite (node --test)
@@ -165,6 +166,15 @@ infrastructure:
   arriving exactly one light time later; and a rover to relay-orbiter to Earth chain with
   5% packet loss each way on a 4-minute link, repaired by LTP. `make mars`, see
   `mars/RESULTS.md`.
+
+- **Accountable Solar System Internet (`ssi/`)**: every piece in one network. Five
+  independent operators (deep-space ground stations, two lunar relay operators, a Mars relay
+  operator, a science mission), contacts computed from the positions of Earth stations, the
+  Moon, Mars and relay orbiters, real BPv7 bundles routed by contact graph routing, a custody
+  receipt at every signing node, keys and revocations carried in the traffic, a relay key
+  stolen and revoked mid-run, forged billing refused, and settlement between operators from
+  receipts alone; a relay that does not sign carries data but cannot bill. Simulated, 72 hours,
+  52 of 52 bundles. `make ssi`, see `ssi/RESULTS.md` and the explorer page `ssi/explorer.html`.
 
 - **Offline key management (`spec/KEY-RECORDS.md`)**: the key-management gap BPSec leaves out
   of scope, closed for custody receipts. Signed key and revocation records chain to operator

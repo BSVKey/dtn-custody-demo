@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager ion-voyager test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager ssi test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -29,6 +29,12 @@ radio:
 
 voyager:
 	node voyager/run-voyager.mjs
+
+# The accountable Solar System Internet: five operators, contacts from geometry, CGR, custody
+# receipts, in-band keys, a stolen relay key, settlement from receipts. See ssi/RESULTS.md.
+ssi:
+	node ssi/run.mjs
+	node ssi/explorer.mjs
 
 # Real JPL ION over LTP at Voyager's data rates (160 bps down, 16 bps up), with the light
 # time capped at 240 s by netem. Reuses the Mars image. See voyager/ION-RESULTS.md.
