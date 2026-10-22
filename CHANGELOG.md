@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
+
+The npm package gains the BPv7 side: Custody Receipt Block receipts version 2
+(`stampBundleV2`, `verifyBundleV2`, new optional fields 8 and 9) and offline key management
+(`Keyring`, `issueKey`, `revokeKey`, `carryRecords`, `ingest`; `spec/KEY-RECORDS.md`), all
+exported from the main entry point, still with zero runtime dependencies. The Voyager runs,
+the Hop Count check and the ION runs below are in the repository only.
 
 ### Added
 

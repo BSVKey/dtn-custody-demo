@@ -1,6 +1,6 @@
 {
   "name": "@bsvkey/dtn-custody",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "main": "index.mjs",
   "exports": {
@@ -29,6 +29,13 @@
     "examples/quickstart.mjs",
     "docs/QUICKSTART.md",
     "spec/CUSTODY-RECORDS.md",
+    "spec/KEY-RECORDS.md",
+    "transport/bpv7/bundle.mjs",
+    "transport/bpv7/cbor.mjs",
+    "transport/bpv7/cose.mjs",
+    "transport/bpv7/custody-block.mjs",
+    "transport/bpv7/receipt-v2.mjs",
+    "transport/bpv7/keyring.mjs",
     "NOTICE",
     "relief/kit/",
     "r2/aap.mjs"
