@@ -1,0 +1,161 @@
+{
+ "conjunction": "2028-03-21",
+ "window": {
+  "from": "2028-02-15 00:00",
+  "days": 75
+ },
+ "noRelay": {
+  "relay": false,
+  "sepDeg": 2,
+  "contacts": 2808,
+  "blackout": {
+   "from": "2028-03-12 16:22",
+   "to": "2028-03-29 19:28",
+   "days": 17.1
+  },
+  "flows": {
+   "rover-img": {
+    "sent": 240,
+    "delivered": 240,
+    "sentOut": 68,
+    "viaL5": 0,
+    "latencyH": {
+     "median": 4.4,
+     "max": 412.8
+    },
+    "blackoutLatencyH": {
+     "median": 208.8,
+     "max": 406.8
+    }
+   },
+   "cmd-rover": {
+    "sent": 120,
+    "delivered": 120,
+    "sentOut": 34,
+    "viaL5": 0,
+    "latencyH": {
+     "median": 4,
+     "max": 408
+    },
+    "blackoutLatencyH": {
+     "median": 216,
+     "max": 408
+    }
+   }
+  },
+  "undelivered": 0,
+  "marsStorePeak": {
+   "megabytes": 6.9,
+   "at": "2028-03-29 15:00"
+  },
+  "receipts": {
+   "delivered": 360,
+   "verifiedAtDestination": 360
+  },
+  "settlement": {
+   "ground": {
+    "bundles": 240,
+    "megabytes": 24,
+    "amount": 12,
+    "rejected": 0
+   },
+   "marsnet": {
+    "bundles": 133,
+    "megabytes": 13.3,
+    "amount": 106.4,
+    "rejected": 0
+   }
+  },
+  "rejectedClaims": 0,
+  "statementsVerify": true
+ },
+ "withL5Relay": {
+  "relay": true,
+  "sepDeg": 2,
+  "contacts": 5156,
+  "blackout": {
+   "from": "2028-03-12 16:22",
+   "to": "2028-03-29 19:28",
+   "days": 17.1
+  },
+  "flows": {
+   "rover-img": {
+    "sent": 240,
+    "delivered": 240,
+    "sentOut": 68,
+    "viaL5": 67,
+    "latencyH": {
+     "median": 3,
+     "max": 14.9
+    },
+    "blackoutLatencyH": {
+     "median": 6.1,
+     "max": 14.9
+    }
+   },
+   "cmd-rover": {
+    "sent": 120,
+    "delivered": 120,
+    "sentOut": 34,
+    "viaL5": 41,
+    "latencyH": {
+     "median": 2.4,
+     "max": 14.1
+    },
+    "blackoutLatencyH": {
+     "median": 5.2,
+     "max": 14.1
+    }
+   }
+  },
+  "undelivered": 0,
+  "marsStorePeak": {
+   "megabytes": 0.3,
+   "at": "2028-03-13 09:25"
+  },
+  "receipts": {
+   "delivered": 360,
+   "verifiedAtDestination": 360
+  },
+  "settlement": {
+   "ground": {
+    "bundles": 240,
+    "megabytes": 24,
+    "amount": 12,
+    "rejected": 0
+   },
+   "marsnet": {
+    "bundles": 133,
+    "megabytes": 13.3,
+    "amount": 106.4,
+    "rejected": 0
+   },
+   "helio": {
+    "bundles": 67,
+    "megabytes": 6.7,
+    "amount": 80.4,
+    "rejected": 0
+   }
+  },
+  "rejectedClaims": 0,
+  "statementsVerify": true
+ },
+ "blackoutBySunLimit": [
+  {
+   "sepDeg": 1,
+   "earthMarsBlackoutDays": 5.6
+  },
+  {
+   "sepDeg": 2,
+   "earthMarsBlackoutDays": 17.1
+  },
+  {
+   "sepDeg": 3,
+   "earthMarsBlackoutDays": 27
+  },
+  {
+   "sepDeg": 5,
+   "earthMarsBlackoutDays": 46
+  }
+ ]
+}

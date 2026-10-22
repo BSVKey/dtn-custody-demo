@@ -49,6 +49,23 @@ export function marsPos(t) {
   return v.mul(eclToEq(d), AU);
 }
 
+// The Sun (geocentric, so minus the Earth-Moon barycentre's heliocentric position), and a point
+// on Earth's orbit `deg` ahead of Earth round the Sun: +60 is Sun-Earth L4, -60 is L5 (the
+// triangular points ride Earth's orbit 60 degrees ahead and behind).
+export function sunPos(t) {
+  return v.mul(eclToEq(kepler(EMB, centuries(t))), -AU);
+}
+export function sunEarthLagrange(t, deg) {
+  const e = kepler(EMB, centuries(t)), c = Math.cos(deg * RAD), s = Math.sin(deg * RAD);
+  return v.mul(eclToEq(v.sub([e[0] * c - e[1] * s, e[0] * s + e[1] * c, e[2]], e)), AU);
+}
+// Angle (deg) at `from` between the Sun and `to`: radio links fail when it is small (solar
+// scintillation and noise), which is what cuts Mars off at solar conjunction.
+export function sunAngle(t, from, to) {
+  const a = v.unit(v.sub(sunPos(t), from)), b = v.unit(v.sub(to, from));
+  return Math.acos(Math.max(-1, Math.min(1, v.dot(a, b)))) / RAD;
+}
+
 export function moonPos(t) {
   const T = centuries(t), s = (x) => Math.sin(x * RAD);
   const lam = 218.32 + 481267.881 * T + 6.29 * s(135.0 + 477198.87 * T) - 1.27 * s(259.3 - 413335.36 * T)

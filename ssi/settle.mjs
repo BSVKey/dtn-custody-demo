@@ -19,9 +19,9 @@ const sha = (x) => createHash("sha256").update(x).digest("hex");
 
 // claims: [{ data, arrivedAt (DTN ms, the owner's own clock), source: "delivery" | "submitted", note }]
 // delivered: Set of bundle identity strings the owner actually received.
-export function clear({ claims, keyring, delivered, owner = "science", clearingKey, period, opOf = (eid) => NODES[eid]?.op }) {
+export function clear({ claims, keyring, delivered, owner = "science", clearingKey, period, operators = OPERATORS, opOf = (eid) => NODES[eid]?.op }) {
   const credited = new Map(), rejected = [], perOp = {};
-  for (const op of Object.keys(OPERATORS)) perOp[op] = { bundles: 0, bytes: 0, amount: 0, leaves: [], rejected: 0, unsignedHops: 0 };
+  for (const op of Object.keys(operators)) perOp[op] = { bundles: 0, bytes: 0, amount: 0, leaves: [], rejected: 0, unsignedHops: 0 };
   for (const claim of claims) {
     const b = decodeBundle(claim.data), id = JSON.stringify(bundleIdentity(b));
     const payloadBytes = b.blocks.find((x) => x.type === 1).data.length;
@@ -53,7 +53,7 @@ export function clear({ claims, keyring, delivered, owner = "science", clearingK
       if (op === owner) continue;
       const key = `${id}|${hop}`;
       if (credited.has(key)) continue;   // a second claim for the same carriage earns nothing more
-      const amount = (payloadBytes / 1e6) * OPERATORS[op].ratePerMB;
+      const amount = (payloadBytes / 1e6) * operators[op].ratePerMB;
       credited.set(key, { op, amount });
       Object.assign(perOp[op], { bundles: perOp[op].bundles + 1, bytes: perOp[op].bytes + payloadBytes, amount: perOp[op].amount + amount });
       perOp[op].leaves.push(sha(encode(items[i])));
@@ -70,7 +70,7 @@ export function clear({ claims, keyring, delivered, owner = "science", clearingK
     const root = buildTree(s.leaves.sort()).root;
     statements[op] = signRecord(clearingKey, {
       kind: "ssi.settlement/1", operator: op, payer: owner, period,
-      bundles: s.bundles, bytes: s.bytes, amount: Number(s.amount.toFixed(6)), ratePerMB: OPERATORS[op].ratePerMB, receiptsRoot: root,
+      bundles: s.bundles, bytes: s.bytes, amount: Number(s.amount.toFixed(6)), ratePerMB: operators[op].ratePerMB, receiptsRoot: root,
     });
   }
   return { perOp, rejected, statements, credited: credited.size };

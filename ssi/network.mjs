@@ -16,17 +16,18 @@ export const dtn = (ms) => ms - DTN_EPOCH;
 const DAY = 864e5;
 
 // ---- Keys: each operator has a root (anchor) and an issuer; every node gets a key ----------
-export function provision(start) {
+// A different world (nodes, operators) and key lifetime can be passed; the defaults are world.mjs.
+export function provision(start, { nodes = NODES, operators = OPERATORS, keyDays = 30 } = {}) {
   const ops = {};
-  for (const op of Object.keys(OPERATORS)) {
+  for (const op of Object.keys(operators)) {
     const root = genKeypair(), issuer = genKeypair();
-    ops[op] = { root, issuer, records: [issueKey(root, { subject: `${op}:issuer`, pub: issuer.pub, roles: ROLE.ISSUE | ROLE.REVOKE, notBefore: dtn(start) - DAY, notAfter: dtn(start) + 365 * DAY })] };
+    ops[op] = { root, issuer, records: [issueKey(root, { subject: `${op}:issuer`, pub: issuer.pub, roles: ROLE.ISSUE | ROLE.REVOKE, notBefore: dtn(start) - DAY, notAfter: dtn(start) + Math.max(365, keyDays) * DAY })] };
   }
   const nodeKeys = {};
-  for (const [eid, n] of Object.entries(NODES)) {
+  for (const [eid, n] of Object.entries(nodes)) {
     const kp = genKeypair();
     nodeKeys[eid] = kp;
-    ops[n.op].records.push(issueKey(ops[n.op].issuer, { subject: eid, pub: kp.pub, notBefore: dtn(start) - DAY, notAfter: dtn(start) + 30 * DAY }));
+    ops[n.op].records.push(issueKey(ops[n.op].issuer, { subject: eid, pub: kp.pub, notBefore: dtn(start) - DAY, notAfter: dtn(start) + keyDays * DAY }));
   }
   const anchors = Object.entries(ops).map(([op, o]) => ({ name: op, pub: o.root.pub }));
   const launchRecords = Object.values(ops).flatMap((o) => o.records);
@@ -40,12 +41,12 @@ function bumpHopCount(bytes) {
 }
 
 let seq = 0;
-export function makeBundle({ src, dst, bytes, created }) {
+export function makeBundle({ src, dst, bytes, created, lifetimeDays = 7 }) {
   const payload = Buffer.alloc(bytes);
   for (let i = 0; i < bytes; i++) payload[i] = (i * 131 + seq * 17) & 0xff;
   seq++;
   return encodeBundle({
-    primary: { crcType: CRC32C, dest: dst.replace(".0", ".1"), source: src.replace(".0", ".1"), created: [dtn(created), seq], lifetime: 7 * DAY },
+    primary: { crcType: CRC32C, dest: dst.replace(".0", ".1"), source: src.replace(".0", ".1"), created: [dtn(created), seq], lifetime: lifetimeDays * DAY },
     blocks: [
       { type: BLOCK.HOP_COUNT, number: 2, crcType: CRC32C, data: encode([64, 0]) },
       { type: BLOCK.PAYLOAD, number: 1, crcType: CRC32C, data: payload },
@@ -56,19 +57,19 @@ export function makeBundle({ src, dst, bytes, created }) {
 // ---- The simulation ---------------------------------------------------------------------------
 // traffic: [{ src, dst, bytes, created, label }]; events: [{ at, apply(net) }] (key compromise,
 // revocation, rekey). Returns everything the reports and the clearing need.
-export function runNetwork({ start, contacts, keys, traffic, events = [] }) {
+export function runNetwork({ start, contacts, keys, traffic, events = [], nodes = NODES }) {
   const net = {
     start, contacts, keys,
     signer: { ...keys.nodeKeys },                                   // the key each node signs with now
     rings: {}, firstSeen: {}, deliveries: [], undelivered: [], log: [], groundRecords: [],
   };
-  for (const eid of Object.keys(NODES)) {
+  for (const eid of Object.keys(nodes)) {
     const ring = new Keyring({ anchors: keys.anchors });
     for (const r of keys.launchRecords) ring.add(r, dtn(start) - DAY);
     net.rings[eid] = ring;
     net.firstSeen[eid] = {};
   }
-  const groundNodes = Object.keys(NODES).filter((e) => ["station", "moc"].includes(NODES[e].kind));
+  const groundNodes = Object.keys(nodes).filter((e) => ["station", "moc"].includes(nodes[e].kind));
   net.publish = (record, at) => {   // an operator publishes a record: the ground has it at once
     net.groundRecords.push({ record, at });
     for (const g of groundNodes) noteRecord(g, record, at);
@@ -91,7 +92,7 @@ export function runNetwork({ start, contacts, keys, traffic, events = [] }) {
     const e = q.shift();
     if (e.kind === "event") { e.ev.apply(net, e.t); net.log.push({ t: e.t, what: e.ev.what }); continue; }
     const { node, b, t } = e;
-    const N = NODES[node];
+    const N = nodes[node];
     // 1. Key news riding in the bundle.
     for (const r of readKeyBlock(decodeBundle(b.data))) noteRecord(node, r, t);
     for (const h of net.arrivalHooks || []) h(net, node, t);

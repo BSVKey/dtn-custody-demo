@@ -1,5 +1,5 @@
 # One-command entry points.
-.PHONY: help demo radio voyager ion-voyager ion-ltp-bug hdtn-ltp-sweep ssi ssi-hardy test spike spike-local clean
+.PHONY: help demo radio voyager ion-voyager ion-ltp-bug hdtn-ltp-sweep ssi ssi-conjunction ssi-hardy test spike spike-local clean
 
 help:
 	@echo "make test        - acceptance criteria (offline, deterministic, node --test)"
@@ -69,6 +69,11 @@ hdtn-ltp-sweep:
 	docker build -t dtn-custody-hdtn -f hdtn/Dockerfile .
 	docker run --rm --privileged --entrypoint bash -v "$(CURDIR):/app" -e SWEEP=full -e CASE_TIMEOUT_S=120 \
 	  dtn-custody-hdtn /app/hdtn/ltp-sweep.sh
+
+# Mars through the March 2028 solar conjunction, with and without a relay at Sun-Earth L5
+# (ssi/conjunction/RESULTS.md). About 15 seconds; writes the data and the two figures.
+ssi-conjunction:
+	node ssi/conjunction/run.mjs --write
 
 # Validated here: real sockets, real store-and-forward, scripted occultation.
 spike-local:

@@ -14,6 +14,15 @@
 
 ### Added
 
+- **Mars through solar conjunction** (`ssi/conjunction/`): the March 2028 conjunction computed
+  from planetary orbits (the model's 2023 window matches NASA's command moratorium), and the
+  network run through it with and without a relay at Sun-Earth L5. Without it, a 17-day
+  blackout: data waits up to 17 days and commands stop. Via L5: every image and command within
+  15 hours, receipts verified, and the L5 operator paid from its own receipts.
+  `make ssi-conjunction`, `ssi/conjunction/RESULTS.md`. `ssi/ephem.mjs` gains the Sun, L4/L5
+  and the Sun angle; the network and clearing take a world, key lifetime and bundle lifetime.
+- **HDTN LTP stress sweep** (`hdtn/ltp-sweep.sh`, `make hdtn-ltp-sweep`): 75 of 76 cases pass;
+  no HDTN fault found. `hdtn/LTP-RESULTS.md`.
 - **`run-demo.mjs --live`**: carries the anchored payload, then checks on Bitcoin BSV mainnet
   that its manifest root is in the anchor transaction and binds delivery to a real settlement
   verified on chain. Read-only; `--payload` and `--anchor` for your own anchor.
