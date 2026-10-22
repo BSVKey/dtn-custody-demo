@@ -50,6 +50,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 :root{--bg:#fbfaf7;--fg:#1d1b18;--mut:#6b655c;--line:#e4dfd6;--card:#fff;--c1:#2f6db5;--c2:#b8741a;--c3:#8a8172;--c4:#b5432f;--c5:#3d8a5a;--ok:#2f7d4a;--no:#b23a2a}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15140f;--fg:#ece7de;--mut:#a39c90;--line:#2e2b25;--card:#1d1b16;--c1:#6fa3e8;--c2:#e0a24c;--c3:#a69d8e;--c4:#e2735e;--c5:#6cc08a;--ok:#6cc08a;--no:#f0846f}}
 :root[data-theme="dark"]{--bg:#15140f;--fg:#ece7de;--mut:#a39c90;--line:#2e2b25;--card:#1d1b16;--c1:#6fa3e8;--c2:#e0a24c;--c3:#a69d8e;--c4:#e2735e;--c5:#6cc08a;--ok:#6cc08a;--no:#f0846f}
+a{color:var(--c1)}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:1000px;margin:0 auto;padding:28px 16px 60px}
 h1{font-size:28px;margin:0 0 6px;line-height:1.2} h2{font-size:19px;margin:34px 0 8px} .sub{color:var(--mut);margin:0 0 14px}
@@ -64,6 +65,7 @@ svg{width:100%;min-width:760px;height:auto}.lbl{font-size:10px;fill:var(--mut)}.
 .chip{display:inline-block;border:1.5px solid;border-radius:6px;padding:0 5px;font-size:12px;margin:1px 0;white-space:nowrap}.chip.un{border-style:dashed;opacity:.75}.arr{color:var(--mut);margin:0 2px}
 .note{color:var(--mut);font-size:13px;margin-top:8px}
 </style></head><body><main>
+<p class="note" style="margin:0 0 14px"><a href="https://dtn.bsvkey.com/">DTN Custody</a> · <a href="https://github.com/BSVKey/dtn-custody-demo/tree/main/ssi">Code and results (Apache-2.0)</a></p>
 <h1>Accountable Solar System Internet</h1>
 <p class="sub">One simulated 72-hour run from ${esc(r.period.from.slice(0, 10))}: five independent operators, contacts computed from the positions of Earth stations, the Moon, Mars and relay orbiters, real Bundle Protocol v7 bundles routed by contact graph routing, a custody receipt at every signing node, keys and revocations carried inside the traffic, a stolen relay key, and settlement between operators from receipts alone.</p>
 <div class="stats">
