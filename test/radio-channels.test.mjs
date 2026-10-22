@@ -21,8 +21,10 @@ const { type, msg } = encodePayment(tx);
 const chunks = soundChunks(type, msg);
 
 for (const [name, ch] of Object.entries(CHANNELS)) {
+  // Played twice, as the phone page and make-wav do. Played once, 250 random payments lost 14 on
+  // the phone speaker and 1 on FM (none twice), which made this test fail now and then.
   test(`channel ${name}: ${ch.speed} tones carry a payment through a simulated ${ch.label}`, () => {
-    const audio = simulateChannel(render(codec, chunks, { speed: ch.speed, leadInS: ch.leadInS, repeat: 1 }), name, { seed: 7 });
+    const audio = simulateChannel(render(codec, chunks, { speed: ch.speed, leadInS: ch.leadInS, repeat: 2 }), name, { seed: 7 });
     const { payments } = decodeSamples(codec, audio);
     assert.equal(payments.length, 1);
     assert.deepEqual(payments[0].msg, msg);

@@ -1,5 +1,23 @@
 # Pay over radio: results
 
+## 2026-10-22: why everything is played twice
+
+Two tests failed now and then. Measured on the simulated channels (`radio/lib/channels.mjs`,
+fixed noise seed, a new random payment each run):
+
+| Played | Phone speaker | FM | AM | Walkie-talkie | Phone call |
+|---|---|---|---|---|---|
+| once, 250 payments | 14 lost | 1 lost | 0 | 0 | 0 |
+| twice, 250 payments | 0 | 0 | 0 | 0 | 0 |
+
+Faucet announcements over a walkie-talkie, played once: 2 of 300 lost a whole line (the
+announcement or a bearer coin); played twice: none of 300. Nothing arrived garbled: a part is
+either decoded whole or not at all, and listeners drop repeats.
+
+The phone page and `make-wav.mjs` already played everything twice. The faucet's `announce
+--wav` played once; it now plays twice by default (`--repeat 1` still works). The tests now play
+twice too, as the tools do. Simulated channels only: real radios have not been measured this way.
+
 ## 2026-10-20: a real payment over Nearby (WebRTC), PC and iPhone on one Wi-Fi
 
 An iPhone and a Windows PC on the same home Wi-Fi, both on the live page's Nearby tab. They swapped
