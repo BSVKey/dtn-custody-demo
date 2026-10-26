@@ -78,7 +78,8 @@ test("gateway pair: a 3.5 MB HTTP upload crosses as fragments and arrives whole"
   assert.ok(await until(() => got.length === 1));
   assert.equal(sha(got[0].payload), sha(payload));
   assert.equal(got[0].ingress.ok, true);
-  assert.equal(gwA.stats.toDtn, 4);
+  // The far side can deliver before gateway A has read the final ack, so wait for the count.
+  assert.ok(await until(() => gwA.stats.toDtn === 4), `toDtn ${gwA.stats.toDtn}`);
   await gwA.stop(); await gwB.stop();
 });
 

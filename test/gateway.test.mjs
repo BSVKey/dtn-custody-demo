@@ -145,6 +145,7 @@ test("HTTP ingress and status", async () => {
   assert.equal(r.status, 202);
   assert.ok(await until(() => sink.got.length === 1));
   assert.equal(sink.got[0].toString(), "image tile 3");
+  assert.ok(await until(() => gwA.stats.toDtn === 1), "gateway A has read the final ack");
   const st = await (await fetch(`http://127.0.0.1:${gwA.httpPort}/status`)).json();
   assert.equal(st.node, "ipn:1.0");
   assert.equal(st.stats.toDtn, 1);
