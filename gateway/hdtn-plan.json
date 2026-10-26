@@ -1,0 +1,22 @@
+{
+  "name": "gateway-hdtn",
+  "description": "IP side to DTN side through NASA HDTN: gateway A (ipn:1) -> HDTN router (ipn:10) -> gateway B (ipn:2). Both links stay up in the plan; the outage in this test is HDTN itself going down mid-stream.",
+  "scale": 1,
+  "nodes": [
+    { "ipn": 1, "name": "gateway A (IP side, TCPCLv4 active)" },
+    { "ipn": 10, "name": "NASA HDTN router" },
+    { "ipn": 2, "name": "gateway B (DTN side, TCPCLv4 passive on 4558)" }
+  ],
+  "links": [
+    { "id": "L1", "from": 1, "to": 10 },
+    { "id": "L2", "from": 10, "to": 2 }
+  ],
+  "delays": {
+    "L1": { "one_way_ms": 10, "rate_bps": 100000000 },
+    "L2": { "one_way_ms": 10, "rate_bps": 100000000 }
+  },
+  "contacts": [
+    { "link": "L1", "up_s": 0, "down_s": 3600 },
+    { "link": "L2", "up_s": 0, "down_s": 3600 }
+  ]
+}
