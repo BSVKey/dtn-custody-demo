@@ -62,6 +62,7 @@ relief/              disaster relief: clinic reports by courier and satellite, w
   realnet/           the scenario over real network namespaces with a real blackout
   scale/             480 clinics, 48 couriers, 16 relays, six attacks
 radio/               pay over LoRa radio: offline-signed payment, gateway receipt back
+gateway/             IP <-> DTN gateway: UDP/HTTP in, BPv7 over TCPCLv4 (RFC 9174) out, tested with NASA HDTN
 ground/              ground-side pilot kit: station-signed ledgers from received data, no flight change
 flight/              onboard signing in C (byte-identical to the test vectors)
 constellation/       thousands of satellites: batch receipts, changing routes, attacks
