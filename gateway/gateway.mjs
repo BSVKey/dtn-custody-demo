@@ -17,7 +17,7 @@ import dgram from "node:dgram";
 import http from "node:http";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { encodeBundle, decodeBundle, payloadOf, BLOCK, BLOCK_FLAG, CRC32C } from "../transport/bpv7/bundle.mjs";
+import { encodeBundle, decodeBundle, payloadOf, BLOCK, BLOCK_FLAG, BUNDLE_FLAG, CRC32C } from "../transport/bpv7/bundle.mjs";
 import { encode, decode } from "../transport/bpv7/cbor.mjs";
 import { signRecord, verifyRecord } from "../agent/lib/receipt.mjs";
 import { canonicalize } from "../agent/lib/canonical.mjs";
@@ -28,31 +28,51 @@ export const INGRESS_BLOCK_TYPE = 226;
 const DTN_EPOCH_MS = Date.UTC(2000, 0, 1);
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 
-export function parseIpn(eid) {
-  const m = /^ipn:(\d+)\.(\d+)$/.exec(eid);
-  if (!m) throw new Error(`need an ipn EID like ipn:2.1, got ${eid}`);
-  return { node: Number(m[1]), service: Number(m[2]) };
+// Endpoint IDs the gateway routes on: ipn:<node>.<service> or dtn://<node>/<demux>.
+export function parseEid(eid) {
+  let m = /^ipn:(\d+)\.(\d+)$/.exec(eid);
+  if (m) return { scheme: "ipn", node: m[1], service: m[2] };
+  m = /^dtn:\/\/([^/]+)\/(.*)$/.exec(eid);
+  if (m) return { scheme: "dtn", node: m[1], service: m[2] };
+  throw new Error(`need an EID like ipn:2.1 or dtn://ground/telemetry, got ${eid}`);
 }
 
-// Build one BPv7 bundle around an IP payload, with an optional signed ingress receipt.
-export function makeBundle({ payload, source, dest, lifetimeMs, seq, keypair, gateway, from, now = Date.now() }) {
-  const blocks = [];
+export function parseIpn(eid) {
+  const e = parseEid(eid);
+  if (e.scheme !== "ipn") throw new Error(`need an ipn EID like ipn:2.1, got ${eid}`);
+  return { node: Number(e.node), service: Number(e.service) };
+}
+
+// Build the BPv7 bundle(s) for one IP payload. Above maxPayload bytes the payload is
+// split into fragments (RFC 9171 section 5.8): same source and creation timestamp, each
+// with its offset and the total length. The signed ingress receipt covers the whole
+// payload and is replicated into every fragment.
+export function makeBundles({ payload, source, dest, lifetimeMs, seq, keypair, gateway, from, now = Date.now(), maxPayload = Infinity }) {
+  const extra = [];
   if (keypair) {
     const receipt = signRecord(keypair, {
       kind: "gateway-ingress/1", gateway, from, source, dest,
       payloadHash: sha256(payload), payloadBytes: payload.length, receivedAt: new Date(now).toISOString(),
     });
-    blocks.push({
+    extra.push({
       type: INGRESS_BLOCK_TYPE, number: 2, flags: BLOCK_FLAG.REPLICATE_IN_FRAGMENTS, crcType: CRC32C,
       data: encode([canonicalize(receipt)]),
     });
   }
-  blocks.push({ type: BLOCK.PAYLOAD, number: 1, flags: 0, crcType: CRC32C, data: payload });
-  return encodeBundle({
-    primary: { flags: 0, crcType: CRC32C, dest, source, reportTo: "dtn:none", created: [now - DTN_EPOCH_MS, seq], lifetime: lifetimeMs },
-    blocks,
-  });
+  const created = [now - DTN_EPOCH_MS, seq];
+  const frag = payload.length > maxPayload;
+  const out = [];
+  for (let off = 0; off === 0 || off < payload.length; off += maxPayload) {
+    const part = frag ? payload.subarray(off, off + maxPayload) : payload;
+    const primary = { flags: frag ? BUNDLE_FLAG.IS_FRAGMENT : 0, crcType: CRC32C, dest, source, reportTo: "dtn:none", created, lifetime: lifetimeMs };
+    if (frag) { primary.fragmentOffset = off; primary.totalAduLength = payload.length; }
+    out.push(encodeBundle({ primary, blocks: [...extra, { type: BLOCK.PAYLOAD, number: 1, flags: 0, crcType: CRC32C, data: part }] }));
+    if (!frag) break;
+  }
+  return out;
 }
+
+export const makeBundle = (args) => makeBundles({ ...args, maxPayload: Infinity })[0];
 
 // Check a bundle's ingress receipt: present, signed by a pinned gateway key, and bound to
 // this exact payload. Returns { ok, reason?, receipt? }.
@@ -71,13 +91,22 @@ export function verifyIngress(bundle, pinnedKeys) {
 export class Gateway extends EventEmitter {
   constructor(cfg) {
     super();
-    this.cfg = { lifetimeMs: 24 * 3600 * 1000, retryMs: 2000, maxRetryMs: 30000, ...cfg };
-    this.nodeId = `ipn:${cfg.node}.0`;
+    this.cfg = { lifetimeMs: 24 * 3600 * 1000, retryMs: 2000, maxRetryMs: 30000, maxBundlePayload: 1000000, maxReassemblyBytes: 64 * 1024 * 1024, ...cfg };
+    // Identity: an ipn node number, or a dtn node name ("dtn://ground-a/").
+    if (cfg.nodeId) {
+      const e = parseEid(cfg.nodeId);
+      this.scheme = e.scheme; this.nodeName = e.node;
+      this.nodeId = e.scheme === "ipn" ? `ipn:${e.node}.0` : `dtn://${e.node}/`;
+    } else {
+      this.scheme = "ipn"; this.nodeName = String(cfg.node); this.nodeId = `ipn:${cfg.node}.0`;
+    }
+    this.partial = new Map();
+    this.partialBytes = 0;
     this.spool = new Spool(cfg.spoolDir);
     this.seq = 0;
     this.session = null;
     this.servers = [];
-    this.stats = { fromIp: 0, toDtn: 0, fromDtn: 0, toIp: 0, rejected: 0 };
+    this.stats = { fromIp: 0, toDtn: 0, fromDtn: 0, toIp: 0, rejected: 0, fragmentsIn: 0, reassembled: 0 };
     this.log = cfg.log || (() => {});
   }
 
@@ -87,7 +116,7 @@ export class Gateway extends EventEmitter {
       const sock = dgram.createSocket("udp4");
       sock.on("message", (msg, rinfo) => {
         if (u.allowedSources && !u.allowedSources.includes(rinfo.address)) { this.stats.rejected++; return; }
-        this.fromIp(msg, u.dest, `udp:${rinfo.address}:${rinfo.port}`, u.sourceService);
+        this.fromIp(msg, u.dest, `udp:${rinfo.address}:${rinfo.port}`, u.sourceService ?? u.source);
       });
       await new Promise((res) => sock.bind(u.port, u.host || "127.0.0.1", res));
       (this.udpPorts ||= []).push(sock.address().port);
@@ -117,11 +146,18 @@ export class Gateway extends EventEmitter {
       }
       if (req.method === "POST" && url.pathname === "/bundles") {
         const dest = url.searchParams.get("dest");
-        try { parseIpn(dest); } catch (e) { res.writeHead(400); return res.end(e.message); }
+        try { parseEid(dest); } catch (e) { res.writeHead(400); return res.end(e.message); }
+        const max = this.cfg.ipIngress.http.maxBytes || 64 * 1024 * 1024;
         const parts = [];
-        req.on("data", (c) => parts.push(c));
+        let size = 0;
+        req.on("data", (c) => {
+          size += c.length;
+          if (size > max) { res.writeHead(413); res.end(`body over ${max} bytes`); req.destroy(); return; }
+          parts.push(c);
+        });
         req.on("end", () => {
-          const id = this.fromIp(Buffer.concat(parts), dest, `http:${req.socket.remoteAddress}`, Number(url.searchParams.get("service") || 1));
+          if (size > max) return;
+          const id = this.fromIp(Buffer.concat(parts), dest, `http:${req.socket.remoteAddress}`, url.searchParams.get("service") ?? undefined);
           res.writeHead(202, { "content-type": "application/json" });
           res.end(JSON.stringify({ queued: id, dest }));
         });
@@ -134,24 +170,69 @@ export class Gateway extends EventEmitter {
   }
 
   // IP -> DTN: wrap, sign (optional), spool, and wake the sender.
-  fromIp(payload, dest, from, sourceService = 1) {
-    const bytes = makeBundle({
-      payload, dest, source: `ipn:${this.cfg.node}.${sourceService}`, lifetimeMs: this.cfg.lifetimeMs,
-      seq: this.seq++, keypair: this.cfg.keypair, gateway: this.nodeId, from,
+  sourceEid(service) {
+    return this.scheme === "ipn" ? `ipn:${this.nodeName}.${service ?? 1}` : `dtn://${this.nodeName}/${service ?? "gateway"}`;
+  }
+
+  fromIp(payload, dest, from, sourceService) {
+    const all = makeBundles({
+      payload, dest, source: this.sourceEid(sourceService), lifetimeMs: this.cfg.lifetimeMs,
+      seq: this.seq++, keypair: this.cfg.keypair, gateway: this.nodeId, from, maxPayload: this.cfg.maxBundlePayload,
     });
-    const id = this.spool.add(bytes);
+    const ids = all.map((b) => this.spool.add(b));
     this.stats.fromIp++;
-    this.emit("queued", id);
+    this.emit("queued", ids[0]);
     this._kick?.();
-    return id;
+    return ids.length === 1 ? ids[0] : ids;
+  }
+
+  // The local service a bundle is for, or null when it is addressed to another node.
+  _localService(dest) {
+    let e;
+    try { e = parseEid(dest); } catch { return null; }
+    return e.scheme === this.scheme && e.node === this.nodeName ? e.service : null;
+  }
+
+  // Collect fragments by (source, creation time) until offsets 0..total are all covered,
+  // then rebuild one whole bundle from the first fragment's blocks. Returns null while
+  // pieces are still missing. Bounded by maxReassemblyBytes; stale sets expire.
+  _reassemble(bundle) {
+    const p = bundle.primary;
+    if (!(p.flags & BUNDLE_FLAG.IS_FRAGMENT)) return bundle;
+    const part = payloadOf(bundle);
+    if (!(p.totalAduLength > 0) || p.fragmentOffset + part.length > p.totalAduLength) throw new Error("fragment outside its total length");
+    const now = Date.now();
+    for (const [k, e] of this.partial) if (now - e.at > this.cfg.lifetimeMs) { this.partialBytes -= e.bytes; this.partial.delete(k); }
+    const key = `${p.source}|${p.created[0]}|${p.created[1]}`;
+    let e = this.partial.get(key);
+    if (!e) { e = { total: p.totalAduLength, parts: new Map(), first: null, bytes: 0, at: now }; this.partial.set(key, e); }
+    if (e.total !== p.totalAduLength) throw new Error("fragments disagree on the total length");
+    if (!e.parts.has(p.fragmentOffset)) {
+      if (this.partialBytes + part.length > this.cfg.maxReassemblyBytes) throw new Error("reassembly buffer full");
+      e.parts.set(p.fragmentOffset, part); e.bytes += part.length; this.partialBytes += part.length;
+    }
+    if (p.fragmentOffset === 0) e.first = bundle;
+    this.stats.fragmentsIn++;
+    const offs = [...e.parts.keys()].sort((a, b) => a - b);
+    let end = 0;
+    for (const o of offs) { if (o > end) return null; end = Math.max(end, o + e.parts.get(o).length); }
+    if (end < e.total || !e.first) return null;
+    const whole = Buffer.alloc(e.total);
+    for (const o of offs) e.parts.get(o).copy(whole, o);
+    this.partial.delete(key); this.partialBytes -= e.bytes;
+    this.stats.reassembled++;
+    const { fragmentOffset, totalAduLength, ...primary } = e.first.primary;
+    return { primary: { ...primary, flags: primary.flags & ~BUNDLE_FLAG.IS_FRAGMENT }, blocks: e.first.blocks.map((b) => (b.type === BLOCK.PAYLOAD ? { ...b, data: whole } : b)) };
   }
 
   // DTN -> IP: deliver bundles addressed to this node to the configured local endpoint.
   fromDtn(bytes, peer) {
     let bundle;
     try { bundle = decodeBundle(bytes); } catch (e) { this.stats.rejected++; return this.log(`dropped malformed bundle from ${peer}: ${e.message}`); }
-    const { node, service } = parseIpn(bundle.primary.dest);
-    if (node !== this.cfg.node) { this.stats.rejected++; return this.log(`dropped bundle for ${bundle.primary.dest}: not this node`); }
+    const service = this._localService(bundle.primary.dest);
+    if (service === null) { this.stats.rejected++; return this.log(`dropped bundle for ${bundle.primary.dest}: not this node`); }
+    try { bundle = this._reassemble(bundle); } catch (e) { this.stats.rejected++; return this.log(`dropped fragment from ${bundle.primary.source}: ${e.message}`); }
+    if (!bundle) return;
     this.stats.fromDtn++;
     const ingress = bundle.blocks.some((b) => b.type === INGRESS_BLOCK_TYPE) ? verifyIngress(bundle, this.cfg.pinnedGateways) : null;
     if (this.cfg.requireIngressReceipt && !(ingress && ingress.ok)) {
