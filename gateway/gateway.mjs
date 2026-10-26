@@ -85,14 +85,17 @@ export class Gateway extends EventEmitter {
     const { ipIngress = {}, listenPort } = this.cfg;
     for (const u of ipIngress.udp || []) {
       const sock = dgram.createSocket("udp4");
-      sock.on("message", (msg, rinfo) => this.fromIp(msg, u.dest, `udp:${rinfo.address}:${rinfo.port}`, u.sourceService));
+      sock.on("message", (msg, rinfo) => {
+        if (u.allowedSources && !u.allowedSources.includes(rinfo.address)) { this.stats.rejected++; return; }
+        this.fromIp(msg, u.dest, `udp:${rinfo.address}:${rinfo.port}`, u.sourceService);
+      });
       await new Promise((res) => sock.bind(u.port, u.host || "127.0.0.1", res));
       (this.udpPorts ||= []).push(sock.address().port);
       this.servers.push(sock);
     }
     if (ipIngress.http) await this._startHttp(ipIngress.http);
     if (listenPort != null) {
-      const srv = await listen({ port: listenPort, nodeId: this.nodeId }, (s) => {
+      const srv = await listen({ port: listenPort, host: this.cfg.listenHost || "127.0.0.1", nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers, allowedIps: this.cfg.allowedIps }, (s) => {
         this.log(`DTN session in from ${s.peer.nodeId}`);
         s.on("bundle", (b) => this.fromDtn(b, s.peer.nodeId));
       });
@@ -104,9 +107,10 @@ export class Gateway extends EventEmitter {
     return this;
   }
 
-  _startHttp({ port, host = "127.0.0.1" }) {
+  _startHttp({ port, host = "127.0.0.1", token }) {
     const srv = http.createServer((req, res) => {
       const url = new URL(req.url, "http://x");
+      if (token && req.headers.authorization !== `Bearer ${token}`) { res.writeHead(401); return res.end("bearer token required"); }
       if (req.method === "GET" && url.pathname === "/status") {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ node: this.nodeId, connected: !!this.session, waiting: this.spool.size, stats: this.stats }));
@@ -170,7 +174,7 @@ export class Gateway extends EventEmitter {
     while (!this.stopped) {
       try {
         if (!this.session) {
-          this.session = await connect({ ...this.cfg.peer, nodeId: this.nodeId });
+          this.session = await connect({ ...this.cfg.peer, nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers });
           this.log(`DTN session up with ${this.session.peer.nodeId}`);
           this.emit("connected", this.session.peer);
           this.session.on("bundle", (b) => this.fromDtn(b, this.session?.peer?.nodeId));

@@ -12,13 +12,23 @@
 //   await s.close();                      // SESS_TERM, wait for the reply, then end
 //
 //   listen({ port, nodeId }, (session) => { session.on("bundle", ...) });
+//
+// TLS (section 4.4): pass tls: { key, cert, ca, require, verifyNodeId }. Both sides offer
+// CAN_TLS in the contact header; when both do, the connection is upgraded to TLS before
+// SESS_INIT, so the session parameters and every bundle travel encrypted. With `ca`, each
+// side must present a certificate signed by it (mutual TLS). With `verifyNodeId`, the
+// peer's certificate must carry its Node ID as a URI subjectAltName (section 4.4.2), so a
+// node cannot claim another node's identity. `require` refuses peers that cannot do TLS.
+// allowedPeers: [nodeId, ...] refuses any other Node ID at SESS_INIT.
 import net from "node:net";
+import tls from "node:tls";
 import { EventEmitter } from "node:events";
 
 export const MAGIC = Buffer.from("dtn!", "ascii");
 export const VERSION = 4;
 export const MSG = { XFER_SEGMENT: 1, XFER_ACK: 2, XFER_REFUSE: 3, KEEPALIVE: 4, SESS_TERM: 5, MSG_REJECT: 6, SESS_INIT: 7 };
 export const SEG = { END: 0x01, START: 0x02 };
+export const CAN_TLS = 0x01;
 export const TERM = { UNKNOWN: 0, IDLE_TIMEOUT: 1, VERSION_MISMATCH: 2, BUSY: 3, CONTACT_FAILURE: 4, RESOURCE_EXHAUSTION: 5 };
 const REJECT_TYPE_UNKNOWN = 1, REJECT_UNEXPECTED = 3;
 const REPLY = 0x01;
@@ -136,9 +146,13 @@ export class Parser {
 const DEFAULTS = { keepalive: 15, segmentMru: 200000, transferMru: 16 * 1024 * 1024, ackTimeoutMs: 60000 };
 
 export class Session extends EventEmitter {
-  constructor(socket, { active, nodeId, ...opts }) {
+  constructor(socket, { active, nodeId, tls: tlsOpts, allowedPeers, ...opts }) {
     super();
     this.socket = socket;
+    this.tlsOpts = tlsOpts && tlsOpts.key && tlsOpts.cert ? tlsOpts : null;
+    this.requireTls = !!(tlsOpts && tlsOpts.require);
+    this.allowedPeers = allowedPeers || null;
+    this.secure = false;
     this.active = active;
     this.nodeId = nodeId;
     this.opts = { ...DEFAULTS, ...opts };
@@ -153,10 +167,43 @@ export class Session extends EventEmitter {
     this.ready = new Promise((res, rej) => { this._ready = res; this._fail = rej; });
     this.ready.catch(() => {});
     socket.setNoDelay(true);
-    socket.on("data", (d) => this._onData(d));
-    socket.on("error", (e) => this._teardown(e));
-    socket.on("close", () => this._teardown(new Error("connection closed")));
-    if (active) socket.write(encodeContactHeader());
+    this._attach(socket);
+    if (active) socket.write(encodeContactHeader(!!this.tlsOpts));
+  }
+
+  _attach(sock) {
+    sock.on("data", (d) => this._onData(d));
+    sock.on("error", (e) => this._teardown(e));
+    sock.on("close", () => this._teardown(new Error("connection closed")));
+  }
+
+  // Upgrade this connection to TLS in place (RFC 9174 section 4.4). Bytes the peer already
+  // sent after its contact header belong to the TLS handshake, so they go back to the socket.
+  _startTls() {
+    const raw = this.socket;
+    raw.removeAllListeners("data");
+    raw.pause();
+    const left = this.parser.buf;
+    this.parser.buf = Buffer.alloc(0);
+    if (left.length) raw.unshift(left);
+    const o = this.tlsOpts;
+    const common = { key: o.key, cert: o.cert, ca: o.ca, minVersion: o.minVersion || "TLSv1.2" };
+    const sock = this.active
+      ? tls.connect({ socket: raw, ...common, rejectUnauthorized: !!o.ca, checkServerIdentity: () => undefined })
+      : new tls.TLSSocket(raw, { isServer: true, ...common, requestCert: !!o.ca, rejectUnauthorized: !!o.ca });
+    this.socket = sock;
+    this._attach(sock);
+    sock.once(this.active ? "secureConnect" : "secure", () => {
+      this.secure = true;
+      if (this.active) this._sendInit();
+    });
+    raw.resume();
+  }
+
+  _peerCertUris() {
+    const c = this.socket.getPeerCertificate ? this.socket.getPeerCertificate() : null;
+    const san = (c && c.subjectaltname) || "";
+    return san.split(/,\s*/).filter((x) => x.startsWith("URI:")).map((x) => x.slice(4));
   }
 
   _write(buf) {
@@ -184,15 +231,34 @@ export class Session extends EventEmitter {
           this._write(encodeTerm(0, TERM.VERSION_MISMATCH));
           return this._teardown(new Error(`peer TCPCL version ${m.version}, need 4`));
         }
-        if (!this.active) this._write(encodeContactHeader());
-        if (this.active) this._sendInit();
-        this.state = "init";
+        {
+          const both = !!this.tlsOpts && !!(m.flags & CAN_TLS);
+          if (!both && this.requireTls) {
+            if (!this.active) this._write(encodeContactHeader(!!this.tlsOpts));
+            this._write(encodeTerm(0, TERM.CONTACT_FAILURE));
+            return this._teardown(new Error("TLS is required and the peer did not offer it"));
+          }
+          if (!this.active) this._write(encodeContactHeader(!!this.tlsOpts));
+          this.state = "init";
+          if (both) return this._startTls();
+          if (this.active) this._sendInit();
+        }
         return;
       case "sess_init": {
         if (this.state !== "init") return this._reject(MSG.SESS_INIT);
+        if (this.tlsOpts && this.tlsOpts.verifyNodeId) {
+          if (!this.secure || !this._peerCertUris().includes(m.nodeId)) {
+            this._write(encodeTerm(0, TERM.CONTACT_FAILURE));
+            return this._teardown(new Error(`peer claims ${m.nodeId} but its certificate does not name it`));
+          }
+        }
+        if (this.allowedPeers && !this.allowedPeers.includes(m.nodeId)) {
+          this._write(encodeTerm(0, TERM.CONTACT_FAILURE));
+          return this._teardown(new Error(`peer ${m.nodeId} is not on the allowed list`));
+        }
         if (!this.active) this._sendInit();
         const keepalive = Math.min(this.opts.keepalive, m.keepalive);
-        this.peer = { nodeId: m.nodeId, segmentMru: Number(m.segmentMru), transferMru: Number(m.transferMru), keepalive };
+        this.peer = { nodeId: m.nodeId, segmentMru: Number(m.segmentMru), transferMru: Number(m.transferMru), keepalive, tls: this.secure };
         this.state = "established";
         this._startKeepalive(keepalive);
         this._ready(this);
@@ -326,8 +392,13 @@ export function connect({ host, port, nodeId, connectTimeoutMs = 10000, ...opts 
   });
 }
 
-export function listen({ port, host = "0.0.0.0", nodeId, ...opts }, onSession) {
+// Listen for TCPCLv4 sessions. Binds to 127.0.0.1 unless told otherwise, so nothing is
+// reachable from the network by accident. allowedIps drops any other source address
+// before a byte is read.
+export function listen({ port, host = "127.0.0.1", nodeId, allowedIps, ...opts }, onSession) {
   const server = net.createServer((socket) => {
+    const ip = String(socket.remoteAddress || "").replace(/^::ffff:/, "");
+    if (allowedIps && !allowedIps.includes(ip)) { socket.destroy(); server.emit("refused", ip); return; }
     const s = new Session(socket, { active: false, nodeId, ...opts });
     s.ready.then(() => onSession(s), () => {});
   });
