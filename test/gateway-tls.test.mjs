@@ -33,6 +33,13 @@ async function tap(targetPort) {
   return { port: srv.address().port, seen: () => Buffer.concat(seen), close: () => srv.close() };
 }
 
+test("certificates name the Node ID the RFC 9174 way (otherName id-on-bundleEID) and the parser reads it", opt, async () => {
+  const { X509Certificate } = await import("node:crypto");
+  const { bundleEidsFromCert } = await import("../gateway/tcpcl4.mjs");
+  for (const id of ["ipn:1.0", "ipn:2.0"]) assert.deepEqual(bundleEidsFromCert(new X509Certificate(certs[id].cert).raw), [id]);
+  assert.deepEqual(bundleEidsFromCert(new X509Certificate(certs.ca).raw), [], "the CA names no node");
+});
+
 test("TLS: mutual certificates, Node ID checked against the certificate, bundles both ways", opt, async () => {
   const got = [];
   let srvSide;

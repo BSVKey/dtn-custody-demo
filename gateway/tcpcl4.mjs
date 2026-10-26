@@ -17,8 +17,9 @@
 // CAN_TLS in the contact header; when both do, the connection is upgraded to TLS before
 // SESS_INIT, so the session parameters and every bundle travel encrypted. With `ca`, each
 // side must present a certificate signed by it (mutual TLS). With `verifyNodeId`, the
-// peer's certificate must carry its Node ID as a URI subjectAltName (section 4.4.2), so a
-// node cannot claim another node's identity. `require` refuses peers that cannot do TLS.
+// peer's certificate must carry its Node ID (section 4.4.1: a subjectAltName otherName of
+// type id-on-bundleEID, 1.3.6.1.5.5.7.8.11; the URI form of the drafts is also accepted),
+// so a node cannot claim another node's identity. `require` refuses peers that cannot do TLS.
 // allowedPeers: [nodeId, ...] refuses any other Node ID at SESS_INIT.
 import net from "node:net";
 import tls from "node:tls";
@@ -29,6 +30,32 @@ export const VERSION = 4;
 export const MSG = { XFER_SEGMENT: 1, XFER_ACK: 2, XFER_REFUSE: 3, KEEPALIVE: 4, SESS_TERM: 5, MSG_REJECT: 6, SESS_INIT: 7 };
 export const SEG = { END: 0x01, START: 0x02 };
 export const CAN_TLS = 0x01;
+
+// DER bytes of OBJECT IDENTIFIER 1.3.6.1.5.5.7.8.11 (id-on-bundleEID, RFC 9174 section 4.4.1).
+const BUNDLE_EID_OID = Buffer.from([0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x0b]);
+function derLen(b, i) {
+  if (b[i] < 0x80) return { len: b[i], end: i + 1 };
+  const n = b[i] & 0x7f;
+  let len = 0;
+  for (let k = 1; k <= n; k++) len = len * 256 + b[i + k];
+  return { len, end: i + 1 + n };
+}
+// Node IDs named in a certificate: every otherName id-on-bundleEID ([0] EXPLICIT IA5String
+// after the OID), read from the DER because Node.js reports these as "<unsupported>".
+export function bundleEidsFromCert(der) {
+  const out = [];
+  let i = 0;
+  while ((i = der.indexOf(BUNDLE_EID_OID, i)) >= 0) {
+    let j = i + BUNDLE_EID_OID.length;
+    i += 1;
+    if (der[j] !== 0xa0) continue;
+    j = derLen(der, j + 1).end;
+    if (der[j] !== 0x16) continue;
+    const l = derLen(der, j + 1);
+    out.push(der.subarray(l.end, l.end + l.len).toString("latin1"));
+  }
+  return out;
+}
 export const TERM = { UNKNOWN: 0, IDLE_TIMEOUT: 1, VERSION_MISMATCH: 2, BUSY: 3, CONTACT_FAILURE: 4, RESOURCE_EXHAUSTION: 5 };
 const REJECT_TYPE_UNKNOWN = 1, REJECT_UNEXPECTED = 3;
 const REPLY = 0x01;
@@ -200,10 +227,11 @@ export class Session extends EventEmitter {
     raw.resume();
   }
 
-  _peerCertUris() {
+  _peerNodeIds() {
     const c = this.socket.getPeerCertificate ? this.socket.getPeerCertificate() : null;
-    const san = (c && c.subjectaltname) || "";
-    return san.split(/,\s*/).filter((x) => x.startsWith("URI:")).map((x) => x.slice(4));
+    if (!c) return [];
+    const uris = String(c.subjectaltname || "").split(/,\s*/).filter((x) => x.startsWith("URI:")).map((x) => x.slice(4));
+    return [...(c.raw ? bundleEidsFromCert(c.raw) : []), ...uris];
   }
 
   _write(buf) {
@@ -247,7 +275,7 @@ export class Session extends EventEmitter {
       case "sess_init": {
         if (this.state !== "init") return this._reject(MSG.SESS_INIT);
         if (this.tlsOpts && this.tlsOpts.verifyNodeId) {
-          if (!this.secure || !this._peerCertUris().includes(m.nodeId)) {
+          if (!this.secure || !this._peerNodeIds().includes(m.nodeId)) {
             this._write(encodeTerm(0, TERM.CONTACT_FAILURE));
             return this._teardown(new Error(`peer claims ${m.nodeId} but its certificate does not name it`));
           }

@@ -21,7 +21,20 @@ import { encodeBundle, decodeBundle, payloadOf, BLOCK, BLOCK_FLAG, BUNDLE_FLAG, 
 import { encode, decode } from "../transport/bpv7/cbor.mjs";
 import { signRecord, verifyRecord } from "../agent/lib/receipt.mjs";
 import { canonicalize } from "../agent/lib/canonical.mjs";
-import { connect, listen } from "./tcpcl4.mjs";
+import * as tcpcl4 from "./tcpcl4.mjs";
+import * as tcpcl3 from "./tcpcl3.mjs";
+
+// Convergence layer per link: "tcpclv4" (RFC 9174, default; HDTN, dtn7, Hardy) or
+// "tcpclv3" (RFC 7242; JPL ION's TCP convergence layer). Version 3 has no TLS.
+function clFor(name, tlsCfg) {
+  const v = name || "tcpclv4";
+  if (v === "tcpclv4") return tcpcl4;
+  if (v === "tcpclv3") {
+    if (tlsCfg && tlsCfg.require) throw new Error("TLS is required but TCPCLv3 has no TLS: use tcpclv4 for this link, or a VPN");
+    return tcpcl3;
+  }
+  throw new Error(`unknown convergence layer ${name}`);
+}
 import { Spool } from "./spool.mjs";
 
 export const INGRESS_BLOCK_TYPE = 226;
@@ -124,8 +137,9 @@ export class Gateway extends EventEmitter {
     }
     if (ipIngress.http) await this._startHttp(ipIngress.http);
     if (listenPort != null) {
-      const srv = await listen({ port: listenPort, host: this.cfg.listenHost || "127.0.0.1", nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers, allowedIps: this.cfg.allowedIps }, (s) => {
-        this.log(`DTN session in from ${s.peer.nodeId}`);
+      const srv = await clFor(this.cfg.listenCl, this.cfg.tls).listen({ port: listenPort, host: this.cfg.listenHost || "127.0.0.1", nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers, allowedIps: this.cfg.allowedIps }, (s) => {
+        this.log(`DTN session in from ${s.peer.nodeId}${s.peer.tls ? " (TLS)" : ""}`);
+        this.emit("session-in", s.peer);
         s.on("bundle", (b) => this.fromDtn(b, s.peer.nodeId));
       });
       this.dtnPort = srv.address().port;
@@ -255,7 +269,8 @@ export class Gateway extends EventEmitter {
     while (!this.stopped) {
       try {
         if (!this.session) {
-          this.session = await connect({ ...this.cfg.peer, nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers });
+          const { cl, ...peer } = this.cfg.peer;
+          this.session = await clFor(cl, this.cfg.tls).connect({ ...peer, nodeId: this.nodeId, tls: this.cfg.tls, allowedPeers: this.cfg.allowedPeers });
           this.log(`DTN session up with ${this.session.peer.nodeId}`);
           this.emit("connected", this.session.peer);
           this.session.on("bundle", (b) => this.fromDtn(b, this.session?.peer?.nodeId));
